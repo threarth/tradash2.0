@@ -197,12 +197,18 @@ servono, entrano come lista importata una volta, non come servizio.*
 'United States' butterebbe via 3.783 titoli quotati negli USA.*
 
 *Verifica passata: prima costruzione 214 s e ~443 MB (il parquet dei prezzi
-letto per intero), a cache calda 3,7 s; Stop su una query DuckDB vera onorato
-in 0,60 s lasciando `status=stopped` e zero righe scritte; le domande
-all'universo (settore + capitalizzazione minima) rispondono in 0,4-2,2 ms;
-la copertura e' dichiarata invece che scoperta — manca il settore al 5,6%,
-l'industria al 12,8%, i dipendenti al 31,7%, la capitalizzazione al 23,4%, e
-1.583 titoli hanno un prezzo piu' vecchio di una settimana.*
+letto per intero), a cache calda 3,7-5,7 s; Stop su una query DuckDB vera
+onorato in 0,60 s lasciando `status=stopped` e zero righe scritte; le domande
+all'universo (settore + capitalizzazione minima) rispondono in 0,4-2,2 ms.*
+
+*La copertura e' dichiarata invece che scoperta, con i numeri veri: manca il
+settore e l'industria al **13,5%** (1.521 titoli), i dipendenti al 31,7%
+(3.563), e 1.583 titoli hanno un prezzo piu' vecchio di una settimana. La
+capitalizzazione non "manca" al 23,4%: **non e' derivabile** per 2.636 titoli,
+2.634 dei quali perche' Defeatbeta non ha le loro azioni in circolazione —
+prezzo per azioni, senza azioni non esiste. E i 635 titoli senza settore sono
+**ETF** (SPY, QQQ, GLD, TLT, IWM): un fondo un settore non ce l'ha, e
+inventarglielo sarebbe peggio del vuoto.*
 
 **Blocco 3 — Watchlist e tag.** Modello a due livelli (ambito → sotto-ambito),
 freschezza per categoria di dato, storico append-only sul modello di

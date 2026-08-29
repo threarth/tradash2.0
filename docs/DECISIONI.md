@@ -284,18 +284,49 @@ Da qui nasce una distinzione che va tenuta: **una query interrotta da noi non
 e' un guasto del provider.** Arriva come lo stesso errore, e senza guardare se
 qualcuno ha premuto Stop diventerebbe un `failed` invece di uno `stopped`.
 
-**`country` e' il paese della SOCIETA', non della borsa.** BABA risulta
-'China', SHOP 'Canada', e 635 titoli non ce l'hanno affatto. Filtrare
-l'universo su `country = 'United States'` butterebbe via **3.783 titoli quotati
-negli USA**. Il perimetro americano ce l'ha gia' il dataset, che contiene solo
-listini americani: non va riapplicato sui dati anagrafici.
+**Il paese e' quello della SOCIETA', non della borsa — e la colonna si chiama
+`company_country`.** BABA risulta 'China', SHOP 'Canada', e 635 titoli non ce
+l'hanno affatto. Filtrare l'universo su `country = 'United States'` butterebbe
+via **3.783 titoli quotati negli USA**. Il perimetro americano ce l'ha gia' il
+dataset, che contiene solo listini americani: non va riapplicato sui dati
+anagrafici. Il nome per esteso non e' pedanteria — e' l'unica difesa che
+funziona quando a scrivere il filtro sara' qualcun altro fra sei mesi.
 
-**I titoli incompleti entrano lo stesso, e si contano.** Al 29/08/2026 manca il
-settore al 5,6%, l'industria al 12,8%, i dipendenti al 31,7%, la
-capitalizzazione al 23,4%. Tenere solo le righe complete farebbe sparire in
-silenzio 2.636 titoli. `stato()` dichiara ogni buco, e conta anche i **1.583
-titoli con un prezzo piu' vecchio di una settimana** — perche' un prezzo fermo
-presentato come quello di oggi e' il difetto che ha generato la regola 3.
+**I titoli incompleti entrano lo stesso, e si contano.** Tenere solo le righe
+complete farebbe sparire in silenzio migliaia di titoli. `stato()` dichiara
+ogni buco, e conta anche i **1.583 titoli con un prezzo piu' vecchio di una
+settimana** — perche' un prezzo fermo presentato come quello di oggi e' il
+difetto che ha generato la regola 3.
+
+Al 29/08/2026, coi numeri veri: settore e industria mancano al **13,5%** (1.521
+titoli), i dipendenti al 31,7% (3.563).
+
+**Ma "manca" e' la parola giusta solo per alcuni.** Tre distinzioni che valgono
+piu' di una percentuale:
+
+* i **635 senza settore sono ETF** — SPY, QQQ, GLD, TLT, IWM. Un fondo un
+  settore non ce l'ha per natura: non e' un buco da tappare, e inventargliene
+  uno sarebbe peggio del vuoto;
+* la **capitalizzazione non manca, non e' derivabile**: e' prezzo per azioni in
+  circolazione, e 2.634 titoli non hanno affatto il dato delle azioni. Per
+  questo le azioni in circolazione si conservano nella tabella invece di essere
+  consumate nel prodotto — sono la spiegazione del vuoto, e `stato()` separa le
+  2.634 capitalizzazioni impossibili per mancanza di azioni dalle 69 impossibili
+  per mancanza di prezzo;
+* i **dipendenti mancano al 31,7% e basta**: Defeatbeta non ce li ha. Li' non
+  c'e' niente da riparare, solo da dirlo.
+
+### La copertura dichiarata era migliore del vero, per colpa nostra
+
+Il primo giro di questi numeri diceva 5,6% di settori mancanti. Falso: nel
+profilo di Defeatbeta il settore manca **635 volte come NULL e 886 volte come
+stringa vuota**, e il conteggio guardava solo i NULL. La copertura dichiarata
+risultava il doppio di quella vera — un buco silenzioso prodotto proprio dal
+codice che esisteva per dichiarare i buchi.
+
+Adesso una stringa vuota o di soli spazi diventa NULL in scrittura. La regola
+generale che ne resta: **una stringa vuota e' un dato assente**, e un
+`IS NULL` da solo non e' un controllo di copertura.
 
 ---
 
