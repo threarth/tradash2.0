@@ -10,11 +10,27 @@ cd backend
 uv venv --python 3.13
 uv pip install --python .venv/bin/python -r requirements.txt
 
-.venv/bin/python -m pytest -q       # la suite
+.venv/bin/python -m pytest -q       # la suite (41 test, rete spenta)
 .venv/bin/python app.py             # server di sviluppo su :5001
 .venv/bin/python manage.py check    # dove sta il database e cosa contiene
 .venv/bin/python manage.py rebuild  # lo ricostruisce (chiede conferma a mano)
 ```
+
+## I test girano in fase di sviluppo, mai in fase d'uso
+
+La separazione e' strutturale, non una convenzione:
+
+- **la rete e' spenta a livello di socket** per ogni test — sotto qualunque
+  libreria, quindi nessun mock dimenticato puo' uscire. Chi la vuole davvero la
+  chiede con `@pytest.mark.network`, e allora si vede nel sorgente;
+- **il database dell'uso reale e' irraggiungibile dalla suite**: `core/db.py`
+  si rifiuta di aprirlo mentre pytest gira;
+- **il codice di produzione non sa che i test esistono** — nessun ramo
+  `if TESTING:`, nessun import verso `tests/`. Due test lo verificano leggendo
+  i sorgenti;
+- **`create_app()` fa due cose**: applica lo schema e registra i blueprint. Nel
+  vecchio sistema faceva anche un UPDATE su tutti gli universi, tre ALTER TABLE
+  e un ripopolamento di temi, a ogni costruzione dell'app.
 
 ## Il database
 
@@ -34,7 +50,7 @@ li' dentro. Il database e' una vista ricostruibile, non un archivio da salvare.
 
 | Blocco | Stato |
 |---|---|
-| 0 — Fondamenta (registro lavori, log chiamate, freschezza, schema) | **fatto**, 31 test verdi |
+| 0 — Fondamenta (registro lavori, log chiamate, freschezza, schema, isolamento test) | **fatto**, 41 test verdi |
 | 1-9 | da fare |
 
 ## La regola che governa tutto
