@@ -70,3 +70,20 @@ DEFEATBETA_CACHE_DIR = Path(
 # lettura senza limite e' una lettura di cui non sai il costo.
 DEFEATBETA_NEWS_LIMIT_DEFAULT = 50
 DEFEATBETA_NEWS_LIMIT_MAX = 500
+
+# --- Universo -------------------------------------------------------------
+
+# Su quante sedute si media il volume. Sedute, non giorni di calendario: un
+# titolo poco liquido puo' non scambiare per settimane, e "ultimi 30 giorni"
+# gli darebbe una media costruita su tre scambi.
+UNIVERSE_AVG_VOLUME_SESSIONS = 30
+
+# Quanti titoli restituisce al massimo l'elenco dell'universo. L'universo intero
+# e' 11.256 righe: mandarle tutte a una pagina e' un modo per renderla lenta.
+UNIVERSE_PAGE_LIMIT_DEFAULT = 100
+UNIVERSE_PAGE_LIMIT_MAX = 2000
+
+# Oltre quanti giorni un ultimo prezzo si considera vecchio. Non serve a
+# nascondere quei titoli: serve a CONTARLI, perche' un prezzo di undici giorni
+# fa presentato come quello di oggi e' il difetto che ha generato la regola 3.
+UNIVERSE_STALE_PRICE_DAYS = 7

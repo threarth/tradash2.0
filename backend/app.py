@@ -13,6 +13,7 @@ from flask import Flask
 import config
 from api.calls import bp as calls_bp
 from api.ops import bp as ops_bp
+from api.universe import bp as universe_bp
 from core.schema import ensure_schema
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s — %(message)s"
@@ -31,6 +32,7 @@ def create_app() -> Flask:
 
     app.register_blueprint(ops_bp)
     app.register_blueprint(calls_bp)
+    app.register_blueprint(universe_bp)
 
     return app
 

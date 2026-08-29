@@ -65,3 +65,37 @@ CREATE TABLE IF NOT EXISTS freshness (
     fetched_at  TEXT NOT NULL,
     PRIMARY KEY (scope, category)
 ) STRICT;
+
+-- ---------------------------------------------------------------------------
+-- UNIVERSO — la lista dei titoli, derivata e non dichiarata
+-- ---------------------------------------------------------------------------
+
+-- L'elenco dei titoli con cui si puo' lavorare, derivato da Defeatbeta e non
+-- da JSON statici: il vecchio tradash ne aveva 17, piu' quattro universi
+-- virtuali e una migrazione dedicata, e invecchiavano da soli. Qui e' una
+-- vista ricostruibile: si cancella e si rifa' con un lavoro tracciato.
+--
+-- Sta in SQLite e non si rilegge dai parquet a ogni domanda perche' le domande
+-- sono "dammi i titoli del settore X sopra questa capitalizzazione", e su
+-- 11.000 righe SQLite risponde in millisecondi mentre la derivazione richiede
+-- di rileggere per intero il parquet dei prezzi.
+--
+-- I campi che possono mancare restano NULL e si contano: un titolo senza
+-- prezzo entra ugualmente nell'universo, e quanti ne siano si dichiara
+-- (regola 5), invece di far sparire le righe scomode.
+CREATE TABLE IF NOT EXISTS universe (
+    symbol          TEXT NOT NULL PRIMARY KEY,
+    sector          TEXT,
+    industry        TEXT,
+    country         TEXT,
+    employees       INTEGER      CHECK (employees IS NULL OR employees >= 0),
+    market_cap      REAL         CHECK (market_cap IS NULL OR market_cap >= 0),
+    last_close      REAL         CHECK (last_close IS NULL OR last_close >= 0),
+    last_close_date TEXT,
+    avg_volume_30d  REAL         CHECK (avg_volume_30d IS NULL OR avg_volume_30d >= 0),
+    built_at        TEXT NOT NULL
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_universe_sector     ON universe (sector);
+CREATE INDEX IF NOT EXISTS idx_universe_industry   ON universe (industry);
+CREATE INDEX IF NOT EXISTS idx_universe_market_cap ON universe (market_cap DESC);

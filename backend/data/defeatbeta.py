@@ -41,6 +41,7 @@ import pandas as pd
 
 import config
 from core import calls, freshness
+from core.schema import GLOBAL_SCOPE
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,11 @@ TABLE_EARNING_CALENDAR = "stock_earning_calendar"
 TABLE_SEC_FILING = "stock_sec_filing"
 TABLE_NEWS = "stock_news"
 
+# Azioni in circolazione: non ha un lettore suo perche' da sola non dice niente.
+# Serve dentro la derivazione dell'universo, dove moltiplicata per l'ultima
+# chiusura da' la capitalizzazione.
+TABLE_SHARES = "stock_shares_outstanding"
+
 # La categoria di freschezza di ogni tabella. I nomi sono quelli dichiarati in
 # `config.FRESHNESS_TTL_S`: un test verifica che non se ne inventi di nuovi,
 # perche' una categoria sconosciuta prende il TTL cortissimo e non si nota.
@@ -68,6 +74,15 @@ CATEGORIA_PER_TABELLA = {
     TABLE_SEC_FILING: "sec_filings",
     TABLE_NEWS: "news",
 }
+
+# La derivazione dell'universo non e' la lettura di una tabella: e' una query
+# sola che ne unisce quattro, e non appartiene a nessun titolo.
+CATEGORY_UNIVERSE = "universe"
+ENDPOINT_UNIVERSE = "universo:derivazione"
+
+# Tutte le tabelle che questo modulo puo' nominare. L'elenco e' chiuso perche'
+# il nome finisce nella clausola FROM, dove un parametro legato non puo' andare.
+TABELLE_AMMESSE = frozenset(CATEGORIA_PER_TABELLA) | {TABLE_SHARES}
 
 # Endpoint sotto cui si registra l'inizializzazione della libreria: le tre
 # chiamate di rete che fa da sola devono avere un nome nel registro.
@@ -97,7 +112,7 @@ ACTION_SIMBOLO_MALFORMATO = (
 
 # Il client vive in un dizionario invece che in una variabile riassegnata:
 # il singleton resta in un posto solo e nessuna funzione deve dichiarare `global`.
-_stato: dict = {"client": None}
+_stato: dict = {"client": None, "cursore_attivo": None}
 _client_lock = threading.Lock()
 _read_lock = threading.Lock()
 
@@ -179,8 +194,8 @@ def _table_uri(table: str) -> str:
     """
     from defeatbeta_api.client.hugging_face_client import HuggingFaceClient  # noqa: PLC0415
 
-    if table not in CATEGORIA_PER_TABELLA:
-        raise ValueError(f"tabella non prevista dal Blocco 1: {table!r}")
+    if table not in TABELLE_AMMESSE:
+        raise ValueError(f"tabella non prevista: {table!r}")
     return HuggingFaceClient().get_url_path(table)
 
 
@@ -203,13 +218,32 @@ def _esegui(sql: str, parametri: list) -> tuple[pd.DataFrame, int]:
     provenienza non deve poter leggere dati (regola 1).
     """
     cursore = _ensure_client().connection.cursor()
+    _stato["cursore_attivo"] = cursore
     try:
         cursore.execute(SQL_TRUNCATE_LOG)
         frame = cursore.execute(sql, parametri).df()
         richieste = cursore.execute(SQL_COUNT_HTTP).fetchone()[0]
         return frame, int(richieste)
     finally:
+        _stato["cursore_attivo"] = None
         cursore.close()
+
+
+def interrupt() -> bool:
+    """Ferma la query in corso, se ce n'e' una. Ritorna True se ha interrotto qualcosa.
+
+    Serve alla derivazione dell'universo, che e' una query sola da minuti:
+    spezzarla in pezzi per poterla fermare avrebbe significato rileggere piu'
+    volte lo stesso parquet. DuckDB sa interrompere una query in corso —
+    misurato: fermata in 1,00 s — e le letture qui sono serializzate, quindi il
+    cursore in volo e' sempre al massimo uno.
+    """
+    cursore = _stato.get("cursore_attivo")
+    if cursore is None:
+        return False
+    cursore.interrupt()
+    logger.info("[DEFEATBETA] interruzione richiesta sulla query in corso")
+    return True
 
 
 def _dichiara_provenienza(chiamata, richieste_http: int, ambito: str, categoria: str) -> None:
@@ -252,32 +286,37 @@ def _simbolo_rifiutato(ambito: str, categoria: str) -> Lettura:
     )
 
 
-def _read(table: str, symbol: str, extra: str = "",
-          extra_params: list | None = None, run_id: str | None = None) -> Lettura:
-    """Il guscio obbligatorio di ogni lettura: registro, provenienza, freschezza.
+def _leggi_tracciata(endpoint: str, categoria: str, ambito: str,
+                     sql: str, parametri: list, run_id: str | None) -> tuple[pd.DataFrame, str]:
+    """Il guscio obbligatorio: registro, provenienza, freschezza.
 
-    Nessun lettore pubblico parla con DuckDB per conto suo: passano tutti di
-    qui, ed e' questo che rende la regola 1 non aggirabile invece che raccomandata.
+    Nessuna lettura parla con DuckDB per conto suo — passano tutte di qui, ed
+    e' questo che rende la regola 1 non aggirabile invece che raccomandata.
+    Ritorna le righe e la provenienza con cui sono arrivate.
     """
-    categoria = CATEGORIA_PER_TABELLA[table]
-    ambito = freshness.normalize_scope(symbol)
-    if not SYMBOL_PATTERN.match(ambito):
-        return _simbolo_rifiutato(ambito, categoria)
-
-    sql = _prepara(table, extra)
-    parametri = [ambito, *(extra_params or [])]
-
-    with calls.track(PROVIDER_NAME, table, scope=ambito, run_id=run_id) as chiamata:
+    with calls.track(PROVIDER_NAME, endpoint, scope=ambito, run_id=run_id) as chiamata:
         try:
             with _read_lock:
                 frame, richieste = _esegui(sql, parametri)
         except Exception as exc:
             raise DefeatbetaUnavailable(
-                f"lettura di {table} per {ambito} fallita: {type(exc).__name__}: {exc}"
+                f"lettura di {endpoint} per {ambito} fallita: {type(exc).__name__}: {exc}"
             ) from exc
         _dichiara_provenienza(chiamata, richieste, ambito, categoria)
-        provenienza = chiamata.source
+        return frame, chiamata.source
 
+
+def _read(table: str, symbol: str, extra: str = "",
+          extra_params: list | None = None, run_id: str | None = None) -> Lettura:
+    """Una lettura che riguarda un titolo: l'ambito e' il simbolo."""
+    categoria = CATEGORIA_PER_TABELLA[table]
+    ambito = freshness.normalize_scope(symbol)
+    if not SYMBOL_PATTERN.match(ambito):
+        return _simbolo_rifiutato(ambito, categoria)
+
+    frame, provenienza = _leggi_tracciata(
+        table, categoria, ambito, _prepara(table, extra), [ambito, *(extra_params or [])], run_id
+    )
     return _esito(frame, ambito, categoria, provenienza)
 
 
@@ -334,3 +373,87 @@ def news(symbol: str, limit: int = config.DEFEATBETA_NEWS_LIMIT_DEFAULT,
         )
     return _read(TABLE_NEWS, symbol, extra="ORDER BY report_date DESC LIMIT ?",
                  extra_params=[limit], run_id=run_id)
+
+
+# --- l'universo: una query sola che ne unisce quattro ----------------------
+
+def _prepara_universo() -> str:
+    """Compone la derivazione dell'universo. Nessun parametro: riguarda tutti.
+
+    Quattro tabelle in una query sola perche' il pezzo caro e' leggere il
+    parquet dei prezzi (443 MB): farlo una volta e portarsi via ultimo prezzo e
+    volume medio insieme costa meno che passarci due volte.
+
+    Il JOIN parte dal profilo ed e' un LEFT: chi non ha prezzo entra lo stesso,
+    con la casella vuota, e quante siano si dichiara (regola 5). Il contrario —
+    tenere solo chi ha tutto — farebbe sparire in silenzio 2.636 titoli senza
+    capitalizzazione.
+    """
+    _ensure_client()
+    profilo = _table_uri(TABLE_PROFILE)
+    prezzi = _table_uri(TABLE_PRICES)
+    azioni = _table_uri(TABLE_SHARES)
+    return f"""
+        WITH prezzi AS (
+            SELECT symbol,
+                   CAST(report_date AS DATE) AS giorno,
+                   close, volume,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY symbol ORDER BY CAST(report_date AS DATE) DESC
+                   ) AS posizione
+            FROM '{prezzi}'
+        ),
+        ultimo_prezzo AS (
+            SELECT symbol, close AS last_close, giorno AS last_close_date
+            FROM prezzi WHERE posizione = 1
+        ),
+        volume_medio AS (
+            SELECT symbol, AVG(volume) AS avg_volume_30d
+            FROM prezzi WHERE posizione <= {config.UNIVERSE_AVG_VOLUME_SESSIONS}
+            GROUP BY symbol
+        ),
+        azioni_recenti AS (
+            SELECT symbol, shares_outstanding,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY symbol ORDER BY CAST(report_date AS DATE) DESC
+                   ) AS posizione
+            FROM '{azioni}'
+        ),
+        ultime_azioni AS (
+            SELECT symbol, shares_outstanding FROM azioni_recenti WHERE posizione = 1
+        )
+        SELECT p.symbol,
+               p.sector,
+               p.industry,
+               p.country,
+               p.full_time_employees AS employees,
+               u.last_close,
+               CAST(u.last_close_date AS VARCHAR) AS last_close_date,
+               v.avg_volume_30d,
+               u.last_close * a.shares_outstanding AS market_cap
+        FROM '{profilo}' p
+        LEFT JOIN ultimo_prezzo  u ON p.symbol = u.symbol
+        LEFT JOIN volume_medio   v ON p.symbol = v.symbol
+        LEFT JOIN ultime_azioni  a ON p.symbol = a.symbol
+    """
+
+
+def universe(run_id: str | None = None) -> Lettura:
+    """L'universo derivato: un titolo per riga, con quanto serve a filtrarlo.
+
+    Misurato il 29/08/2026: 11.256 titoli. La prima volta costa 214 s e circa
+    443 MB — l'intero parquet dei prezzi finisce nella cache; dopo, a cache
+    calda, 7,85 s. E' un lavoro lungo: chi lo chiama deve aprirlo con
+    `registry.job` e poterlo fermare con `interrupt()`.
+
+    ATTENZIONE alla colonna `country`: e' il paese della SOCIETA', non della
+    borsa. BABA risulta 'China' e SHOP 'Canada' pur essendo quotate negli USA,
+    e 635 titoli non ce l'hanno affatto. Filtrare l'universo su
+    `country = 'United States'` butterebbe via 3.783 titoli quotati negli USA:
+    il perimetro "solo mercato USA" e' gia' garantito dal dataset, che contiene
+    solo listini americani.
+    """
+    frame, provenienza = _leggi_tracciata(
+        ENDPOINT_UNIVERSE, CATEGORY_UNIVERSE, GLOBAL_SCOPE, _prepara_universo(), [], run_id
+    )
+    return _esito(frame, GLOBAL_SCOPE, CATEGORY_UNIVERSE, provenienza)
