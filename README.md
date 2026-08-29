@@ -43,6 +43,9 @@ li' dentro. Il database e' una vista ricostruibile, non un archivio da salvare.
 - **`PIANO.md`** — il contratto di lavoro: regole, cosa si salva dal vecchio
   tradash, cosa si riscrive, cosa non si porta, e i 10 blocchi in ordine di
   dipendenza. Da leggere per primo.
+- **`docs/DECISIONI.md`** — ogni decisione con il difetto misurato che l'ha
+  causata: perimetro, stack, i quattro archivi, perche' niente migrazioni,
+  perche' i test sono isolati per costruzione, le trappole di Defeatbeta.
 - `docs/COPERTURA_DEFEATBETA.md` — cosa copre e cosa non copre Defeatbeta
   rispetto a tutte le analisi, misurato dal vivo.
 
