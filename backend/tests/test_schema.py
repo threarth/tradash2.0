@@ -134,3 +134,28 @@ def test_rebuild_confermato_svuota_e_ricrea():
     assert set(cancellate) >= {"jobs", "calls", "freshness"}
     assert set(schema.tables()) >= {"jobs", "calls", "freshness"}
     assert freshness.age_seconds("AAPL", "price") is None
+
+
+# --- concorrenza fra processi ----------------------------------------------
+
+def test_il_database_e_in_modalita_wal():
+    """Senza WAL, il server che tiene il file aperto blocca `manage.py` da un
+    altro terminale: verificato con due processi in parallelo."""
+    with db_read() as conn:
+        modalita = conn.execute("PRAGMA journal_mode").fetchone()[0]
+    assert modalita.lower() == "wal"
+
+
+def test_le_chiavi_esterne_sono_applicate():
+    """`PRAGMA foreign_keys` acceso: un run_id inventato non entra fra le chiamate."""
+    with db_read() as conn:
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+
+    with pytest.raises(sqlite3.IntegrityError):
+        with db_session() as conn:
+            conn.execute(
+                """INSERT INTO calls (provider, endpoint, source, status,
+                                      duration_ms, run_id, called_at)
+                   VALUES ('defeatbeta', 'x', 'network', 'ok', 1, 'lavoro_mai_esistito',
+                           '2026-08-29')"""
+            )

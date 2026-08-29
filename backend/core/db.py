@@ -4,6 +4,10 @@ db.py — accesso a SQLite con transazione esplicita.
 
 Ogni scrittura passa da `db_session()`, che apre una transazione e fa rollback
 se qualcosa solleva. Nessun percorso di codice apre connessioni per conto suo.
+
+Il database sta in modalita' WAL: senza, il server che tiene il file aperto
+blocca `manage.py check` lanciato da un altro terminale. Verificato con due
+processi in parallelo — in WAL il secondo scrive, fuori da WAL aspetta e scade.
 """
 import logging
 import sqlite3
@@ -19,7 +23,11 @@ def connect() -> sqlite3.Connection:
 
     `row_factory` a `sqlite3.Row` per leggere le colonne per nome; chiavi
     esterne attive, perche' un vincolo dichiarato e non applicato e' peggio di
-    un vincolo assente.
+    un vincolo assente; WAL per non bloccare chi legge mentre qualcuno scrive.
+
+    `synchronous = NORMAL` e' l'accoppiata consigliata con WAL: al peggio si
+    perdono le ultime scritture in caso di spegnimento brutale della macchina,
+    e qui le ultime scritture sono righe di log ricostruibili.
     """
     conn = sqlite3.connect(
         config.DB_PATH,
@@ -28,6 +36,8 @@ def connect() -> sqlite3.Connection:
     )
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
     return conn
 
 
