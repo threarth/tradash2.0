@@ -4,9 +4,12 @@ node_modules/
 __pycache__/
 *.pyc
 
-# dati locali: il database si ricostruisce con le migrazioni
+# dati locali: il database si ricostruisce con `manage.py rebuild`
 *.db
 
 # segreti: mai nel repo
 .env
 .env.local
+
+# i byte dei parquet Defeatbeta gia' scaricati: si ricostruisce da sola
+backend/data/httpfs_cache/

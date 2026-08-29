@@ -3,3 +3,9 @@
 # requirements-dev.txt: chi installa per usare l'applicazione non deve
 # ritrovarsi pytest addosso.
 Flask==3.1.3
+
+# Defeatbeta: la fonte unica dei dati di mercato. 58k download/mese, ultima
+# release il 10/06/2026. Si porta dietro 14 dipendenze d'obbligo (fra cui duckdb,
+# pandas, nltk, openai, matplotlib): pesa, e in cambio da' l'URL delle tabelle e
+# soprattutto l'invalidazione della cache quando Defeatbeta pubblica dati nuovi.
+defeatbeta-api==0.0.60

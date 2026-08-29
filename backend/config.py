@@ -52,3 +52,21 @@ FRESHNESS_TTL_UNKNOWN_S = 5 * SECONDS_PER_MINUTE
 # Quante righe di log restituisce al massimo l'endpoint delle chiamate.
 CALLS_PAGE_LIMIT_DEFAULT = 100
 CALLS_PAGE_LIMIT_MAX = 1000
+
+# --- Defeatbeta: la fonte unica dei dati di mercato ------------------------
+
+# Dove `cache_httpfs` tiene i byte gia' scaricati dei parquet. La libreria li
+# metterebbe in /tmp/defeatbeta/cache/<versione>, che su molte macchine sparisce
+# al riavvio: qui la cache sta nel progetto, dove sopravvive e si puo' guardare.
+# Misurato il 29/08/2026: 2,2 MB bastano a servire i prezzi di un titolo da un
+# parquet di 443 MB, e la seconda lettura scende da 8,9 s a 0,03 s.
+PRODUCTION_DEFEATBETA_CACHE_DIR = BASE_DIR / "data" / "httpfs_cache"
+DEFEATBETA_CACHE_DIR = Path(
+    os.environ.get("TRADASH2_DEFEATBETA_CACHE", PRODUCTION_DEFEATBETA_CACHE_DIR)
+)
+
+# Quante notizie si leggono per volta. Il tetto non e' un lusso: la tabella
+# delle news pesa 1,1 GB perche' contiene il testo degli articoli, e una
+# lettura senza limite e' una lettura di cui non sai il costo.
+DEFEATBETA_NEWS_LIMIT_DEFAULT = 50
+DEFEATBETA_NEWS_LIMIT_MAX = 500
