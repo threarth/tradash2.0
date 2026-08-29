@@ -10,12 +10,35 @@ blocca `manage.py check` lanciato da un altro terminale. Verificato con due
 processi in parallelo — in WAL il secondo scrive, fuori da WAL aspetta e scade.
 """
 import logging
+import os
 import sqlite3
 from contextlib import contextmanager
 
 import config
 
 logger = logging.getLogger(__name__)
+
+# Variabile che pytest valorizza durante ogni test. Serve solo a riconoscere
+# che stiamo girando dentro la suite: nessun ramo di comportamento dipende da
+# lei, solo il rifiuto qui sotto.
+PYTEST_MARKER_ENV = "PYTEST_CURRENT_TEST"
+
+
+def _refuse_production_db_under_test() -> None:
+    """Impedisce alla suite di aprire il database dell'uso reale.
+
+    Il difetto che questo controllo esiste per impedire: la vecchia suite
+    scriveva sul database vero e ne ha cancellato dati reali. La difesa non
+    puo' essere l'attenzione di chi scrive il prossimo test.
+    """
+    if PYTEST_MARKER_ENV not in os.environ:
+        return
+    if config.DB_PATH == config.PRODUCTION_DB_PATH:
+        raise RuntimeError(
+            f"la suite sta cercando di aprire il database dell'uso reale "
+            f"({config.PRODUCTION_DB_PATH}). Imposta TRADASH2_DB su un file "
+            f"temporaneo prima di importare config."
+        )
 
 
 def connect() -> sqlite3.Connection:
@@ -29,6 +52,7 @@ def connect() -> sqlite3.Connection:
     perdono le ultime scritture in caso di spegnimento brutale della macchina,
     e qui le ultime scritture sono righe di log ricostruibili.
     """
+    _refuse_production_db_under_test()
     conn = sqlite3.connect(
         config.DB_PATH,
         timeout=config.SQLITE_TIMEOUT_S,

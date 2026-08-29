@@ -11,9 +11,13 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Percorso del database. Sovrascrivibile per i test, che non devono mai
-# toccare il database reale.
-DB_PATH = Path(os.environ.get("TRADASH2_DB", BASE_DIR / "tradash2.db"))
+# Il database dell'uso reale. Dichiarato a parte perche' `core/db.py` lo usa
+# per rifiutarsi di aprirlo mentre gira la suite: la vecchia suite scriveva sul
+# database vero, e "stiamo attenti" non e' una difesa.
+PRODUCTION_DB_PATH = BASE_DIR / "tradash2.db"
+
+# Percorso effettivo. I test lo spostano su una cartella temporanea.
+DB_PATH = Path(os.environ.get("TRADASH2_DB", PRODUCTION_DB_PATH))
 
 # Quanto SQLite aspetta prima di dichiarare il database occupato.
 SQLITE_TIMEOUT_S = 30.0
