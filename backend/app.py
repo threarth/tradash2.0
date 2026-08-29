@@ -11,6 +11,8 @@ import logging
 from flask import Flask
 
 import config
+from api.calls import bp as calls_bp
+from api.ops import bp as ops_bp
 from core.schema import ensure_schema
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s — %(message)s"
@@ -26,9 +28,6 @@ def create_app() -> Flask:
     _setup_logging()
     app = Flask(__name__)
     ensure_schema()
-
-    from api.ops import bp as ops_bp
-    from api.calls import bp as calls_bp
 
     app.register_blueprint(ops_bp)
     app.register_blueprint(calls_bp)

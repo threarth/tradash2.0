@@ -4,9 +4,9 @@ calls.py — il log delle chiamate, leggibile dal frontend.
 """
 from flask import Blueprint, request
 
-from api import ok, fail
-from core import calls as call_log
 import config
+from api import fail, ok
+from core import calls as call_log
 
 bp = Blueprint("calls", __name__, url_prefix="/api/calls")
 

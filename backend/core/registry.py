@@ -13,7 +13,7 @@ import logging
 import threading
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from core.db import db_session
 
@@ -74,7 +74,7 @@ class Job:
 
 def _now_iso() -> str:
     """Istante corrente in ISO 8601 UTC."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _insert(lavoro: Job) -> None:

@@ -91,7 +91,9 @@ def client():
 
     Non apre socket: `test_client` di Flask parla con l'app in memoria.
     """
-    from app import create_app
+    # Import volutamente tardivo: `app` importa `config`, che legge TRADASH2_DB.
+    # In cima al file verrebbe importato prima che l'ambiente sia pronto.
+    from app import create_app  # noqa: PLC0415
     app = create_app()
     app.config.update(TESTING=True)
     with app.test_client() as c:

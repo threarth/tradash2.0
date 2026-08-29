@@ -23,9 +23,9 @@ non ne esistano.
 import logging
 import time
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from core.db import db_session, db_read
+from core.db import db_read, db_session
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class Call:
 
 def _now_iso() -> str:
     """Istante corrente in ISO 8601 UTC, il formato usato da tutte le tabelle."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _persist(chiamata: Call, duration_ms: int) -> None:

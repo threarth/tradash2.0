@@ -11,7 +11,7 @@ import sqlite3
 import pytest
 
 from core import freshness, schema
-from core.db import db_session, db_read
+from core.db import db_read, db_session
 
 
 def test_lo_schema_si_puo_applicare_due_volte():

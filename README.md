@@ -11,6 +11,7 @@ uv venv --python 3.13
 uv pip install --python .venv/bin/python -r requirements-dev.txt
 
 .venv/bin/python -m pytest -q       # la suite (41 test, rete spenta)
+.venv/bin/ruff check .              # il linter
 .venv/bin/python app.py             # server di sviluppo su :5001
 .venv/bin/python manage.py check    # dove sta il database e cosa contiene
 .venv/bin/python manage.py rebuild  # lo ricostruisce (chiede conferma a mano)

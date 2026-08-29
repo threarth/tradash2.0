@@ -18,10 +18,10 @@ Tre difetti che questo modulo esiste per impedire:
 La risposta porta sempre con se' il motivo — mai un booleano nudo.
 """
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import config
-from core.db import db_session, db_read
+from core.db import db_read, db_session
 from core.schema import GLOBAL_SCOPE
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 def _now() -> datetime:
     """Istante corrente, sempre con fuso orario esplicito."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def normalize_scope(scope: str) -> str:

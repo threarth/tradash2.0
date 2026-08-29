@@ -4,7 +4,7 @@ ops.py — cosa sta girando, e come fermarlo.
 """
 from flask import Blueprint
 
-from api import ok, fail, HTTP_NOT_FOUND
+from api import HTTP_NOT_FOUND, fail, ok
 from core import registry
 from core.db import db_read
 

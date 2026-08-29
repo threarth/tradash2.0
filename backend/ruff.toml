@@ -1,0 +1,36 @@
+# ruff.toml — le regole di coding del progetto, fatte rispettare a macchina.
+# feat: quello che una regola scritta non ottiene, un controllo automatico si'.
+
+line-length = 100
+indent-width = 4
+target-version = "py313"
+
+[lint]
+select = [
+    "E", "W",      # PEP 8
+    "F",           # errori veri: nomi non definiti, import e variabili inutilizzati
+    "I",           # import ordinati
+    "B",           # trappole note (mutabili come default, except troppo larghi)
+    "UP",          # sintassi vecchia dove ne esiste una nuova
+    "PL",          # complessita' e funzioni troppo lunghe
+    "RUF",         # controlli propri di ruff
+]
+
+ignore = [
+    "PLR2004",     # "numero magico nel confronto": troppi falsi positivi nei test
+]
+
+# Il limite di lunghezza delle funzioni della regola 6 (40 righe effettive),
+# tradotto in cio' che ruff sa contare.
+[lint.pylint]
+max-statements = 40
+max-args = 6
+
+[lint.per-file-ignores]
+# I test possono ripetersi e restare lunghi: la loro leggibilita' vale piu'
+# della loro compattezza.
+"tests/*" = ["PLR0915", "PLR2004"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

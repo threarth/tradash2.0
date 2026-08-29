@@ -11,7 +11,9 @@ import time
 
 import pytest
 
-from core import calls, registry, freshness
+import config
+from core import calls, freshness, registry
+from core.db import db_read
 
 # Un lavoro finto abbastanza lungo da poter essere fermato a meta'.
 PASSI_LAVORO_FINTO = 50
@@ -77,7 +79,6 @@ def test_il_lavoro_fermato_resta_nella_storia_con_il_suo_esito():
     registry.request_stop(registry.active()[0]["run_id"])
     thread.join(timeout=TIMEOUT_ATTESA_S)
 
-    from core.db import db_read
     with db_read() as conn:
         riga = conn.execute("SELECT * FROM jobs WHERE run_id = ?", (visto["run_id"],)).fetchone()
 
@@ -192,7 +193,6 @@ def test_la_freschezza_di_una_categoria_non_parla_per_un_altra():
 
 def test_una_categoria_non_dichiarata_prende_il_ttl_cortissimo():
     """Una categoria dimenticata deve dare fastidio, non passare inosservata."""
-    import config
     assert freshness.ttl_for("categoria_inventata") == config.FRESHNESS_TTL_UNKNOWN_S
 
 

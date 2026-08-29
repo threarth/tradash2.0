@@ -13,7 +13,7 @@ e solo dopo una conferma battuta a mano.
 import logging
 from pathlib import Path
 
-from core.db import db_session, db_read
+from core.db import db_read, db_session
 
 logger = logging.getLogger(__name__)
 
