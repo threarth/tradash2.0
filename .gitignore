@@ -1,0 +1,12 @@
+# ambienti e artefatti
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+
+# dati locali: il database si ricostruisce con le migrazioni
+*.db
+
+# segreti: mai nel repo
+.env
+.env.local
