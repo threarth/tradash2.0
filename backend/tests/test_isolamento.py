@@ -17,7 +17,7 @@ from core import db
 from tests.conftest import ReteVietata
 
 # Cartelle del codice di produzione: tutto tranne i test.
-SORGENTI_PRODUZIONE = ("core", "api")
+SORGENTI_PRODUZIONE = ("core", "api", "data")
 FILE_PRODUZIONE_RADICE = ("app.py", "config.py", "manage.py")
 
 # Frasi che nel codice di produzione non devono comparire: sono i rami che

@@ -16,6 +16,13 @@ Quattro difetti del vecchio sistema, chiusi qui uno per uno:
    alta con `@pytest.mark.network`;
 4. **il codice di produzione conosceva i test** — qui non c'e' nessun ramo
    `if TESTING:`, e un test lo verifica.
+
+Dal Blocco 1 c'e' una quinta difesa, e nasce da un buco trovato misurando: la
+rete spenta a livello di socket **non ferma DuckDB**, che apre le connessioni
+in C++ senza passare dal modulo `socket` di Python. Per questo `data/defeatbeta.py`
+non importa mai la libreria a livello di modulo: senza import non c'e' motore, e
+un test legge il sorgente per verificarlo. Qui si sposta anche la cache dei byte
+su cartella temporanea, cosi' la suite non puo' scrivere in quella dell'uso reale.
 """
 import os
 import socket
@@ -24,6 +31,7 @@ from pathlib import Path
 
 _TEMP_DIR = tempfile.mkdtemp(prefix="tradash2_test_")
 os.environ["TRADASH2_DB"] = str(Path(_TEMP_DIR) / "test.db")
+os.environ["TRADASH2_DEFEATBETA_CACHE"] = str(Path(_TEMP_DIR) / "httpfs_cache")
 
 import pytest  # noqa: E402  (l'ordine e' voluto: prima l'ambiente, poi gli import)
 
