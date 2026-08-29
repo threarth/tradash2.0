@@ -108,3 +108,39 @@ CREATE TABLE IF NOT EXISTS universe (
 CREATE INDEX IF NOT EXISTS idx_universe_sector     ON universe (sector);
 CREATE INDEX IF NOT EXISTS idx_universe_industry   ON universe (industry);
 CREATE INDEX IF NOT EXISTS idx_universe_market_cap ON universe (market_cap DESC);
+
+-- ---------------------------------------------------------------------------
+-- WATCHLIST E TAG — copia di lavoro, non originale
+-- ---------------------------------------------------------------------------
+
+-- ATTENZIONE: queste due tabelle NON sono la fonte di verita'. L'originale e'
+-- `data/watchlist.json`, che si legge e si corregge con un editor di testo;
+-- qui c'e' una copia allineata a ogni scrittura, che esiste solo per poter
+-- fare JOIN con l'universo senza reinventare i filtri in Python.
+--
+-- La distinzione conta il giorno in cui si lancia `manage.py rebuild`: quel
+-- comando cancella queste tabelle, e la watchlist deve sopravvivergli. Tutto
+-- il resto del database e' ricostruibile da Defeatbeta; questa no.
+
+-- La tassonomia: due livelli, ambito -> sotto-ambito. `parent` NULL significa
+-- ambito di primo livello. Il vincolo di profondita' non e' esprimibile in SQL
+-- e sta nel servizio.
+CREATE TABLE IF NOT EXISTS watchlist_tags (
+    name        TEXT NOT NULL PRIMARY KEY,
+    label       TEXT NOT NULL,
+    parent      TEXT REFERENCES watchlist_tags (name) ON DELETE CASCADE,
+    order_index INTEGER NOT NULL DEFAULT 100 CHECK (order_index >= 0)
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_watchlist_tags_parent ON watchlist_tags (parent);
+
+-- I titoli osservati. Un solo tag per titolo, che puo' essere un ambito oppure
+-- un sotto-ambito: chi filtra su un ambito vede anche i titoli dei suoi figli.
+CREATE TABLE IF NOT EXISTS watchlist (
+    symbol   TEXT    NOT NULL PRIMARY KEY,
+    tag      TEXT             REFERENCES watchlist_tags (name) ON DELETE SET NULL,
+    favorite INTEGER NOT NULL DEFAULT 0 CHECK (favorite IN (0, 1)),
+    added_at TEXT    NOT NULL
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_watchlist_tag ON watchlist (tag);

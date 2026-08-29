@@ -83,6 +83,33 @@ UNIVERSE_AVG_VOLUME_SESSIONS = 30
 UNIVERSE_PAGE_LIMIT_DEFAULT = 100
 UNIVERSE_PAGE_LIMIT_MAX = 2000
 
+# --- Watchlist e tag: i dati TUOI ------------------------------------------
+#
+# Questi non sono una vista ricostruibile: sono l'unica cosa nel sistema che, se
+# si perde, non torna piu'. Per questo la fonte di verita' e' un file JSON
+# leggibile e modificabile a mano, e SQLite ne e' soltanto una copia di lavoro
+# per poter fare JOIN con l'universo. `manage.py rebuild` cancella la copia, non
+# l'originale.
+WATCHLIST_FILE_VERSION = 1
+
+PRODUCTION_WATCHLIST_PATH = BASE_DIR / "data" / "watchlist.json"
+WATCHLIST_PATH = Path(os.environ.get("TRADASH2_WATCHLIST", PRODUCTION_WATCHLIST_PATH))
+
+# Lo storico di cosa e' successo alla watchlist: append-only, non si corregge
+# mai. Una riga JSON per evento, sul modello di `events.jsonl`.
+PRODUCTION_WATCHLIST_EVENTS_PATH = BASE_DIR / "data" / "watchlist_events.jsonl"
+WATCHLIST_EVENTS_PATH = Path(
+    os.environ.get("TRADASH2_WATCHLIST_EVENTS", PRODUCTION_WATCHLIST_EVENTS_PATH)
+)
+
+# Quanti eventi restituisce al massimo la cronologia.
+WATCHLIST_EVENTS_LIMIT_DEFAULT = 100
+WATCHLIST_EVENTS_LIMIT_MAX = 1000
+
+# Profondita' massima della tassonomia: ambito -> sotto-ambito, e basta. Un
+# terzo livello e' un albero, e un albero vuole un'interfaccia ad albero.
+TAG_MAX_DEPTH = 2
+
 # Oltre quanti giorni un ultimo prezzo si considera vecchio. Non serve a
 # nascondere quei titoli: serve a CONTARLI, perche' un prezzo di undici giorni
 # fa presentato come quello di oggi e' il difetto che ha generato la regola 3.

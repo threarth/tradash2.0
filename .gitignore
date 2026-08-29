@@ -13,3 +13,10 @@ __pycache__/
 
 # i byte dei parquet Defeatbeta gia' scaricati: si ricostruisce da sola
 backend/data/httpfs_cache/
+
+# la watchlist e' TUA e resta sul tuo disco: non finisce nella storia del repo.
+# E' anche l'unico dato che non si ricostruisce — il backup e' copiare il file:
+#   cp backend/data/watchlist.json ~/backup/watchlist-$(date +%F).json
+backend/data/watchlist.json
+backend/data/watchlist.json.tmp
+backend/data/watchlist_events.jsonl
