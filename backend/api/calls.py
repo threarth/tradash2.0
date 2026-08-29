@@ -36,5 +36,8 @@ def summary():
     conteggi = call_log.summary()
     return ok({
         "per_provenienza": conteggi,
-        "non_dichiarate": conteggi.get(call_log.SOURCE_UNDECLARED, 0),
+        # Solo le chiamate RIUSCITE senza provenienza: quelle fallite non hanno
+        # un dato di cui dichiarare l'origine, e sporcherebbero il numero che
+        # serve a scoprire un difetto nostro.
+        "non_dichiarate": call_log.undeclared_ok(),
     })

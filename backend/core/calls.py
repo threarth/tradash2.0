@@ -108,7 +108,12 @@ def track(provider: str, endpoint: str, scope: str | None = None, run_id: str | 
         raise
     finally:
         durata_ms = int((time.perf_counter() - inizio) * MILLISECONDS_PER_SECOND)
-        if chiamata.source == SOURCE_UNDECLARED:
+        # Una chiamata FALLITA resta 'undeclared' senza colpa di nessuno: il
+        # dato non e' mai arrivato, quindi non c'e' una provenienza da
+        # dichiarare. L'allarme suona solo quando la chiamata e' andata a buon
+        # fine e nessuno ha detto da dove veniva il dato — altrimenti la spia
+        # si accende a ogni errore di rete e smette di voler dire qualcosa.
+        if chiamata.source == SOURCE_UNDECLARED and chiamata.status == STATUS_OK:
             logger.error("[CHIAMATE] provenienza non dichiarata per %s:%s — vedi calls.track()",
                          provider, endpoint)
         _persist(chiamata, durata_ms)
@@ -141,3 +146,19 @@ def summary() -> dict:
     with db_read() as conn:
         righe = conn.execute("SELECT source, COUNT(*) AS n FROM calls GROUP BY source").fetchall()
     return {r["source"]: r["n"] for r in righe}
+
+
+def undeclared_ok() -> int:
+    """Quante chiamate RIUSCITE non hanno dichiarato da dove veniva il dato.
+
+    E' il numero che segnala un difetto nostro, e deve restare zero. Le
+    chiamate fallite non ci finiscono dentro apposta: una query interrotta a
+    meta' non ha una provenienza da dichiarare, e contarla qui vorrebbe dire
+    tenere la spia accesa per motivi legittimi finche' nessuno la guarda piu'.
+    """
+    with db_read() as conn:
+        riga = conn.execute(
+            "SELECT COUNT(*) AS n FROM calls WHERE source = ? AND status = ?",
+            (SOURCE_UNDECLARED, STATUS_OK),
+        ).fetchone()
+    return riga["n"]
