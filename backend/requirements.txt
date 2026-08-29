@@ -1,3 +1,5 @@
-# tradash2.0 — Blocco 0
-Flask==3.1.0
-pytest==8.3.4
+# tradash2.0 — dipendenze dell'applicazione.
+# Solo cio' che serve per FARLA GIRARE. Gli strumenti di sviluppo stanno in
+# requirements-dev.txt: chi installa per usare l'applicazione non deve
+# ritrovarsi pytest addosso.
+Flask==3.1.3

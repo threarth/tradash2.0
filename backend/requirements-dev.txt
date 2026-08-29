@@ -1,0 +1,4 @@
+# tradash2.0 — strumenti di sviluppo, non necessari per far girare l'applicazione.
+-r requirements.txt
+
+pytest==9.1.1

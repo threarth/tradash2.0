@@ -8,13 +8,17 @@ niente servizi che partono da soli.
 ```bash
 cd backend
 uv venv --python 3.13
-uv pip install --python .venv/bin/python -r requirements.txt
+uv pip install --python .venv/bin/python -r requirements-dev.txt
 
 .venv/bin/python -m pytest -q       # la suite (41 test, rete spenta)
 .venv/bin/python app.py             # server di sviluppo su :5001
 .venv/bin/python manage.py check    # dove sta il database e cosa contiene
 .venv/bin/python manage.py rebuild  # lo ricostruisce (chiede conferma a mano)
 ```
+
+`requirements.txt` contiene solo cio' che serve a far girare l'applicazione;
+`requirements-dev.txt` aggiunge gli strumenti di sviluppo. Chi installa per
+usare tradash2.0 non si ritrova pytest addosso.
 
 ## I test girano in fase di sviluppo, mai in fase d'uso
 
