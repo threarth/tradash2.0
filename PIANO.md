@@ -159,10 +159,25 @@ Stop via HTTP e si ferma a meta' lasciando `status=stopped` in cronologia; due
 letture dello stesso dato producono due righe distinte, `network` e `cache`;
 avviare l'app non produce una sola chiamata.*
 
-**Blocco 1 — Defeatbeta, punto unico.** `data/defeatbeta.py`: profilo, prezzi,
-bilanci, calendario, filings, news. Ogni lettura passa da `core/calls.py`.
-*Verifica: leggere due volte lo stesso dato produce due righe di log, la seconda
-con `from_cache=true`.*
+**Blocco 1 — Defeatbeta, punto unico. FATTO il 2026-08-29, 53 test verdi +
+2 di rete.** `data/defeatbeta.py`: profilo, prezzi, bilanci, calendario,
+filings, news. Ogni lettura passa da `core/calls.py`.
+
+Si usa **la libreria `defeatbeta-api`**, non DuckDB a mano: e' comunque un
+client DuckDB (fissa `duckdb==1.5.3`) e in cambio da' l'URL delle tabelle e
+l'invalidazione della cache quando Defeatbeta pubblica dati nuovi. Le tre
+chiamate di rete che fa da sola all'import non si nascondono con una
+monkey-patch: l'import avviene al **primo uso reale**, dentro `calls.track()`,
+e compare nel registro come `defeatbeta:libreria:init`.
+
+**La provenienza non e' una stima**: e' il numero di richieste HTTP che DuckDB
+ha davvero fatto per servire quella query, letto da `duckdb_logs` e azzerato
+prima di ogni interrogazione. Zero richieste, riga `cache`.
+
+*Verifica passata (MSFT, dal vivo): la prima lettura del profilo 3.946 ms
+`network`, la seconda 22 ms `cache`; i bilanci 4.570 righe in 3.190 ms
+`network`; un simbolo inesistente torna `available=False` con motivo e azione
+invece di sollevare; avviare l'applicazione produce zero chiamate.*
 
 **Blocco 2 — Universo.** Derivazione da `stock_profile` (settore, industria,
 paese, dimensione, prezzo, volume). Nessun JSON statico.

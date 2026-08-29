@@ -178,6 +178,106 @@ nessun controllo proteggeva: un `UPDATE` su tutti i membri degli universi, tre
 
 ---
 
+## Come si legge Defeatbeta (Blocco 1)
+
+**Si usa la libreria `defeatbeta-api`, non DuckDB scritto a mano.** Non e' una
+scelta fra due motori: la libreria *e'* un client DuckDB, e fissa
+`duckdb==1.5.3` fra le sue dipendenze. Quello che da' in piu' sono due cose che
+non vogliamo mantenere noi: l'URL delle tabelle (`get_url_path`) e soprattutto
+**l'invalidazione della cache** — il costruttore confronta l'`update_time` di
+`spec.json` remoto con quello in cache e svuota tutto quando Defeatbeta
+pubblica dati nuovi. Il prezzo e' il peso: 14 dipendenze d'obbligo, fra cui
+`openai`, `matplotlib`, `nltk`, `ipython`. 73 pacchetti nel venv.
+
+**Le sue tre chiamate di rete non si nascondono, si dichiarano.** Misurato il
+29/08/2026 su 0.0.60, tracciando `getaddrinfo` su un import pulito:
+`nltk.download('punkt_tab')` verso raw.githubusercontent.com e
+`_print_welcome()` verso huggingface.co partono **all'import del modulo**, piu'
+una terza nel costruttore del client. Non e' un difetto di piattaforma e non si
+toglie senza monkey-patch — il vecchio tradash ne aveva scritte cento righe.
+Qui l'import avviene al **primo uso reale**, dentro `calls.track()`, e finisce
+nel registro come `defeatbeta:libreria:init`. La regola 2 resta intatta:
+avviare l'applicazione produce zero chiamate, verificato.
+
+**La provenienza si misura, non si stima.** Rete o cache e' il numero di
+richieste HTTP che DuckDB ha davvero fatto per servire quella query: si azzera
+`duckdb_logs` prima, si conta dopo. Zero richieste, riga `cache`.
+*Alternativa scartata:* `cache_httpfs_cache_access_info_query()`, i contatori
+dell'estensione — in una sessione hanno riportato `hit +0 miss +0` per query
+che avevano fatto sei richieste HTTP vere. Dipendono da un'impostazione di
+profilazione e non sono una misura affidabile.
+
+**Cache dei byte, non cache di risposte.** `cache_httpfs` cacha byte-range:
+2,2 MB su disco bastano a servire i prezzi di un titolo da un parquet di
+443 MB, e la seconda lettura passa da 8,9 s a 0,03 s. Per questo non teniamo
+una nostra cache di risultati: sarebbe una seconda cache sopra la prima, e
+"ogni uso di cache loggato" tornerebbe ambiguo. La cartella pero' si sposta
+**dentro il progetto**: la libreria la mette in `/tmp/defeatbeta/cache/<versione>`,
+che su molte macchine sparisce al riavvio, e ogni byte perso e' un byte da
+riscaricare.
+
+**Il simbolo viaggia come parametro legato.** La libreria interpola il ticker
+nel testo SQL (`query.format(ticker=...)`); il nostro guscio no, e in piu'
+scarta con una regex tutto cio' che non ha la forma di un ticker prima ancora
+di accendere il motore.
+
+### Il peso vero delle tabelle, misurato
+
+| Tabella | Peso remoto | Query per un simbolo, a freddo |
+|---|---|---|
+| `stock_profile` | 2,5 MB | 12,7 s |
+| `stock_prices` | 443 MB | 8,9 s |
+| `stock_statement` | 110 MB | 9,2 s (3.844 righe per AAPL) |
+| `stock_earning_calendar` | 0,2 MB | 5,9 s |
+| `stock_sec_filing` | 86 MB | 13,2 s |
+| `stock_news` | 1.081 MB | 8,6 s |
+| `stock_earning_call_transcripts` | 2.159 MB | 11,9 s |
+
+Totale 3,9 GB, di cui 3,2 in news e trascrizioni: **scaricare tutto in locale
+non e' un'opzione**, e il tetto sulle notizie non e' un lusso — quella tabella
+e' grossa perche' contiene il testo degli articoli.
+
+### Una questione lasciata aperta al Blocco 7/8
+
+`defeatbeta-api` porta **39 template SQL e circa 80 metodi di calcolo** su
+`Ticker`: margini, crescite YoY, market cap, PS/PB/PEG, enterprise value, TTM
+di revenue/FCF/EBITDA, ROE/ROA/ROIC/ROCE, WACC, beta, DCF — e i **confronti di
+settore** (`industry_ttm_pe`, `industry_roe`, `industry_asset_turnover`), che
+il vecchio tradash non aveva: il suo peer registry copriva 7 ticker su 18.
+Vale la pena valutarli al posto di parte della matematica portata a mano, con
+tre avvertenze gia' verificate sul sorgente:
+
+1. passano da `duckdb_client.query()` diretto, quindi **saltano il guscio**:
+   nessuna riga di log, nessuna provenienza, nessuna freschezza. Si recuperano
+   avvolgendoli nello stesso `_read`, che e' scritto per quello;
+2. **non hanno `as_of`**: calcolano sull'ultimo dato disponibile. E' la porta
+   nuova al look-ahead di cui parla la sezione qui sotto;
+3. interpolano il ticker nella stringa SQL.
+
+---
+
+## Un buco nella difesa dei test, trovato misurando
+
+**La rete spenta a livello di socket non ferma DuckDB**, che apre le
+connessioni in C++ senza passare dal modulo `socket` di Python: durante le
+prove, query che facevano sei richieste HTTP vere sono state contate come zero
+connessioni dal contatore Python. La difesa del conftest e' reale per requests,
+urllib e le librerie Python, ma non copre un motore nativo.
+
+La difesa che copre questo caso e' un'altra, e vale anche in uso reale:
+`data/defeatbeta.py` **non importa mai la libreria a livello di modulo**. Senza
+import non c'e' motore, e in una suite senza rete non c'e' niente che possa
+uscire. Un test lo verifica leggendo il sorgente con `ast`, non fidandosi di
+`sys.modules` (che l'ordine dei test puo' sporcare).
+
+**E il marcatore `network` era dichiarato ma non applicato**: `pytest.ini`
+elencava il marcatore e il commento diceva "escluso dai giri normali", ma senza
+`addopts = -m "not network"` un `pytest` liscio i test di rete li eseguiva
+davvero. E' la stessa forma del difetto di `TRADASH_OFFLINE` nel vecchio
+sistema: un docstring che dichiarava una difesa inesistente. Chiuso.
+
+---
+
 ## Trappole misurate su Defeatbeta
 
 - **Niente colonna `exchange`** in `stock_profile`: NASDAQ e NYSE non si
