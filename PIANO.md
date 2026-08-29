@@ -179,10 +179,30 @@ prima di ogni interrogazione. Zero richieste, riga `cache`.
 `network`; un simbolo inesistente torna `available=False` con motivo e azione
 invece di sollevare; avviare l'applicazione produce zero chiamate.*
 
-**Blocco 2 — Universo.** Derivazione da `stock_profile` (settore, industria,
-paese, dimensione, prezzo, volume). Nessun JSON statico.
+**Blocco 2 — Universo. FATTO il 2026-08-29, 68 test verdi.** Derivazione da
+`stock_profile` unito a prezzi e azioni in circolazione (settore, industria,
+paese, dimensione, prezzo, volume). Nessun JSON statico: **11.256 titoli**.
+`data/universe.py` costruisce, `api/universe.py` espone, la tabella `universe`
+in SQLite conserva.
+
+La costruzione e' un lavoro tracciato e **fermabile davvero**: e' una query
+sola da minuti, e spezzarla in pezzi avrebbe voluto dire rileggere piu' volte
+lo stesso parquet. Una sentinella traduce lo Stop del registro in
+`interrupt()` su DuckDB.
+
 *Nota: `exchange` e i costituenti degli indici NON sono in Defeatbeta — se
 servono, entrano come lista importata una volta, non come servizio.*
+*Nota 2: `country` e' il paese della SOCIETA', non della borsa — BABA risulta
+'China', SHOP 'Canada', e 635 titoli non ce l'hanno. Filtrare l'universo su
+'United States' butterebbe via 3.783 titoli quotati negli USA.*
+
+*Verifica passata: prima costruzione 214 s e ~443 MB (il parquet dei prezzi
+letto per intero), a cache calda 3,7 s; Stop su una query DuckDB vera onorato
+in 0,60 s lasciando `status=stopped` e zero righe scritte; le domande
+all'universo (settore + capitalizzazione minima) rispondono in 0,4-2,2 ms;
+la copertura e' dichiarata invece che scoperta — manca il settore al 5,6%,
+l'industria al 12,8%, i dipendenti al 31,7%, la capitalizzazione al 23,4%, e
+1.583 titoli hanno un prezzo piu' vecchio di una settimana.*
 
 **Blocco 3 — Watchlist e tag.** Modello a due livelli (ambito → sotto-ambito),
 freschezza per categoria di dato, storico append-only sul modello di

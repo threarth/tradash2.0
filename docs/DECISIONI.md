@@ -256,6 +256,65 @@ tre avvertenze gia' verificate sul sorgente:
 
 ---
 
+## L'universo (Blocco 2)
+
+**Derivato, non dichiarato.** Il vecchio tradash teneva la lista dei titoli in
+17 JSON statici, piu' quattro universi virtuali e una migrazione dedicata:
+invecchiavano da soli e nessuno sapeva piu' da dove venissero. Qui e' una vista
+ricostruibile — 11.256 titoli derivati da `stock_profile` unito ai prezzi e
+alle azioni in circolazione, conservati in SQLite perche' le domande che gli si
+fanno ("i tecnologici sopra 500 miliardi") sono domande da SQL: 0,4-2,2 ms,
+contro i secondi che costerebbe rifare la derivazione ogni volta.
+
+**Il costo vero, misurato.** La prima costruzione dura **214 s** e scarica
+**443 MB**: per sapere l'ultima chiusura di ogni titolo bisogna leggere tutto
+il parquet dei prezzi. Dalla cache dei byte scende a **3,7 s**. E' esattamente
+il tipo di lavoro che la regola 2 vieta di far partire aprendo una pagina: si
+chiede con `POST /api/universe/build`, che ritorna subito il `run_id`.
+
+**Fermabile davvero, non a parole.** La derivazione e' *una* query da minuti.
+Spezzarla in blocchi per poterla fermare avrebbe voluto dire rileggere piu'
+volte lo stesso parquet, cioe' pagare la fermabilita' con il costo che si sta
+cercando di evitare. DuckDB sa interrompere una query in corso — misurato:
+fermata in 1,00 s su una query sintetica, 0,60 s sulla derivazione vera — e una
+sentinella traduce lo Stop del registro in quell'interruzione. Il lavoro chiude
+`status=stopped` con zero righe scritte.
+
+Da qui nasce una distinzione che va tenuta: **una query interrotta da noi non
+e' un guasto del provider.** Arriva come lo stesso errore, e senza guardare se
+qualcuno ha premuto Stop diventerebbe un `failed` invece di uno `stopped`.
+
+**`country` e' il paese della SOCIETA', non della borsa.** BABA risulta
+'China', SHOP 'Canada', e 635 titoli non ce l'hanno affatto. Filtrare
+l'universo su `country = 'United States'` butterebbe via **3.783 titoli quotati
+negli USA**. Il perimetro americano ce l'ha gia' il dataset, che contiene solo
+listini americani: non va riapplicato sui dati anagrafici.
+
+**I titoli incompleti entrano lo stesso, e si contano.** Al 29/08/2026 manca il
+settore al 5,6%, l'industria al 12,8%, i dipendenti al 31,7%, la
+capitalizzazione al 23,4%. Tenere solo le righe complete farebbe sparire in
+silenzio 2.636 titoli. `stato()` dichiara ogni buco, e conta anche i **1.583
+titoli con un prezzo piu' vecchio di una settimana** — perche' un prezzo fermo
+presentato come quello di oggi e' il difetto che ha generato la regola 3.
+
+---
+
+## `undeclared` voleva dire due cose diverse
+
+Trovato fermando dal vivo la prima derivazione: la query interrotta finiva nel
+registro come `source=undeclared` **con un ERROR "provenienza non
+dichiarata"**, cioe' segnalata come un difetto del nostro codice.
+
+Ma una chiamata fallita non ha una provenienza da dichiarare: il dato non e'
+mai arrivato. Se contasse come dimenticanza, la spia si accenderebbe a ogni
+errore di rete e smetterebbe di voler dire qualcosa proprio quando serve.
+
+Adesso l'allarme suona solo per `undeclared` **con esito ok** — quello si' e'
+un percorso di codice che ha letto un dato senza dire da dove. Il numero da
+tenere a zero e' `calls.undeclared_ok()`, non il conteggio grezzo.
+
+---
+
 ## Un buco nella difesa dei test, trovato misurando
 
 **La rete spenta a livello di socket non ferma DuckDB**, che apre le
