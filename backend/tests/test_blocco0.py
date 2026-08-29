@@ -90,22 +90,22 @@ def test_il_lavoro_fermato_resta_nella_storia_con_il_suo_esito():
 
 def test_una_chiamata_di_rete_lascia_una_riga_con_provenienza_rete():
     """Il caso base: dato preso dalla rete, riga con `source = network`."""
-    with calls.track("defeatbeta", "stock_prices", symbol="AAPL") as chiamata:
+    with calls.track("defeatbeta", "stock_prices", scope="AAPL") as chiamata:
         chiamata.from_network()
 
     righe = calls.recent(limit=10)
     assert len(righe) == 1
     assert righe[0]["source"] == calls.SOURCE_NETWORK
     assert righe[0]["provider"] == "defeatbeta"
-    assert righe[0]["symbol"] == "AAPL"
+    assert righe[0]["scope"] == "AAPL"
     assert righe[0]["status"] == calls.STATUS_OK
 
 
 def test_la_stessa_lettura_due_volte_distingue_rete_da_cache():
     """La domanda per cui il log esiste: e' arrivato dalla rete o era in cache?"""
-    with calls.track("defeatbeta", "stock_prices", symbol="MU") as prima:
+    with calls.track("defeatbeta", "stock_prices", scope="MU") as prima:
         prima.from_network()
-    with calls.track("defeatbeta", "stock_prices", symbol="MU") as seconda:
+    with calls.track("defeatbeta", "stock_prices", scope="MU") as seconda:
         seconda.from_cache()
 
     conteggi = calls.summary()
@@ -116,7 +116,7 @@ def test_la_stessa_lettura_due_volte_distingue_rete_da_cache():
 def test_una_chiamata_fallita_viene_loggata_e_l_errore_risale():
     """Un fallimento silenzioso e' peggio di uno rumoroso: la riga c'e' e l'eccezione risale."""
     with pytest.raises(ValueError):
-        with calls.track("defeatbeta", "stock_statement", symbol="GLW") as chiamata:
+        with calls.track("defeatbeta", "stock_statement", scope="GLW") as chiamata:
             chiamata.from_network()
             raise ValueError("parquet illeggibile")
 
@@ -127,7 +127,7 @@ def test_una_chiamata_fallita_viene_loggata_e_l_errore_risale():
 
 def test_chi_non_dichiara_la_provenienza_non_viene_zittito():
     """La provenienza dimenticata resta visibile come `undeclared`, non sparisce."""
-    with calls.track("defeatbeta", "stock_news", symbol="INTC"):
+    with calls.track("defeatbeta", "stock_news", scope="INTC"):
         pass
 
     riga = calls.recent(limit=1)[0]
@@ -136,7 +136,7 @@ def test_chi_non_dichiara_la_provenienza_non_viene_zittito():
 
 def test_nessuna_chiamata_del_blocco_0_resta_non_dichiarata():
     """Il controllo che vale per tutto il progetto: zero righe `undeclared` fra le nostre."""
-    with calls.track("defeatbeta", "stock_profile", symbol="AAPL") as chiamata:
+    with calls.track("defeatbeta", "stock_profile", scope="AAPL") as chiamata:
         chiamata.from_network()
     with calls.track("locale", "watchlist") as chiamata:
         chiamata.from_local()
@@ -147,7 +147,7 @@ def test_nessuna_chiamata_del_blocco_0_resta_non_dichiarata():
 def test_la_chiamata_dentro_un_lavoro_porta_il_suo_run_id():
     """Le chiamate si possono ricondurre al lavoro che le ha fatte."""
     with registry.job("prova", "lavoro con chiamate", total=1) as lavoro:
-        with calls.track("defeatbeta", "stock_prices", symbol="CEG",
+        with calls.track("defeatbeta", "stock_prices", scope="CEG",
                          run_id=lavoro.run_id) as chiamata:
             chiamata.from_network()
         run_id = lavoro.run_id
@@ -227,9 +227,9 @@ def test_endpoint_stop_su_run_id_inesistente_risponde_404_col_motivo(client):
 
 def test_endpoint_calls_mostra_le_chiamate_e_il_riepilogo(client):
     """Il log e' interrogabile dal frontend, con il conteggio per provenienza."""
-    with calls.track("defeatbeta", "stock_prices", symbol="AMD") as chiamata:
+    with calls.track("defeatbeta", "stock_prices", scope="AMD") as chiamata:
         chiamata.from_network()
-    with calls.track("defeatbeta", "stock_prices", symbol="AMD") as chiamata:
+    with calls.track("defeatbeta", "stock_prices", scope="AMD") as chiamata:
         chiamata.from_cache()
 
     elenco = client.get("/api/calls?limit=10").get_json()
