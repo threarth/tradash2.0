@@ -2,7 +2,7 @@
 app.py — server Flask di tradash2.0.
 # feat (Blocco 0): avvio minimo, nessun lavoro che parte da solo.
 
-All'avvio si applicano le migrazioni e basta. Nessun provider viene sondato,
+All'avvio si applica lo schema e basta. Nessun provider viene sondato,
 nessun universo viene scaricato, nessun job parte: al primo avvio il log delle
 chiamate resta vuoto finche' qualcuno non chiede qualcosa.
 """
@@ -11,7 +11,7 @@ import logging
 from flask import Flask
 
 import config
-from core.migrations import run_all
+from core.schema import ensure_schema
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s — %(message)s"
 
@@ -22,13 +22,10 @@ def _setup_logging() -> None:
 
 
 def create_app() -> Flask:
-    """Costruisce l'applicazione. Solo migrazioni e blueprint, nessun lavoro."""
+    """Costruisce l'applicazione. Solo schema e blueprint, nessun lavoro."""
     _setup_logging()
     app = Flask(__name__)
-
-    applicate = run_all()
-    if applicate:
-        app.logger.info("[AVVIO] migrazioni applicate: %s", ", ".join(applicate))
+    ensure_schema()
 
     from api.ops import bp as ops_bp
     from api.calls import bp as calls_bp
