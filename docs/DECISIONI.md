@@ -346,6 +346,68 @@ tenere a zero e' `calls.undeclared_ok()`, non il conteggio grezzo.
 
 ---
 
+## La watchlist (Blocco 3)
+
+**La verita' e' un file, il database e' una copia.** La watchlist e' l'unica
+cosa del sistema che, se si perde, non torna: tutto il resto e' ricostruibile da
+Defeatbeta. Per questo sta in `data/watchlist.json`, leggibile e correggibile
+con un editor, e SQLite ne tiene solo una copia di lavoro per poter fare JOIN
+con l'universo senza reinventare i filtri in Python.
+
+La differenza si vede il giorno in cui si lancia `manage.py rebuild`: quel
+comando cancella la copia, e la watchlist deve sopravvivergli. Un test lo
+verifica svuotando le tabelle e rileggendo.
+
+**Il file non e' in git** (scelta dell'utente, 29/08). L'albero resta pulito
+mentre si lavora e nessun `checkout` puo' sovrascrivere la watchlist; in cambio
+non c'e' backup automatico, e il backup e' copiare il file.
+
+**Il riallineamento guarda il contenuto, non la data di modifica.** Il primo
+tentativo confrontava l'mtime del file: non funziona, misurato con una
+correzione a mano che non veniva raccolta. Il kernel aggiorna gli mtime a scatti
+di millisecondi, e due scritture ravvicinate risultano identiche. Adesso il
+confronto e' su un'impronta del contenuto, che non costa niente in piu' perche'
+il file lo leggiamo comunque a ogni giro.
+
+Serve anche una **seconda condizione**: la copia vuota mentre la verita' non lo
+e'. E' esattamente cio' che succede dopo un `rebuild` — il file non e' cambiato,
+e guardando solo il contenuto la watchlist sparirebbe dalla vista pur essendo
+ancora sul disco.
+
+**Le regole della tassonomia sono decisioni del 27/08**, prese sul vecchio
+sistema e riportate qui perche' restano valide: un solo tag per titolo; due
+livelli, ambito e sotto-ambito; il tag di un titolo puo' essere l'uno o
+l'altro, e **il sotto-ambito implica il padre**; cancellare un tag non cancella
+titoli, i membri tornano senza tag; un ambito con figli non si cancella senza
+dirlo, perche' libera anche i membri dei figli.
+
+Con un difetto del vecchio sistema gia' pagato: **i tag si scrivono padri prima
+dei figli**. Le chiavi esterne sono attive davvero, e nel JSON — a maggior
+ragione se corretto a mano — l'ordine puo' essere qualunque.
+
+**Quattro esiti, mai un silenzio.** Aggiungendo titoli si risponde chi e' stato
+aggiunto, chi c'era gia', chi e' stato scartato perche' non ha la forma di un
+simbolo, e chi e' **sconosciuto all'universo**: un ticker con un refuso e' ben
+formato, ed entrerebbe in watchlist per produrre analisi vuote per sempre. Se
+l'universo non e' stato costruito la verifica non si puo' fare, e la risposta
+dice anche quello invece di far finta di niente.
+
+---
+
+## Un test lasciava vivo il proprio thread
+
+Trovato dall'avviso di pytest su un'eccezione in un thread: il test delle route
+dell'universo faceva partire la costruzione in background e finiva senza
+aspettarla. Smontato il monkeypatch, quel thread chiamava la derivazione
+**vera** e provava ad andare in rete — l'ha fermato il divieto sui socket, ma
+il lavoro non sorvegliato e' proprio cio' che questo progetto esiste per
+impedire, e in una suite non fa eccezione.
+
+Adesso i test che avviano un lavoro aspettano che sia finito, e verificano che
+sia stato il finto a girare.
+
+---
+
 ## Un buco nella difesa dei test, trovato misurando
 
 **La rete spenta a livello di socket non ferma DuckDB**, che apre le

@@ -210,9 +210,36 @@ prezzo per azioni, senza azioni non esiste. E i 635 titoli senza settore sono
 **ETF** (SPY, QQQ, GLD, TLT, IWM): un fondo un settore non ce l'ha, e
 inventarglielo sarebbe peggio del vuoto.*
 
-**Blocco 3 — Watchlist e tag.** Modello a due livelli (ambito → sotto-ambito),
-freschezza per categoria di dato, storico append-only sul modello di
-`events.jsonl`.
+**Blocco 3 — Watchlist e tag. FATTO il 2026-08-29, 93 test verdi.** Modello a
+due livelli (ambito → sotto-ambito), freschezza per categoria di dato, storico
+append-only sul modello di `events.jsonl`. `data/watchlist.py` e
+`api/watchlist.py`.
+
+**La fonte di verita' e' `data/watchlist.json`, non il database.** E' l'unica
+cosa del sistema che, persa, non torna: tutto il resto si ricostruisce da
+Defeatbeta. SQLite ne tiene una copia di lavoro, che serve solo a fare JOIN con
+l'universo — e che `manage.py rebuild` puo' cancellare senza danno, perche' si
+riallinea da sola. Il file si corregge anche con un editor di testo, e la
+correzione viene raccolta.
+
+**Il file NON e' in git** (scelta dell'utente, 29/08): l'albero resta pulito
+mentre lavori e nessun `checkout` puo' sovrascriverti la watchlist. Il backup e'
+copiare il file.
+
+Le regole della tassonomia sono decisioni gia' prese il 27/08 sul vecchio
+sistema, riportate qui: **un solo tag per titolo**, **due livelli**, il
+**sotto-ambito implica il padre** (chi guarda "Semiconductor" vede anche
+"Semiconductor / Memory"), e **cancellare un tag non cancella titoli** — i
+membri tornano senza tag.
+
+*Verifica passata dal vivo: tassonomia a due livelli col terzo rifiutato;
+aggiunta di `"nvda, mu; tsm, ZZQX, no@buono, MU"` che rende quattro esiti
+distinti (aggiunti, gia' presenti, scartati perche' malformati, sconosciuti
+perche' non nell'universo) invece di un silenzio; i conteggi dell'ambito
+comprensivi dei figli; la watchlist unita all'universo che mostra settore e
+capitalizzazione; la copia SQLite cancellata e riallineata da sola alla
+rilettura; la freschezza chiesta per categoria che distingue `price` da
+`profile`; lo storico che conserva l'aggiunta anche dopo la rimozione.*
 
 **Blocco 4 — Frontend, scheletro.** Vite + Svelte + Bootstrap CSS, tema
 chiaro/scuro, layout, chiamate API con l'inviluppo `{success, data, error}`.
