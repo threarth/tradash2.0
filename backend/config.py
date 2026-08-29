@@ -38,6 +38,7 @@ FRESHNESS_TTL_S: dict[str, int] = {
     "transcripts": 1 * SECONDS_PER_DAY,
     "news": 2 * SECONDS_PER_HOUR,
     "treasury_yield": 12 * SECONDS_PER_HOUR,
+    "universe": 1 * SECONDS_PER_DAY,       # dato globale, non di un titolo
 }
 
 # TTL usato quando una categoria non e' in tabella. Volutamente cortissimo: una

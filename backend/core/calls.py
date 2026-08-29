@@ -8,9 +8,13 @@ dalla rete" da "era in cache" — che e' esattamente la domanda a cui serve
 rispondere. Qui la provenienza e' un campo obbligatorio.
 
 Uso:
-    with calls.track("defeatbeta", "stock_prices", symbol="AAPL") as chiamata:
+    with calls.track("defeatbeta", "stock_prices", scope="AAPL") as chiamata:
         dati = leggi_da_qualche_parte()
         chiamata.from_cache()      # oppure chiamata.from_network()
+
+`scope` e' il titolo quando la chiamata riguarda un titolo, e resta vuoto (o
+vale `schema.GLOBAL_SCOPE`) per i dati che non appartengono a nessuno: la curva
+dei Treasury, la lista dell'universo.
 
 Chi dimentica di dichiarare la provenienza non viene zittito: la riga finisce
 in tabella con `source = 'undeclared'` e un ERROR nel log. Un test verifica che
@@ -41,10 +45,10 @@ MILLISECONDS_PER_SECOND = 1000
 class Call:
     """Una chiamata in corso. Chi la usa DEVE dichiararne la provenienza."""
 
-    def __init__(self, provider: str, endpoint: str, symbol: str | None, run_id: str | None):
+    def __init__(self, provider: str, endpoint: str, scope: str | None, run_id: str | None):
         self.provider = provider
         self.endpoint = endpoint
-        self.symbol = symbol
+        self.scope = scope
         self.run_id = run_id
         self.source = SOURCE_UNDECLARED
         self.status = STATUS_OK
@@ -74,11 +78,11 @@ def _persist(chiamata: Call, duration_ms: int) -> None:
         with db_session() as conn:
             conn.execute(
                 """
-                INSERT INTO calls (provider, endpoint, symbol, source, status,
+                INSERT INTO calls (provider, endpoint, scope, source, status,
                                    duration_ms, error_msg, run_id, called_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (chiamata.provider, chiamata.endpoint, chiamata.symbol, chiamata.source,
+                (chiamata.provider, chiamata.endpoint, chiamata.scope, chiamata.source,
                  chiamata.status, duration_ms, chiamata.error_msg, chiamata.run_id, _now_iso()),
             )
     except Exception:
@@ -87,14 +91,14 @@ def _persist(chiamata: Call, duration_ms: int) -> None:
 
 
 @contextmanager
-def track(provider: str, endpoint: str, symbol: str | None = None, run_id: str | None = None):
+def track(provider: str, endpoint: str, scope: str | None = None, run_id: str | None = None):
     """Registra una chiamata dall'inizio alla fine, comunque vada.
 
     Se il blocco solleva, la riga viene scritta ugualmente con lo stato di
     errore e l'eccezione viene rilanciata: un fallimento silenzioso e' peggio
     di un fallimento rumoroso.
     """
-    chiamata = Call(provider, endpoint, symbol, run_id)
+    chiamata = Call(provider, endpoint, scope, run_id)
     inizio = time.perf_counter()
     try:
         yield chiamata
