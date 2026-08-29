@@ -10,9 +10,17 @@ cd backend
 uv venv --python 3.13
 uv pip install --python .venv/bin/python -r requirements.txt
 
-.venv/bin/python -m pytest -q     # la suite
-.venv/bin/python app.py           # server di sviluppo su :5001
+.venv/bin/python -m pytest -q       # la suite
+.venv/bin/python app.py             # server di sviluppo su :5001
+.venv/bin/python manage.py check    # dove sta il database e cosa contiene
+.venv/bin/python manage.py rebuild  # lo ricostruisce (chiede conferma a mano)
 ```
+
+## Il database
+
+**Niente migrazioni.** Lo schema sta tutto in `backend/core/schema.sql` e si
+applica a ogni avvio: aggiungere una tabella vuol dire scrivere il `CREATE`
+li' dentro. Il database e' una vista ricostruibile, non un archivio da salvare.
 
 ## Documenti
 
@@ -26,7 +34,7 @@ uv pip install --python .venv/bin/python -r requirements.txt
 
 | Blocco | Stato |
 |---|---|
-| 0 — Fondamenta (registro lavori, log chiamate, freschezza) | **fatto**, 19 test verdi |
+| 0 — Fondamenta (registro lavori, log chiamate, freschezza, schema) | **fatto**, 31 test verdi |
 | 1-9 | da fare |
 
 ## La regola che governa tutto

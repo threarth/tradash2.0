@@ -40,10 +40,13 @@ tradash2.0/
 ├── PIANO.md                    ← questo file
 ├── backend/
 │   ├── app.py                  Flask: API + statici del build Vite
+│   ├── manage.py               check / rebuild del database
 │   ├── core/                   infrastruttura trasversale (la regola 1)
+│   │   ├── schema.sql          LO schema, dichiarato in un posto solo
+│   │   ├── schema.py           ensure_schema() e rebuild()
 │   │   ├── registry.py         run_id, cancel, stop — obbligatorio, non opzionale
-│   │   ├── calls.py            log di ogni chiamata, con from_cache
-│   │   ├── freshness.py        should_fetch(symbol, category) — gate per campo
+│   │   ├── calls.py            log di ogni chiamata, con la provenienza
+│   │   ├── freshness.py        should_fetch(scope, category) — gate per campo
 │   │   └── db.py               db_session()
 │   ├── data/                   accesso ai dati
 │   │   ├── defeatbeta.py       UNICO punto di accesso ai parquet
@@ -135,10 +138,22 @@ Backend: Python 3.13, Flask 3, DuckDB via `defeatbeta-api`, pandas.
 
 I blocchi sono in ordine di dipendenza. Uno alla volta, con conferma.
 
-**Blocco 0 — Fondamenta. FATTO il 2026-08-29, 19 test verdi.**
-`core/db.py`, `core/migrations/` (v1: `jobs`, `calls`, `freshness`),
-`core/registry.py`, `core/calls.py`, `core/freshness.py`, `api/ops.py`,
-`api/calls.py`, `app.py`.
+**Blocco 0 — Fondamenta. FATTO il 2026-08-29, 31 test verdi.**
+`core/db.py`, `core/schema.sql` + `core/schema.py` (`jobs`, `calls`,
+`freshness`), `core/registry.py`, `core/calls.py`, `core/freshness.py`,
+`api/ops.py`, `api/calls.py`, `app.py`, `manage.py`.
+
+**Niente migrazioni, per decisione dell'utente (29/08).** Il vecchio tradash ne
+aveva 109: servono quando c'e' un database in produzione che non si puo'
+perdere, e qui il database e' una vista ricostruibile. Lo schema si dichiara in
+`schema.sql`, si applica a ogni avvio (idempotente) e si ricostruisce con
+`python manage.py rebuild`, che chiede una parola battuta a mano.
+
+Tre scelte dello schema: **STRICT** (SQLite applica davvero i tipi), **CHECK**
+sui valori enumerati (uno stato inventato non entra in tabella), e **`scope`
+invece di `symbol`** — perche' la curva dei Treasury e la lista dell'universo
+non appartengono a nessun titolo e vanno comunque chieste prima di andare in
+rete.
 *Verifica passata: un lavoro finto parte, compare in `/api/ops/active`, riceve
 Stop via HTTP e si ferma a meta' lasciando `status=stopped` in cronologia; due
 letture dello stesso dato producono due righe distinte, `network` e `cache`;
