@@ -74,6 +74,23 @@ def _lavoro(run_id: str) -> dict:
         return dict(conn.execute("SELECT * FROM jobs WHERE run_id = ?", (run_id,)).fetchone())
 
 
+def _attendi_fine(run_id: str) -> dict:
+    """Aspetta che un lavoro avviato in un thread sia davvero finito.
+
+    Non e' pignoleria: un test che finisce lasciando vivo il suo thread lo
+    consegna al test successivo, dove il monkeypatch non c'e' piu' e la
+    derivazione FINTA torna a essere quella vera. E' successo — la rete spenta
+    l'ha fermata, ma il lavoro non sorvegliato e' proprio cio' che qui non deve
+    esistere.
+    """
+    scadenza = threading.Event()
+    while not scadenza.wait(0.02):
+        lavoro = _lavoro(run_id)
+        if lavoro["ended_at"] is not None:
+            return lavoro
+    raise AssertionError(f"il lavoro {run_id} non e' mai finito")
+
+
 # --- la derivazione ---------------------------------------------------------
 
 def test_la_costruzione_deriva_scrive_e_marca_la_freschezza(derivazione_finta):
@@ -141,12 +158,7 @@ def test_la_costruzione_si_ferma_a_meta_e_resta_stopped(monkeypatch):
     consegnato, motivo = registry.request_stop(run_id)
     assert consegnato is True and motivo is None
 
-    scadenza = threading.Event()
-    while not scadenza.wait(0.05):
-        if _lavoro(run_id)["ended_at"] is not None:
-            break
-
-    assert _lavoro(run_id)["status"] == registry.STATUS_STOPPED
+    assert _attendi_fine(run_id)["status"] == registry.STATUS_STOPPED
     assert _titoli_in_tabella() == [], "un lavoro fermato non deve lasciare mezzo universo"
     assert freshness.age_seconds(GLOBAL_SCOPE, defeatbeta.CATEGORY_UNIVERSE) is None
 
@@ -302,6 +314,10 @@ def test_le_route_dell_universo(client, derivazione_finta):
     avvio = client.post("/api/universe/build?force=1").get_json()
     assert avvio["success"] is True
     assert avvio["data"]["stop"].endswith(avvio["data"]["run_id"])
+
+    # Si aspetta la fine prima di uscire: il thread non deve sopravvivere al test.
+    assert _attendi_fine(avvio["data"]["run_id"])["status"] == registry.STATUS_DONE
+    assert derivazione_finta["quante"] == 2, "ha ricostruito col finto, non col vero"
 
 
 def test_un_limite_sbagliato_non_diventa_un_errore_del_server(client):

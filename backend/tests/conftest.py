@@ -32,6 +32,8 @@ from pathlib import Path
 _TEMP_DIR = tempfile.mkdtemp(prefix="tradash2_test_")
 os.environ["TRADASH2_DB"] = str(Path(_TEMP_DIR) / "test.db")
 os.environ["TRADASH2_DEFEATBETA_CACHE"] = str(Path(_TEMP_DIR) / "httpfs_cache")
+os.environ["TRADASH2_WATCHLIST"] = str(Path(_TEMP_DIR) / "watchlist.json")
+os.environ["TRADASH2_WATCHLIST_EVENTS"] = str(Path(_TEMP_DIR) / "watchlist_events.jsonl")
 
 import pytest  # noqa: E402  (l'ordine e' voluto: prima l'ambiente, poi gli import)
 
@@ -41,7 +43,8 @@ from core.schema import ensure_schema  # noqa: E402
 
 # Tabelle da svuotare fra un test e l'altro. L'ordine conta: `calls.run_id` ha
 # una chiave esterna verso `jobs`.
-TABELLE_DA_SVUOTARE = ("calls", "jobs", "freshness", "universe")
+TABELLE_DA_SVUOTARE = ("calls", "jobs", "freshness", "universe",
+                       "watchlist", "watchlist_tags")
 
 
 class ReteVietata(RuntimeError):
