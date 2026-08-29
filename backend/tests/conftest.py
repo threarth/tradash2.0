@@ -41,7 +41,7 @@ from core.schema import ensure_schema  # noqa: E402
 
 # Tabelle da svuotare fra un test e l'altro. L'ordine conta: `calls.run_id` ha
 # una chiave esterna verso `jobs`.
-TABELLE_DA_SVUOTARE = ("calls", "jobs", "freshness")
+TABELLE_DA_SVUOTARE = ("calls", "jobs", "freshness", "universe")
 
 
 class ReteVietata(RuntimeError):

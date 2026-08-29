@@ -215,7 +215,25 @@ def test_nessuna_riga_di_log_resta_senza_provenienza(rete_finta):
     """`undeclared` e' la spia di un percorso che non ha dichiarato da dove legge."""
     rete_finta["esiti"] = [(_frame_finto(), RICHIESTE_DI_RETE)]
     defeatbeta.statements(SIMBOLO)
-    assert calls.summary().get(calls.SOURCE_UNDECLARED, 0) == 0
+    assert calls.undeclared_ok() == 0
+
+
+def test_una_chiamata_fallita_non_accende_la_spia_delle_dimenticanze(rete_finta):
+    """Trovato dal vivo fermando una derivazione: una query interrotta finiva a
+    log come 'provenienza non dichiarata', cioe' come un difetto nostro.
+
+    Una chiamata fallita non ha una provenienza da dichiarare — il dato non e'
+    mai arrivato. Se contasse come dimenticanza, la spia resterebbe accesa per
+    motivi legittimi e smetterebbe di significare qualcosa.
+    """
+    rete_finta["esiti"] = [(OSError("interrotta"), 0)]
+    with pytest.raises(defeatbeta.DefeatbetaUnavailable):
+        defeatbeta.profile(SIMBOLO)
+
+    righe = _righe_di_log()
+    assert righe[0]["source"] == calls.SOURCE_UNDECLARED, "non sappiamo da dove sarebbe arrivato"
+    assert righe[0]["status"] == calls.STATUS_ERROR
+    assert calls.undeclared_ok() == 0, "ma non e' una dimenticanza: la spia resta spenta"
 
 
 def test_una_lettura_si_puo_attribuire_al_lavoro_che_l_ha_chiesta(rete_finta):
