@@ -1,13 +1,24 @@
 """
-conftest.py — la suite non tocca MAI il database reale.
-# feat (Blocco 0): igiene dei test.
+conftest.py — la suite gira in fase di sviluppo e non puo' toccare l'uso reale.
+# feat (Blocco 0, rivisto): separazione strutturale fra test e uso.
 
-Il difetto che questo file esiste per impedire: nel vecchio sistema una suite
-girava contro il database vero e ne cancellava dati reali. Qui la variabile
-d'ambiente viene impostata PRIMA che `config` venga importato, quindi non c'e'
-modo che un test scriva altrove.
+Quattro difetti del vecchio sistema, chiusi qui uno per uno:
+
+1. **la suite scriveva sul database vero** — qui `TRADASH2_DB` viene impostato
+   su una cartella temporanea PRIMA che `config` sia importato, e una assert
+   verifica dove sta puntando;
+2. **la suite mandava traffico di rete vero** (backfill yfinance con dieci
+   worker, per mesi, invisibile) — qui la rete e' spenta a livello di socket,
+   sotto qualunque libreria: nessun mock dimenticato puo' uscire;
+3. **`TRADASH_OFFLINE` non copriva i provider principali** e il docstring che
+   diceva il contrario era falso — qui non c'e' un interruttore da ricordarsi
+   di accendere: e' acceso sempre, e chi vuole la rete deve chiederla a voce
+   alta con `@pytest.mark.network`;
+4. **il codice di produzione conosceva i test** — qui non c'e' nessun ramo
+   `if TESTING:`, e un test lo verifica.
 """
 import os
+import socket
 import tempfile
 from pathlib import Path
 
@@ -20,10 +31,22 @@ import config  # noqa: E402
 from core.db import db_session  # noqa: E402
 from core.schema import ensure_schema  # noqa: E402
 
+# Tabelle da svuotare fra un test e l'altro. L'ordine conta: `calls.run_id` ha
+# una chiave esterna verso `jobs`.
+TABELLE_DA_SVUOTARE = ("calls", "jobs", "freshness")
+
+
+class ReteVietata(RuntimeError):
+    """Sollevata quando un test prova ad aprire una connessione di rete.
+
+    Non e' un incidente da aggirare: se compare, o manca un mock o quel test
+    va marcato `@pytest.mark.network`.
+    """
+
 
 @pytest.fixture(scope="session", autouse=True)
 def schema():
-    """Applica lo schema una volta per tutta la suite."""
+    """Applica lo schema una volta per tutta la suite, su un database usa-e-getta."""
     assert str(config.DB_PATH).startswith(_TEMP_DIR), (
         f"la suite sta puntando a {config.DB_PATH}, che non e' il database temporaneo"
     )
@@ -31,18 +54,43 @@ def schema():
 
 
 @pytest.fixture(autouse=True)
+def rete_spenta(request, monkeypatch):
+    """Spegne la rete a livello di socket, per ogni test che non la chiede.
+
+    Il mock va SOTTO cio' che misuri: qui sotto tutto — requests, urllib,
+    DuckDB, qualunque libreria. Un mock dimenticato non produce silenzio, ma un
+    errore con scritto cosa e' successo.
+    """
+    if request.node.get_closest_marker("network"):
+        return
+
+    def vietato(*args, **kwargs):
+        raise ReteVietata(
+            "un test ha provato ad aprire una connessione. Se e' voluto, marcalo "
+            "con @pytest.mark.network; altrimenti manca un mock."
+        )
+
+    monkeypatch.setattr(socket.socket, "connect", vietato)
+    monkeypatch.setattr(socket.socket, "connect_ex", vietato)
+    monkeypatch.setattr(socket, "create_connection", vietato)
+    monkeypatch.setattr(socket, "getaddrinfo", vietato)
+
+
+@pytest.fixture(autouse=True)
 def tabelle_pulite(schema):
     """Ogni test parte da tabelle vuote."""
-    # L'ordine conta: `calls.run_id` ha una chiave esterna verso `jobs`.
     with db_session() as conn:
-        for tabella in ("calls", "jobs", "freshness"):
+        for tabella in TABELLE_DA_SVUOTARE:
             conn.execute(f"DELETE FROM {tabella}")
     yield
 
 
 @pytest.fixture
 def client():
-    """Client HTTP dell'applicazione, per provare gli endpoint davvero."""
+    """Client HTTP dell'applicazione, per provare gli endpoint davvero.
+
+    Non apre socket: `test_client` di Flask parla con l'app in memoria.
+    """
     from app import create_app
     app = create_app()
     app.config.update(TESTING=True)
