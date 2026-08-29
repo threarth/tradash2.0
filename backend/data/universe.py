@@ -51,14 +51,15 @@ ATTESA_AVVIO_S = 5.0
 
 # Le colonne dell'universo, nell'ordine in cui stanno in tabella.
 COLONNE = (
-    "symbol", "sector", "industry", "country", "employees",
-    "market_cap", "last_close", "last_close_date", "avg_volume_30d",
+    "symbol", "sector", "industry", "company_country", "employees",
+    "shares_outstanding", "market_cap", "last_close", "last_close_date",
+    "avg_volume_30d",
 )
 
 # Le colonne di cui si misura la copertura: quelle che possono mancare.
 COLONNE_CON_BUCHI = (
-    "sector", "industry", "country", "employees",
-    "market_cap", "last_close", "avg_volume_30d",
+    "sector", "industry", "company_country", "employees",
+    "shares_outstanding", "market_cap", "last_close", "avg_volume_30d",
 )
 
 ACTION_UNIVERSO_VUOTO = "costruisci l'universo con POST /api/universe/build"
@@ -74,9 +75,18 @@ def _pulisci(valore):
 
     SQLite non sa cosa farsene di un `numpy.float64`, e uno STRICT lo rifiuta:
     la conversione va fatta qui, non sperando che passi.
+
+    Una stringa vuota diventa None, e non e' un dettaglio: nel profilo di
+    Defeatbeta il settore manca 635 volte come NULL e **886 volte come stringa
+    vuota**. Tenendole distinte, un `IS NULL` conta 635 buchi su 1.521 e la
+    copertura dichiarata risulta il doppio di quella vera — un buco silenzioso
+    prodotto proprio dal codice che doveva dichiararli.
     """
     if valore is None or pd.isna(valore):
         return None
+    if isinstance(valore, str):
+        pulito = valore.strip()
+        return pulito if pulito else None
     if hasattr(valore, "item"):
         return valore.item()
     return valore
@@ -88,9 +98,9 @@ def _riga(record: dict) -> tuple:
     dipendenti = pulito["employees"]
     return (
         str(pulito["symbol"]),
-        pulito["sector"], pulito["industry"], pulito["country"],
+        pulito["sector"], pulito["industry"], pulito["company_country"],
         int(dipendenti) if dipendenti is not None else None,
-        pulito["market_cap"], pulito["last_close"],
+        pulito["shares_outstanding"], pulito["market_cap"], pulito["last_close"],
         pulito["last_close_date"], pulito["avg_volume_30d"],
     )
 
@@ -253,6 +263,27 @@ def _copertura(conn, totale: int) -> dict:
     }
 
 
+def _capitalizzazione(conn) -> dict:
+    """Perche' una capitalizzazione manca — che non e' la stessa cosa di "manca".
+
+    `market_cap` e' ultima chiusura per azioni in circolazione: se manca uno dei
+    due fattori il prodotto non esiste. Dire "non derivabile, mancano le azioni
+    in circolazione" e' un'informazione; dire "manca al 23,4%" fa sembrare un
+    guasto quello che per un ETF e' la normalita'.
+    """
+    riga = conn.execute(
+        "SELECT COUNT(*) AS mancanti, "
+        "SUM(CASE WHEN last_close IS NULL THEN 1 ELSE 0 END) AS senza_prezzo, "
+        "SUM(CASE WHEN shares_outstanding IS NULL THEN 1 ELSE 0 END) AS senza_azioni "
+        "FROM universe WHERE market_cap IS NULL"
+    ).fetchone()
+    return {
+        "non_derivabile": riga["mancanti"],
+        "perche_manca_il_prezzo": riga["senza_prezzo"] or 0,
+        "perche_mancano_le_azioni": riga["senza_azioni"] or 0,
+    }
+
+
 def stato() -> dict:
     """Cosa c'e' nell'universo, quanto e' vecchio, e cosa gli manca.
 
@@ -274,6 +305,7 @@ def stato() -> dict:
             (f"-{config.UNIVERSE_STALE_PRICE_DAYS} days",),
         ).fetchone()["n"]
         copertura = _copertura(conn, totale)
+        capitalizzazione = _capitalizzazione(conn)
 
     serve, motivo = freshness.should_fetch_global(defeatbeta.CATEGORY_UNIVERSE)
     return {
@@ -281,6 +313,7 @@ def stato() -> dict:
         "eta_s": freshness.age_seconds(GLOBAL_SCOPE, defeatbeta.CATEGORY_UNIVERSE),
         "da_ricostruire": serve, "reason": motivo,
         "copertura": copertura,
+        "capitalizzazione": capitalizzazione,
         "prezzo_vecchio": {"titoli": vecchi,
                            "oltre_giorni": config.UNIVERSE_STALE_PRICE_DAYS},
     }

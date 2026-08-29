@@ -26,16 +26,16 @@ from data import defeatbeta, universe
 # americana quotata negli USA, e un titolo a cui manca meta' dei dati.
 UNIVERSO_FINTO = [
     {"symbol": "AAPL", "sector": "Technology", "industry": "Consumer Electronics",
-     "country": "United States", "employees": 150000, "last_close": 319.7,
+     "company_country": "United States", "employees": 150000, "last_close": 319.7,
      "last_close_date": "2026-08-28", "avg_volume_30d": 48259040.0,
      "market_cap": 4.67e12},
     {"symbol": "BABA", "sector": "Consumer Cyclical", "industry": "Internet Retail",
-     "country": "China", "employees": 132165, "last_close": 118.9,
+     "company_country": "China", "employees": 132165, "last_close": 118.9,
      "last_close_date": "2026-08-28", "avg_volume_30d": 11934780.0,
      "market_cap": 2.85e11},
-    {"symbol": "ZOMB", "sector": None, "industry": None, "country": None,
+    {"symbol": "ZOMB", "sector": None, "industry": None, "company_country": None,
      "employees": None, "last_close": None, "last_close_date": None,
-     "avg_volume_30d": None, "market_cap": None},
+     "avg_volume_30d": None, "shares_outstanding": None, "market_cap": None},
 ]
 
 TIMEOUT_S = 5.0
@@ -185,6 +185,43 @@ def test_il_paese_non_restringe_l_universo(derivazione_finta):
     """
     universe.build()
     assert "BABA" in [t["symbol"] for t in _titoli_in_tabella()]
+
+
+def test_le_stringhe_vuote_sono_dati_assenti_non_dati_presenti(monkeypatch):
+    """Il difetto era nostro, e faceva dichiarare una copertura migliore del vero.
+
+    Nel profilo di Defeatbeta il settore manca 635 volte come NULL e **886 volte
+    come stringa vuota**. Contando solo i NULL, la copertura risultava il doppio
+    di quella reale: un buco silenzioso prodotto proprio dal codice che doveva
+    dichiarare i buchi.
+    """
+    vuoti = [{"symbol": "VUOT", "sector": "   ", "industry": "",
+              "company_country": "", "employees": None, "last_close": 1.0,
+              "last_close_date": "2026-08-28", "avg_volume_30d": 10.0,
+              "shares_outstanding": None, "market_cap": None}]
+    monkeypatch.setattr(defeatbeta, "universe", lambda run_id=None: _lettura_finta(vuoti))
+
+    universe.build()
+
+    riga = _titoli_in_tabella()[0]
+    assert riga["sector"] is None and riga["industry"] is None
+    assert riga["company_country"] is None
+    assert universe.stato()["copertura"]["sector"]["mancanti"] == 1
+
+
+def test_una_capitalizzazione_che_manca_e_non_derivabile_non_assente(derivazione_finta):
+    """Dire 'manca al 23,4%' fa sembrare un guasto cio' che per un ETF e' normale.
+
+    `market_cap` e' prezzo per azioni in circolazione: senza uno dei due fattori
+    il prodotto non esiste. Su Defeatbeta 2.394 simboli su 11.256 non hanno
+    proprio il dato delle azioni.
+    """
+    universe.build()
+    capitalizzazione = universe.stato()["capitalizzazione"]
+
+    assert capitalizzazione["non_derivabile"] == 1
+    assert capitalizzazione["perche_mancano_le_azioni"] == 1
+    assert capitalizzazione["perche_manca_il_prezzo"] == 1
 
 
 def test_lo_stato_dichiara_la_copertura(derivazione_finta):

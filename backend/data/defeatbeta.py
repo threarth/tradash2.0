@@ -425,11 +425,13 @@ def _prepara_universo() -> str:
         SELECT p.symbol,
                p.sector,
                p.industry,
-               p.country,
+               -- Nome esplicito: e' il paese della societa', non della borsa.
+               p.country AS company_country,
                p.full_time_employees AS employees,
                u.last_close,
                CAST(u.last_close_date AS VARCHAR) AS last_close_date,
                v.avg_volume_30d,
+               a.shares_outstanding,
                u.last_close * a.shares_outstanding AS market_cap
         FROM '{profilo}' p
         LEFT JOIN ultimo_prezzo  u ON p.symbol = u.symbol

@@ -84,16 +84,25 @@ CREATE TABLE IF NOT EXISTS freshness (
 -- prezzo entra ugualmente nell'universo, e quanti ne siano si dichiara
 -- (regola 5), invece di far sparire le righe scomode.
 CREATE TABLE IF NOT EXISTS universe (
-    symbol          TEXT NOT NULL PRIMARY KEY,
-    sector          TEXT,
-    industry        TEXT,
-    country         TEXT,
-    employees       INTEGER      CHECK (employees IS NULL OR employees >= 0),
-    market_cap      REAL         CHECK (market_cap IS NULL OR market_cap >= 0),
-    last_close      REAL         CHECK (last_close IS NULL OR last_close >= 0),
-    last_close_date TEXT,
-    avg_volume_30d  REAL         CHECK (avg_volume_30d IS NULL OR avg_volume_30d >= 0),
-    built_at        TEXT NOT NULL
+    symbol             TEXT NOT NULL PRIMARY KEY,
+    sector             TEXT,
+    industry           TEXT,
+    -- Il paese della SOCIETA', non della borsa: BABA risulta 'China' e SHOP
+    -- 'Canada' pur essendo quotate negli USA. Si chiama cosi' perche' un
+    -- domani nessuno ci scriva sopra un filtro "solo mercato americano":
+    -- butterebbe via 3.783 titoli quotati negli USA.
+    company_country    TEXT,
+    employees          INTEGER  CHECK (employees IS NULL OR employees >= 0),
+    -- Le azioni in circolazione si conservano invece di essere consumate nel
+    -- prodotto: sono la ragione per cui una capitalizzazione manca. Senza di
+    -- loro `market_cap` non e' "assente", e' NON DERIVABILE — e sono due cose
+    -- diverse da dire a chi guarda.
+    shares_outstanding REAL     CHECK (shares_outstanding IS NULL OR shares_outstanding >= 0),
+    market_cap         REAL     CHECK (market_cap IS NULL OR market_cap >= 0),
+    last_close         REAL     CHECK (last_close IS NULL OR last_close >= 0),
+    last_close_date    TEXT,
+    avg_volume_30d     REAL     CHECK (avg_volume_30d IS NULL OR avg_volume_30d >= 0),
+    built_at           TEXT NOT NULL
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_universe_sector     ON universe (sector);
