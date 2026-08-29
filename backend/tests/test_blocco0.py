@@ -12,7 +12,8 @@ import time
 import pytest
 
 import config
-from core import calls, freshness, registry
+import manage
+from core import calls, freshness, registry, schema
 from core.db import db_read
 
 # Un lavoro finto abbastanza lungo da poter essere fermato a meta'.
@@ -253,3 +254,31 @@ def test_l_avvio_non_fa_partire_nulla_da_solo(client):
     """La regola 7 verificata: creare l'app non produce una sola chiamata."""
     assert calls.recent(limit=10) == []
     assert registry.active() == []
+
+
+# --- la manutenzione non parte per sbaglio e non esplode ------------------
+
+def test_il_rebuild_senza_nessuno_che_confermi_si_annulla_senza_stack_trace(monkeypatch, capsys):
+    """Trovato lanciandolo da una shell senza terminale: `input()` andava in
+    EOFError e l'utente riceveva uno stack trace per un comando che si era
+    semplicemente rifiutato di partire (regola 16).
+    """
+    def _niente_terminale(_prompt):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", _niente_terminale)
+
+    assert manage.comando_rebuild() == manage.EXIT_ABORTED
+    detto = capsys.readouterr().out
+    assert "Annullato" in detto
+    assert manage.CONFIRMATION_WORD in detto, "deve dire come si fa, non solo che non si e' fatto"
+
+
+def test_il_rebuild_con_la_parola_sbagliata_non_cancella_niente(monkeypatch):
+    """La parola giusta e' l'unica che procede: qualunque altra cosa annulla."""
+    monkeypatch.setattr("builtins.input", lambda _prompt: "si")
+    cancellazioni = {"quante": 0}
+    monkeypatch.setattr(schema, "rebuild", lambda **_: cancellazioni.__setitem__("quante", 1))
+
+    assert manage.comando_rebuild() == manage.EXIT_ABORTED
+    assert cancellazioni["quante"] == 0

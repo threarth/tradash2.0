@@ -26,11 +26,32 @@ def comando_check() -> int:
     return EXIT_OK
 
 
+def _chiedi_conferma() -> str | None:
+    """Legge la parola di conferma. `None` se non c'e' nessuno a scriverla.
+
+    Senza terminale — lanciato da uno script, da un hook, o da una shell che
+    non collega lo standard input — `input()` solleva EOFError. Prima quello
+    diventava uno stack trace in faccia all'utente per un comando che si era
+    semplicemente rifiutato di partire, che e' l'opposto di quello che la
+    regola 16 chiede.
+    """
+    try:
+        return input(f"Scrivi {CONFIRMATION_WORD} per procedere: ").strip()
+    except EOFError:
+        return None
+
+
 def comando_rebuild() -> int:
     """Ricostruisce il database, ma solo dopo che l'utente ha battuto la parola."""
     print(f"Questo CANCELLA tutti i dati in: {config.DB_PATH}")
     print(f"Tabelle che verranno cancellate: {', '.join(schema.tables()) or 'nessuna'}")
-    risposta = input(f"Scrivi {CONFIRMATION_WORD} per procedere: ").strip()
+    risposta = _chiedi_conferma()
+
+    if risposta is None:
+        print("Annullato: nessuno ha confermato — qui non c'e' un terminale da cui scrivere.")
+        print(f"Da un terminale vero, oppure:  echo {CONFIRMATION_WORD} | "
+              f"python manage.py rebuild")
+        return EXIT_ABORTED
 
     if risposta != CONFIRMATION_WORD:
         print("Annullato: nessuna modifica.")
