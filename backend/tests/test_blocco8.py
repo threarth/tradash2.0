@@ -10,6 +10,7 @@ Due principi che questi test difendono, e che vengono dal vecchio tradash:
 2. **Un segnale porta sempre le sue misure.** Un verdetto senza i numeri
    costringe a fidarsi, ed e' invendibile alla domanda "in base a cosa?".
 """
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -17,7 +18,7 @@ import config
 from core import llm
 from core.db import db_read
 from data import analisi, defeatbeta, filing_locali
-from domain import pannello, segnali
+from domain import pannello, segnali, trascrizione
 
 TRIMESTRI = ["2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
              "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]
@@ -696,3 +697,110 @@ def test_senza_nemmeno_una_metrica_la_fondamentale_si_ferma(monkeypatch):
 
     with pytest.raises(analisi.AnalisiError, match="si ferma"):
         analisi._fondamentale("X", None)
+
+
+# --- le trascrizioni: due meta' che si leggono in modo diverso -------------
+
+def _paragrafi(voci) -> list[dict]:
+    return [{"paragraph_number": i + 1, "speaker": chi, "content": testo}
+            for i, (chi, testo) in enumerate(voci)]
+
+
+CALL = _paragrafi([
+    ("Operator", "Welcome to the call. After the speakers' remarks, there will be a "
+                 "question-and-answer session."),
+    ("Colette Kress", "Revenue was 46 billion, up 56%."),
+    ("Colette Kress", "For next quarter we expect 54 billion."),
+    ("Operator", "In order to ask a question, press star then one."),
+    ("Operator", "Your first question comes from the line of Joseph Moore."),
+    ("Joseph Moore", "What gives you confidence in the guide?"),
+    ("Jensen Huang", "AI has become useful."),
+    ("Jensen Huang", "Customers can mix and match."),
+    ("Operator", "Your next question comes from the line of C.J. Muse."),
+    ("C.J. Muse", "And on margins?"),
+    ("Colette Kress", "We expect them to hold."),
+])
+
+
+def test_il_saluto_iniziale_non_e_l_inizio_delle_domande():
+    """Misurato su NVDA: l'operatore dice gia' nel saluto "there will be a
+    question-and-answer session", e un marcatore ingenuo aggancia il paragrafo 1
+    lasciando la parte preparata vuota."""
+    struttura = trascrizione.struttura(CALL)
+
+    assert len(struttura["preparata"]) == 2, "i due interventi del CFO"
+    assert struttura["management"] == ["Colette Kress"]
+    assert "46 billion" in struttura["preparata"][0]["testo"]
+
+
+def test_a_dire_chi_e_l_analista_e_l_operatore():
+    """Prima lo deducevo da chi aveva parlato nella parte preparata, e su NVDA
+    il CEO risultava analista ventotto volte: in quella call aveva parlato solo
+    rispondendo."""
+    struttura = trascrizione.struttura(CALL)
+
+    assert [s["analista"] for s in struttura["scambi"]] == ["Joseph Moore", "C.J. Muse"]
+    assert [r["chi"] for r in struttura["scambi"][0]["risposte"]] == \
+        ["Jensen Huang", "Jensen Huang"]
+
+
+def test_una_call_senza_domande_lo_dice():
+    solo_preparata = _paragrafi([("Operator", "Welcome."), ("CFO", "I numeri sono questi.")])
+
+    struttura = trascrizione.struttura(solo_preparata)
+
+    assert struttura["ha_domande"] is False
+    assert struttura["scambi"] == []
+    assert len(struttura["preparata"]) == 1
+
+
+def test_i_paragrafi_arrivano_come_array_numpy():
+    """`paragrafi or []` non si puo' scrivere: su un array numpy il valore di
+    verita' e' ambiguo e solleva invece di decidere."""
+    struttura = trascrizione.struttura(np.array(CALL, dtype=object))
+
+    assert len(struttura["scambi"]) == 2
+    assert trascrizione.struttura(None)["caratteri"] == 0
+
+
+def test_le_troncature_si_contano_e_si_dichiarano(monkeypatch):
+    """Un testo troncato mostrato senza dirlo si legge come se quella fosse
+    tutta la risposta."""
+    monkeypatch.setattr(config, "TRASCRIZIONE_RISPOSTA_CARATTERI", 20)
+
+    leggibile = analisi._call_leggibile(trascrizione.struttura(CALL), con_risposte=True)
+
+    assert leggibile["testi_troncati"] > 0
+    assert leggibile["scambi"][0]["domanda"].endswith("[…]")
+
+
+def test_l_earnings_si_ferma_se_non_ci_sono_trascrizioni(monkeypatch):
+    monkeypatch.setattr(defeatbeta, "transcripts", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame(), scope=s, category="transcripts", source="cache",
+        available=False, reason="nessuna call"))
+
+    with pytest.raises(analisi.AnalisiError, match="6.495 simboli"):
+        analisi._earnings("X", None)
+
+
+def test_l_earnings_legge_due_call_per_vedere_cosa_e_cambiato(monkeypatch):
+    """Le preoccupazioni degli analisti si spostano, e vederle spostarsi dice
+    piu' di una fotografia sola."""
+    frame = pd.DataFrame([
+        {"fiscal_year": 2027, "fiscal_quarter": 2, "report_date": "2026-08-26",
+         "transcripts": CALL},
+        {"fiscal_year": 2027, "fiscal_quarter": 1, "report_date": "2026-05-26",
+         "transcripts": CALL},
+    ])
+    monkeypatch.setattr(defeatbeta, "transcripts", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=frame, scope=s, category="transcripts", source="cache",
+        available=True, reason="finto"))
+    monkeypatch.setattr(defeatbeta, "profile", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame(), scope=s, category="profile", source="cache",
+        available=False, reason="niente"))
+    _finto(monkeypatch, _Risposta('{"lettura": "va bene", "confidenza": "media"}'))
+
+    esito = analisi._earnings("X", None)
+
+    assert esito["contenuto"]["call"] == "2027 Q2"
+    assert esito["contenuto"]["call_precedente"] == "2027 Q1"

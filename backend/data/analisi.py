@@ -29,7 +29,7 @@ from core import llm, registry
 from core.db import db_read, db_session
 from core.tipi import python_puro
 from data import defeatbeta
-from domain import pannello, prospetti, scansione, segnali
+from domain import pannello, prospetti, scansione, segnali, trascrizione
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +76,9 @@ METODI = {
     "earnings": {
         "nome": "Earnings review",
         "natura": "modello sulle trascrizioni",
-        "pronta": False,
-        "fonte": "le trascrizioni delle earnings call (6.495 simboli in Defeatbeta)",
-        "manca": "la lettura della tabella delle trascrizioni",
+        "pronta": True,
+        "fonte": "le trascrizioni delle earnings call, divise in parte preparata "
+                 "e domande degli analisti",
     },
     "spin_off": {
         "nome": "Analisi spin-off",
@@ -287,7 +287,102 @@ def _fondamentale(simbolo: str, run_id: str | None) -> dict:
             "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
 
 
-ESECUTORI = {"tecnica": _tecnica, "fondamentale": _fondamentale}
+# --- l'earnings review, sulle trascrizioni ---------------------------------
+
+def _tronca(testo: str) -> tuple[str, bool]:
+    """Un testo tagliato alla lunghezza utile, e se e' stato tagliato.
+
+    Il secondo valore non e' un dettaglio: un testo troncato mostrato senza
+    dirlo si legge come se quella fosse tutta la risposta.
+    """
+    limite = config.TRASCRIZIONE_RISPOSTA_CARATTERI
+    if len(testo) <= limite:
+        return testo, False
+    return testo[:limite] + " […]", True
+
+
+def _call_leggibile(struttura: dict, con_risposte: bool) -> dict:
+    """Una call ridotta a cio' che serve leggere, dichiarando cosa e' stato tagliato."""
+    troncati = 0
+    scambi = []
+
+    for scambio in struttura["scambi"]:
+        domanda, tagliata = _tronca(scambio["domanda"])
+        troncati += int(tagliata)
+        voce = {"analista": scambio["analista"], "domanda": domanda}
+
+        if con_risposte:
+            risposte = []
+            for risposta in scambio["risposte"]:
+                testo, tagliata = _tronca(risposta["testo"])
+                troncati += int(tagliata)
+                risposte.append({"chi": risposta["chi"], "testo": testo})
+            voce["risposte"] = risposte
+
+        scambi.append(voce)
+
+    return {"preparata": struttura["preparata"] if con_risposte else [],
+            "scambi": scambi, "management": struttura["management"],
+            "testi_troncati": troncati}
+
+
+def _earnings(simbolo: str, run_id: str | None) -> dict:
+    """Legge le ultime due call: l'ultima per intero, la precedente per le domande.
+
+    Due e non una perche' la domanda che conta e' "cosa e' cambiato": le
+    preoccupazioni degli analisti si spostano, e vederle spostarsi dice piu' di
+    una fotografia sola.
+    """
+    lettura = defeatbeta.transcripts(simbolo, run_id=run_id)
+    if not lettura.available:
+        raise AnalisiError(
+            f"nessuna trascrizione per {simbolo}: {lettura.reason}. "
+            f"Defeatbeta ne ha per 6.495 simboli, non per tutti"
+        )
+
+    righe = list(lettura.frame.iterrows())
+    ultima = trascrizione.struttura(righe[0][1]["transcripts"])
+    if not ultima["preparata"] and not ultima["scambi"]:
+        raise AnalisiError("la trascrizione e' vuota: l'analisi si ferma "
+                           "invece di degradare")
+
+    call = {"periodo": f"{righe[0][1]['fiscal_year']} "
+                       f"Q{python_puro(righe[0][1]['fiscal_quarter'])}",
+            "data": python_puro(righe[0][1]["report_date"]),
+            **_call_leggibile(ultima, con_risposte=True)}
+
+    precedente = None
+    if len(righe) > 1:
+        prima = trascrizione.struttura(righe[1][1]["transcripts"])
+        precedente = {"periodo": f"{righe[1][1]['fiscal_year']} "
+                                 f"Q{python_puro(righe[1][1]['fiscal_quarter'])}",
+                      **_call_leggibile(prima, con_risposte=False)}
+
+    prima_json = (json.dumps(precedente, indent=2, ensure_ascii=False)
+                  if precedente else "non disponibile")
+    messaggio = (
+        f"Titolo: {_contesto(simbolo, run_id)}\n\n"
+        f"## La call piu' recente\n"
+        f"{json.dumps(call, indent=2, ensure_ascii=False)}\n\n"
+        f"## Le domande della call precedente\n{prima_json}"
+    )
+    sistema = _prompt("analisi_earnings")
+
+    risposta = llm.chiedi(fase="analisi_earnings", sistema=sistema, messaggio=messaggio,
+                          scope=simbolo, run_id=run_id)
+    if risposta["rifiutata"]:
+        raise AnalisiError("il modello ha rifiutato di rispondere")
+
+    return {"contenuto": {**_leggi_json(risposta["testo"]),
+                          "call": call["periodo"],
+                          "call_precedente": precedente["periodo"] if precedente else None,
+                          "testi_troncati": call["testi_troncati"],
+                          "caratteri_originali": ultima["caratteri"]},
+            "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
+
+
+ESECUTORI = {"tecnica": _tecnica, "fondamentale": _fondamentale,
+             "earnings": _earnings}
 
 
 # --- eseguire e conservare --------------------------------------------------

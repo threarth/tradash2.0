@@ -130,6 +130,21 @@ UNIVERSE_AVG_VOLUME_SESSIONS = 30
 UNIVERSE_PAGE_LIMIT_DEFAULT = 100
 UNIVERSE_PAGE_LIMIT_MAX = 2000
 
+# --- Trascrizioni delle earnings call --------------------------------------
+#
+# Una sola trascrizione sono circa 46.000 caratteri, e la tabella pesa 2,1 GB
+# perche' le contiene per intero. Il tetto e' basso apposta: due chiamate
+# coprono il trimestre e quello prima, che e' cio' che serve per vedere se la
+# guidance e' stata mantenuta.
+TRASCRIZIONI_LETTE = 2
+TRASCRIZIONI_MASSIME = 8
+
+# Quanto si tiene di ogni risposta prima di troncarla. Le risposte di una call
+# arrivano a migliaia di caratteri; il tema si capisce dai primi. Il taglio si
+# DICHIARA nel referto: un testo troncato mostrato senza dirlo si legge come se
+# quella fosse tutta la risposta.
+TRASCRIZIONE_RISPOSTA_CARATTERI = 1200
+
 # --- Filing salvati a mano (Blocco 8) --------------------------------------
 #
 # L'analisi qualitativa ha come fonte primaria il TESTO dei documenti SEC, che

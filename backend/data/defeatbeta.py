@@ -63,6 +63,11 @@ TABLE_NEWS = "stock_news"
 # chiusura da' la capitalizzazione.
 TABLE_SHARES = "stock_shares_outstanding"
 
+# Le trascrizioni delle earnings call: 2,1 GB, il file piu' grosso del dataset.
+# E' la fonte su cui il PIANO rifonda l'earnings review, che prima poggiava
+# sulle sorprese di Finnhub — sparite col fornitore.
+TABLE_TRANSCRIPTS = "stock_earning_call_transcripts"
+
 # La categoria di freschezza di ogni tabella. I nomi sono quelli dichiarati in
 # `config.FRESHNESS_TTL_S`: un test verifica che non se ne inventi di nuovi,
 # perche' una categoria sconosciuta prende il TTL cortissimo e non si nota.
@@ -73,6 +78,7 @@ CATEGORIA_PER_TABELLA = {
     TABLE_EARNING_CALENDAR: "earning_calendar",
     TABLE_SEC_FILING: "sec_filings",
     TABLE_NEWS: "news",
+    TABLE_TRANSCRIPTS: "transcripts",
 }
 
 # La derivazione dell'universo non e' la lettura di una tabella: e' una query
@@ -453,6 +459,23 @@ def earning_calendar(symbol: str, run_id: str | None = None) -> Lettura:
 def sec_filings(symbol: str, run_id: str | None = None) -> Lettura:
     """Documenti depositati alla SEC, dal piu' recente, con l'URL su sec.gov."""
     return _read(TABLE_SEC_FILING, symbol, extra="ORDER BY filing_date DESC", run_id=run_id)
+
+
+def transcripts(symbol: str, limit: int = config.TRASCRIZIONI_LETTE,
+                run_id: str | None = None) -> Lettura:
+    """Le trascrizioni delle earnings call, dalla piu' recente.
+
+    Il limite non e' un lusso: una sola trascrizione sono ~46.000 caratteri, e
+    la tabella pesa 2,1 GB perche' le contiene per intero. Chiederne dieci
+    significa chiedere mezzo milione di caratteri.
+    """
+    if not 1 <= limit <= config.TRASCRIZIONI_MASSIME:
+        raise ValueError(
+            f"limit deve stare fra 1 e {config.TRASCRIZIONI_MASSIME}, ricevuto {limit}"
+        )
+    return _read(TABLE_TRANSCRIPTS, symbol,
+                 extra="ORDER BY fiscal_year DESC, fiscal_quarter DESC LIMIT ?",
+                 extra_params=[limit], run_id=run_id)
 
 
 def news(symbol: str, limit: int = config.DEFEATBETA_NEWS_LIMIT_DEFAULT,
