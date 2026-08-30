@@ -295,10 +295,33 @@ provenienza `local`, i rimandi di `roic` che puntano a termini esistenti.*
 scritti — `volatility`, `market_tailwind`, `sector_leadership`. Tolti, e i tre
 concetti restano da scrivere se li vuoi.*
 
-**Blocco 6 — Grafici.** `lightweight-charts` pilotato dai nodi indicatore.
-Pannelli, overlay, impostazioni per ticker.
+**La scheda titolo — attraversa i Blocchi 6, 7 e 8.** Non e' un blocco a se':
+e' la pagina che consuma tutti gli altri, e finirla prima dell'8 e' impossibile.
+Ma aspettare l'8 per vederla vorrebbe dire restare per settimane senza il posto
+dove cliccare da watchlist e universo. Quindi cresce a strati:
 
-**Blocco 7 — Matematica e as_of.** Porting di `domain/`, con i test.
+| In quale blocco | Cosa le si aggiunge |
+|---|---|
+| 6 | il guscio: intestazione col profilo, grafico, prezzi, e le sezioni che dichiarano di essere vuote |
+| 7 | fondamentali, filing e news, con `as_of` |
+| 8 | le sette analisi, ognuna nella sua sezione |
+
+**Il precedente da non ripetere sono le sue 1.342 righe.** Nel vecchio tradash
+`app/ticker/[symbol]/page.tsx` montava una ventina di componenti e sapeva tutto:
+grafico, pannello fondamentali, alberi di filing e news, KPI operativi, contesto
+di mercato, salute, calendario dei rendimenti, schede dell'advisor. Qui dev'essere
+un **guscio piu' sezioni**, dove ogni blocco aggiunge la sua senza toccare le
+altre — e una sezione non ancora costruita dice "non ancora disponibile" invece
+di non esserci (regola 5).
+
+---
+
+**Blocco 6 — Grafici.** `lightweight-charts` pilotato dai nodi indicatore.
+Pannelli, overlay, impostazioni per ticker. **Piu' il guscio della scheda
+titolo**, che e' anche il posto dove il grafico va a vivere.
+
+**Blocco 7 — Matematica e as_of.** Porting di `domain/`, con i test. **Nella
+scheda titolo arrivano fondamentali, filing e news.**
 Comprende la **pagina di confronto point-in-time**: ricostruire l'analisi a una
 data passata e confrontarla con l'evoluzione reale (`compare_point_in_time`,
 `fair_value_history`). `truncation_basis()` deve continuare a dichiarare se un
@@ -309,8 +332,9 @@ verificata dal vivo.
 *Da chiudere qui: `before` su `get_recent_filings` era esposto e nessuno dei 9
 chiamanti di produzione lo passava.*
 
-**Blocco 8 — Tutte le analisi.** Nessuna esclusa. L'elenco completo, cosi'
-com'e' nel vecchio sistema:
+**Blocco 8 — Tutte le analisi.** Nessuna esclusa, e ognuna prende la sua
+sezione nella scheda titolo. L'elenco completo, cosi' com'e' nel vecchio
+sistema:
 
 | Analisi | Natura | Prompt / motore |
 |---|---|---|
