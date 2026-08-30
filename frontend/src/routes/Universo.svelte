@@ -128,9 +128,9 @@
                placeholder="500000000000" inputmode="numeric" />
     </div>
     <div class="col-12 col-md-3">
-        <label class="form-label small" for="filtro-cerca">Simbolo</label>
+        <label class="form-label small" for="filtro-cerca">Simbolo o nome</label>
         <input id="filtro-cerca" class="form-control form-control-sm" bind:value={cerca}
-               placeholder="NVD" />
+               placeholder="NVDA, oppure nvidia" />
     </div>
     <div class="col-12 col-md-3">
         <button class="btn btn-sm btn-outline-primary w-100" type="submit">Filtra</button>
@@ -150,7 +150,7 @@
                 <table class="table table-sm table-hover align-middle">
                     <thead>
                         <tr>
-                            <th>Simbolo</th><th>Settore</th><th>Industria</th>
+                            <th>Simbolo</th><th>Societa'</th><th>Settore</th><th>Industria</th>
                             <th class="text-end">Capitalizzazione</th>
                             <th class="text-end">Ultima chiusura</th>
                             <th>Del</th>
@@ -162,6 +162,9 @@
                                 <td class="fw-semibold">
                                     <a href="/titolo/{titolo.symbol}"
                                        class="text-decoration-none">{titolo.symbol}</a>
+                                </td>
+                                <td class="text-truncate" style="max-width:16rem">
+                                    <Valore valore={titolo.name} mancante="nome non noto" />
                                 </td>
                                 <td><Valore valore={titolo.sector} mancante="non classificato" /></td>
                                 <td><Valore valore={titolo.industry} mancante="non classificata" /></td>

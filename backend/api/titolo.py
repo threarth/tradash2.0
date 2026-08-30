@@ -17,6 +17,7 @@ from flask import Blueprint, request
 
 import config
 from api import HTTP_NOT_FOUND, fail, ok
+from core.db import db_read
 from core.tipi import python_puro
 from data import defeatbeta, depositi, filing_locali, grafici
 from data.grafici import GraficiError
@@ -49,6 +50,19 @@ def _profilo(simbolo: str) -> dict:
             **{campo: python_puro(riga.get(campo)) for campo in campi}}
 
 
+def _nome(simbolo: str) -> str | None:
+    """Il nome della societa', preso dall'universo che lo ha gia' derivato.
+
+    Non si rilegge da Defeatbeta: sta gia' in tabella, e chiederlo di nuovo
+    sarebbe una lettura in piu' per un dato che non cambia.
+    """
+    with db_read() as conn:
+        riga = conn.execute(
+            "SELECT name FROM universe WHERE symbol = ?", (simbolo.strip().upper(),)
+        ).fetchone()
+    return riga["name"] if riga else None
+
+
 def _intervallo(nome: str | None) -> tuple[str | None, str | None]:
     """La data da cui partire per l'intervallo chiesto. Ritorna (data, errore)."""
     scelto = nome or config.INTERVALLO_GRAFICO_PREDEFINITO
@@ -67,6 +81,7 @@ def scheda(simbolo: str):
     """L'intestazione della scheda: chi e' questo titolo, e cosa non c'e' ancora."""
     return ok({
         "symbol": simbolo.strip().upper(),
+        "name": _nome(simbolo),
         "profilo": _profilo(simbolo),
         "sezioni_future": {
             nome: {"available": False,

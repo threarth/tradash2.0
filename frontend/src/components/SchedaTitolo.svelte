@@ -87,7 +87,10 @@
             <a class="simbolo text-decoration-none" href="/titolo/{titolo.symbol}"
                onclick={(e) => e.stopPropagation()}>{titolo.symbol}</a>
             <span class="text-truncate">
-                <span class="small"><Valore valore={titolo.sector} mancante="non classificato" /></span>
+                <span class="small">
+                    {#if titolo.name}<Valore valore={titolo.name} /> · {/if}
+                    <Valore valore={titolo.sector} mancante="non classificato" />
+                </span>
                 <small class="d-block text-secondary">
                     <Valore valore={titolo.industry} mancante="industria non classificata" />
                 </small>

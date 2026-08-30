@@ -25,15 +25,18 @@ from data import defeatbeta, universe
 # Un universo finto piccolo, ma con dentro i casi scomodi: una societa' non
 # americana quotata negli USA, e un titolo a cui manca meta' dei dati.
 UNIVERSO_FINTO = [
-    {"symbol": "AAPL", "sector": "Technology", "industry": "Consumer Electronics",
+    {"symbol": "AAPL", "name": "Apple Inc.", "sector": "Technology",
+     "industry": "Consumer Electronics",
      "company_country": "United States", "employees": 150000, "last_close": 319.7,
      "last_close_date": "2026-08-28", "avg_volume_30d": 48259040.0,
      "market_cap": 4.67e12},
-    {"symbol": "BABA", "sector": "Consumer Cyclical", "industry": "Internet Retail",
+    {"symbol": "BABA", "name": "Alibaba Group Holding Limited",
+     "sector": "Consumer Cyclical", "industry": "Internet Retail",
      "company_country": "China", "employees": 132165, "last_close": 118.9,
      "last_close_date": "2026-08-28", "avg_volume_30d": 11934780.0,
      "market_cap": 2.85e11},
-    {"symbol": "ZOMB", "sector": None, "industry": None, "company_country": None,
+    {"symbol": "ZOMB", "name": None, "sector": None, "industry": None,
+     "company_country": None,
      "employees": None, "last_close": None, "last_close_date": None,
      "avg_volume_30d": None, "shares_outstanding": None, "market_cap": None},
 ]
@@ -270,6 +273,32 @@ def test_i_filtri_sono_parametrizzati_e_il_limite_e_controllato(derivazione_fint
 
     with pytest.raises(ValueError):
         universe.rows(limit=config.UNIVERSE_PAGE_LIMIT_MAX + 1)
+
+
+def test_la_ricerca_trova_per_simbolo_e_per_nome(derivazione_finta):
+    """Chi cerca "alibaba" non sta cercando un ticker, e chi cerca "BABA" non sta
+    scrivendo un nome.
+
+    Il vecchio tradash dava il nome per irrecuperabile da Defeatbeta, avendo
+    guardato solo `stock_profile`: sta invece nel calendario degli utili e
+    nell'indice dei depositi, e i due insieme coprono il 91,4% dell'universo.
+    """
+    universe.build()
+
+    assert [t["symbol"] for t in universe.rows(search="BAB")] == ["BABA"]
+    assert [t["symbol"] for t in universe.rows(search="alibaba")] == ["BABA"], \
+        "il nome si cerca ovunque dentro, e senza badare alle maiuscole"
+    assert [t["symbol"] for t in universe.rows(search="Apple")] == ["AAPL"]
+    assert universe.rows(search="inesistente") == []
+
+
+def test_un_titolo_senza_nome_resta_cercabile_per_simbolo(derivazione_finta):
+    """Il 8,6% dell'universo non ha un nome da nessuna delle due fonti."""
+    universe.build()
+
+    assert [t["symbol"] for t in universe.rows(search="ZOMB")] == ["ZOMB"]
+    assert next(t for t in universe.rows() if t["symbol"] == "ZOMB")["name"] is None
+
 
 
 def test_i_titoli_senza_capitalizzazione_finiscono_in_fondo_non_in_cima(derivazione_finta):

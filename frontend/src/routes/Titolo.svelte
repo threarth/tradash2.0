@@ -53,7 +53,12 @@
 
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div>
-            <h1 class="h3 mb-1">{scheda.dato.symbol}</h1>
+            <h1 class="h3 mb-1">
+                {scheda.dato.symbol}
+                {#if scheda.dato.name}
+                    <span class="fs-5 text-secondary">{scheda.dato.name}</span>
+                {/if}
+            </h1>
             {#if profilo.available}
                 <div class="text-secondary">
                     <Valore valore={profilo.sector} mancante="settore non classificato" />

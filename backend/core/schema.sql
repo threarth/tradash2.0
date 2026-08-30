@@ -85,6 +85,11 @@ CREATE TABLE IF NOT EXISTS freshness (
 -- (regola 5), invece di far sparire le righe scomode.
 CREATE TABLE IF NOT EXISTS universe (
     symbol             TEXT NOT NULL PRIMARY KEY,
+    -- Il nome della societa'. Il vecchio tradash lo dava per irrecuperabile da
+    -- Defeatbeta, e aveva guardato solo `stock_profile`, che infatti non ce
+    -- l'ha: sta nel calendario degli utili e nell'indice dei depositi, e
+    -- unendoli si copre il 91,4% dell'universo (10.289 titoli su 11.256).
+    name               TEXT,
     sector             TEXT,
     industry           TEXT,
     -- Il paese della SOCIETA', non della borsa: BABA risulta 'China' e SHOP
@@ -105,6 +110,7 @@ CREATE TABLE IF NOT EXISTS universe (
     built_at           TEXT NOT NULL
 ) STRICT;
 
+CREATE INDEX IF NOT EXISTS idx_universe_name       ON universe (name);
 CREATE INDEX IF NOT EXISTS idx_universe_sector     ON universe (sector);
 CREATE INDEX IF NOT EXISTS idx_universe_industry   ON universe (industry);
 CREATE INDEX IF NOT EXISTS idx_universe_market_cap ON universe (market_cap DESC);

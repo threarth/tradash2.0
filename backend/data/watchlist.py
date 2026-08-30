@@ -633,7 +633,7 @@ def elenco(tag: str | None = None, solo_preferiti: bool = False,
     with db_read() as conn:
         righe = conn.execute(f"""
             SELECT w.symbol, w.profilo, w.maturity, w.favorite, w.added_at,
-                   u.sector, u.industry, u.market_cap, u.last_close, u.last_close_date
+                   u.name, u.sector, u.industry, u.market_cap, u.last_close, u.last_close_date
             FROM watchlist w
             LEFT JOIN universe u ON w.symbol = u.symbol
             {dove}

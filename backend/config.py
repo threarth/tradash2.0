@@ -206,15 +206,29 @@ F3_COPERTURA_INTERESSI_ACCESA = 3.0
 F4_AUTONOMIA_TRIMESTRI_ACCESA = 4.0
 F4_AUTONOMIA_TRIMESTRI_ATTENZIONE = 8.0
 
-# F5 — diluizione. Crescita annua del numero di azioni.
+# F5 — diluizione. Il DATO e' deterministico (crescita annua del numero di
+# azioni); e' la SOGLIA a dipendere dall'azienda. La stessa diluizione del 6%
+# significa una cosa in una societa' che brucia cassa per finanziare la crescita
+# e un'altra in una che produce cassa e emette azioni per scelta.
 #
-# NOTA: il vecchio sistema aveva QUATTRO coppie di soglie, una per tipo di
-# azienda — a una societa' in fase speculativa si concede una diluizione che a
-# una matura non si concede. Il classificatore che sceglieva la coppia non e'
-# ancora portato: qui c'e' una coppia sola, ed e' una semplificazione
-# dichiarata, non una svista.
-F5_DILUIZIONE_ACCESA = 0.08
-F5_DILUIZIONE_ATTENZIONE = 0.05
+# Le quattro coppie sono quelle del vecchio sistema. A sceglierle e' la
+# tolleranza, e l'ordine con cui si decide viene da li': **la generazione di
+# cassa prima della fase** — verificato dal vivo su MU, che senza quella
+# precedenza si prendeva tre gradini di tolleranza in piu' del dovuto.
+F5_SOGLIE = {
+    "alta":        {"acceso": 0.15, "attenzione": 0.10},
+    "media":       {"acceso": 0.08, "attenzione": 0.05},
+    "bassa":       {"acceso": 0.05, "attenzione": 0.03},
+    "molto_bassa": {"acceso": 0.03, "attenzione": 0.015},
+}
+
+# Capex sui ricavi oltre cui il business e' a intensita' di capitale, e quindi
+# un fabbisogno di capitale piu' alto e' fisiologico.
+F5_CAPEX_SU_RICAVI_INTENSIVO = 0.10
+
+# Crescita annua dei ricavi oltre cui si e' in una fase di espansione, e sotto
+# la quale, in perdita, non si e' in scaling ma in difficolta'.
+FASE_CRESCITA_FORTE = 0.25
 
 # --- Scanner ---------------------------------------------------------------
 

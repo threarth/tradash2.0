@@ -44,6 +44,7 @@ VOCE_DEBITO_NETTO = "net_debt"
 VOCE_CASSA = "cash_and_cash_equivalents"
 VOCE_FCF = "free_cash_flow"
 VOCE_AZIONI = "diluted_average_shares"
+VOCE_CAPEX = "capital_expenditure"
 
 # Quanti trimestri fanno un anno: serve a confrontare un periodo con lo stesso
 # periodo dell'anno prima, non col trimestre precedente.
@@ -249,8 +250,54 @@ def f4_liquidita(conto_cassa: dict, patrimoniale: dict) -> dict:
 
 # --- F5: quante azioni in piu' ---------------------------------------------
 
-def f5_diluizione(conto: dict) -> dict:
-    """Crescita annua del numero di azioni diluite.
+def tolleranza_diluizione(conto: dict, conto_cassa: dict) -> tuple[str, dict]:
+    """Quanta diluizione e' fisiologica per questa azienda, e in base a cosa.
+
+    **La generazione di cassa viene prima della fase.** Un'azienda che produce
+    free cash flow si finanzia da sola: emettere azioni e' una scelta, non un
+    fabbisogno, e non merita tolleranza qualunque sia la sua fase. E' una
+    precedenza pagata con un giro vero nel vecchio sistema — su MU, senza,
+    "crescita forte piu' intensita' di capitale" le davano tre gradini di
+    tolleranza in piu' del dovuto.
+
+    Chi brucia cassa la merita, e tanto piu' quanto piu' cresce: chi cresce
+    forte sta finanziando espansione, chi non cresce sta finanziando le perdite.
+    """
+    flusso = _somma_ttm(conto_cassa, VOCE_FCF)
+    brucia = flusso is not None and flusso < 0
+
+    ricavi = [v for _, v in _ricavi(conto)]
+    crescita = None
+    if len(ricavi) > TRIMESTRI_ANNO and ricavi[-1 - TRIMESTRI_ANNO]:
+        crescita = ((ricavi[-1] - ricavi[-1 - TRIMESTRI_ANNO])
+                    / ricavi[-1 - TRIMESTRI_ANNO])
+
+    capex = _somma_ttm(conto_cassa, VOCE_CAPEX)
+    somma_ricavi = sum(ricavi[-TRIMESTRI_ANNO:]) if len(ricavi) >= TRIMESTRI_ANNO else None
+    intensita = (abs(capex) / somma_ricavi) if capex and somma_ricavi else None
+    intensivo = intensita is not None and intensita >= config.F5_CAPEX_SU_RICAVI_INTENSIVO
+
+    evidenza = {"fcf_ttm": flusso, "brucia_cassa": brucia, "crescita_ricavi": crescita,
+                "capex_su_ricavi": intensita, "intensita_di_capitale": intensivo}
+
+    if not brucia:
+        # Non brucia cassa (o non lo sappiamo): nessuna tolleranza.
+        evidenza["regola"] = ("produce cassa: emettere azioni e' una scelta"
+                              if flusso is not None else "cassa non misurabile")
+        return ("bassa" if flusso is not None else "molto_bassa"), evidenza
+
+    if crescita is not None and crescita >= config.FASE_CRESCITA_FORTE:
+        evidenza["regola"] = "brucia cassa per finanziare una crescita forte"
+        return "alta", evidenza
+
+    evidenza["regola"] = ("brucia cassa a intensita' di capitale alta" if intensivo
+                          else "brucia cassa senza crescere")
+    return ("media" if intensivo else "bassa"), evidenza
+
+
+def f5_diluizione(conto: dict, conto_cassa: dict | None = None) -> dict:
+    """Crescita annua del numero di azioni diluite, con la soglia che dipende
+    dall'azienda.
 
     Il confronto e' a un anno di distanza e non col trimestre prima: un
     riacquisto concentrato in un trimestre farebbe sembrare la diluizione
@@ -267,16 +314,24 @@ def f5_diluizione(conto: dict) -> dict:
         return _ignoto("numero di azioni a zero un anno fa")
 
     crescita = (adesso - anno_fa) / anno_fa
-    misure = {"crescita_azioni_annua": crescita, "azioni_adesso": adesso,
-              "azioni_un_anno_fa": anno_fa}
+    tolleranza, evidenza = tolleranza_diluizione(conto, conto_cassa or {})
+    soglie = config.F5_SOGLIE[tolleranza]
 
-    if crescita >= config.F5_DILUIZIONE_ACCESA:
-        return _segnale(ACCESO, f"azioni cresciute del {crescita:.1%} in un anno", **misure)
-    if crescita >= config.F5_DILUIZIONE_ATTENZIONE:
-        return _segnale(ATTENZIONE, f"azioni cresciute del {crescita:.1%} in un anno", **misure)
+    misure = {"crescita_azioni_annua": crescita, "azioni_adesso": adesso,
+              "azioni_un_anno_fa": anno_fa, "tolleranza": tolleranza,
+              "soglia_accesa": soglie["acceso"], **evidenza}
+    perche_tolleranza = f"soglia {soglie['acceso']:.1%} ({evidenza['regola']})"
+
+    if crescita >= soglie["acceso"]:
+        return _segnale(ACCESO, f"azioni cresciute del {crescita:.1%} in un anno, "
+                                f"{perche_tolleranza}", **misure)
+    if crescita >= soglie["attenzione"]:
+        return _segnale(ATTENZIONE, f"azioni cresciute del {crescita:.1%} in un anno, "
+                                    f"{perche_tolleranza}", **misure)
     if crescita < 0:
         return _segnale(SPENTO, f"azioni ridotte del {abs(crescita):.1%}: riacquisti", **misure)
-    return _segnale(SPENTO, f"diluizione contenuta ({crescita:.1%})", **misure)
+    return _segnale(SPENTO, f"diluizione contenuta ({crescita:.1%}), "
+                            f"{perche_tolleranza}", **misure)
 
 
 # --- tutti insieme ----------------------------------------------------------
@@ -297,7 +352,7 @@ def tutti(prospetti_per_tipo: dict) -> dict:
         "F2": f2_crescita(conto),
         "F3": f3_leva(conto, patrimoniale),
         "F4": f4_liquidita(cassa, patrimoniale),
-        "F5": f5_diluizione(conto),
+        "F5": f5_diluizione(conto, cassa),
     }
     for chiave, segnale in segnali.items():
         segnale["nome"] = NOMI[chiave]

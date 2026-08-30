@@ -451,3 +451,76 @@ def test_senza_depositi_nell_indice_lo_dice(monkeypatch):
 
     assert stato["documenti"] == []
     assert "nessun documento periodico" in stato["reason"]
+
+
+# --- la soglia della diluizione dipende dall'azienda -----------------------
+
+def test_chi_produce_cassa_non_ha_tolleranza():
+    """Un'azienda che genera free cash flow si finanzia da sola: emettere azioni
+    e' una scelta, non un fabbisogno."""
+    conto = _prospetto(total_revenue=[100] * 8)
+    cassa = _prospetto(free_cash_flow=[20] * 8)
+
+    tolleranza, evidenza = segnali.tolleranza_diluizione(conto, cassa)
+
+    assert tolleranza == "bassa"
+    assert evidenza["brucia_cassa"] is False
+    assert "scelta" in evidenza["regola"]
+
+
+def test_chi_brucia_cassa_per_crescere_forte_ha_la_tolleranza_piu_alta():
+    conto = _prospetto(total_revenue=[100, 100, 100, 100, 200, 200, 200, 200])
+    cassa = _prospetto(free_cash_flow=[-30] * 8)
+
+    tolleranza, evidenza = segnali.tolleranza_diluizione(conto, cassa)
+
+    assert tolleranza == "alta"
+    assert evidenza["crescita_ricavi"] == 1.0
+
+
+def test_chi_brucia_cassa_senza_crescere_no():
+    """Non sta finanziando espansione: sta finanziando le perdite."""
+    conto = _prospetto(total_revenue=[100] * 8)
+    cassa = _prospetto(free_cash_flow=[-30] * 8)
+
+    tolleranza, _ = segnali.tolleranza_diluizione(conto, cassa)
+
+    assert tolleranza == "bassa"
+
+
+def test_la_precedenza_e_cassa_prima_della_fase():
+    """Il difetto pagato dal vecchio sistema su MU: senza questa precedenza,
+    "crescita forte piu' intensita' di capitale" davano a un'azienda
+    cash-generative tre gradini di tolleranza in piu' del dovuto."""
+    in_crescita_e_intensiva = _prospetto(
+        total_revenue=[100, 100, 100, 100, 200, 200, 200, 200])
+    produce_cassa = _prospetto(free_cash_flow=[50] * 8, capital_expenditure=[-40] * 8)
+
+    tolleranza, _ = segnali.tolleranza_diluizione(in_crescita_e_intensiva, produce_cassa)
+
+    assert tolleranza == "bassa", "cresce forte ed e' intensiva, ma non ne ha bisogno"
+
+
+def test_la_stessa_diluizione_si_giudica_in_modo_diverso():
+    """Il dato e' lo stesso, il giudizio no: e' il senso di avere quattro soglie."""
+    azioni = {"diluted_average_shares": [100, 100, 100, 100, 106, 106, 106, 106]}
+
+    chi_cresce = _prospetto(total_revenue=[100, 100, 100, 100, 200, 200, 200, 200], **azioni)
+    chi_produce = _prospetto(total_revenue=[100] * 8, **azioni)
+
+    acceso = segnali.f5_diluizione(chi_cresce, _prospetto(free_cash_flow=[-30] * 8))
+    spento = segnali.f5_diluizione(chi_produce, _prospetto(free_cash_flow=[20] * 8))
+
+    assert acceso["misure"]["crescita_azioni_annua"] == spento["misure"]["crescita_azioni_annua"]
+    assert acceso["stato"] == segnali.SPENTO, "il 6% e' fisiologico per chi cresce forte"
+    assert spento["stato"] == segnali.ACCESO, "il 6% non lo e' per chi produce cassa"
+
+
+def test_il_segnale_dice_quale_soglia_ha_usato_e_perche():
+    conto = _prospetto(total_revenue=[100] * 8,
+                       diluted_average_shares=[100] * 4 + [110] * 4)
+    esito = segnali.f5_diluizione(conto, _prospetto(free_cash_flow=[20] * 8))
+
+    assert esito["misure"]["tolleranza"] == "bassa"
+    assert "soglia" in esito["perche"]
+    assert esito["misure"]["soglia_accesa"] == config.F5_SOGLIE["bassa"]["acceso"]

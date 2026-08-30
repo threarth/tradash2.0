@@ -449,6 +449,8 @@ def _prepara_universo() -> str:
     profilo = _table_uri(TABLE_PROFILE)
     prezzi = _table_uri(TABLE_PRICES)
     azioni = _table_uri(TABLE_SHARES)
+    calendario = _table_uri(TABLE_EARNING_CALENDAR)
+    depositi = _table_uri(TABLE_SEC_FILING)
     return f"""
         WITH prezzi AS (
             SELECT symbol,
@@ -477,8 +479,22 @@ def _prepara_universo() -> str:
         ),
         ultime_azioni AS (
             SELECT symbol, shares_outstanding FROM azioni_recenti WHERE posizione = 1
+        ),
+        -- Il nome della societa' non sta nel profilo: sta in queste due, con
+        -- forme diverse. Il calendario scrive "NVIDIA Corporation", l'indice
+        -- dei depositi "NVIDIA CORP" — si preferisce il primo, che e' scritto
+        -- per essere letto, e si ripiega sul secondo, che copre molti piu'
+        -- titoli (ETF compresi).
+        nome_calendario AS (
+            SELECT symbol, MAX(name) AS nome FROM '{calendario}'
+            WHERE name IS NOT NULL AND name <> '' GROUP BY symbol
+        ),
+        nome_deposito AS (
+            SELECT symbol, MAX(company_name) AS nome FROM '{depositi}'
+            WHERE company_name IS NOT NULL AND company_name <> '' GROUP BY symbol
         )
         SELECT p.symbol,
+               COALESCE(nc.nome, nd.nome) AS name,
                p.sector,
                p.industry,
                -- Nome esplicito: e' il paese della societa', non della borsa.
@@ -493,6 +509,8 @@ def _prepara_universo() -> str:
         LEFT JOIN ultimo_prezzo  u ON p.symbol = u.symbol
         LEFT JOIN volume_medio   v ON p.symbol = v.symbol
         LEFT JOIN ultime_azioni  a ON p.symbol = a.symbol
+        LEFT JOIN nome_calendario nc ON p.symbol = nc.symbol
+        LEFT JOIN nome_deposito   nd ON p.symbol = nd.symbol
     """
 
 

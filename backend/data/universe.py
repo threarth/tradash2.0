@@ -52,14 +52,14 @@ ATTESA_AVVIO_S = 5.0
 
 # Le colonne dell'universo, nell'ordine in cui stanno in tabella.
 COLONNE = (
-    "symbol", "sector", "industry", "company_country", "employees",
+    "symbol", "name", "sector", "industry", "company_country", "employees",
     "shares_outstanding", "market_cap", "last_close", "last_close_date",
     "avg_volume_30d",
 )
 
 # Le colonne di cui si misura la copertura: quelle che possono mancare.
 COLONNE_CON_BUCHI = (
-    "sector", "industry", "company_country", "employees",
+    "name", "sector", "industry", "company_country", "employees",
     "shares_outstanding", "market_cap", "last_close", "avg_volume_30d",
 )
 
@@ -76,7 +76,7 @@ def _riga(record: dict) -> tuple:
     pulito = {colonna: python_puro(record.get(colonna)) for colonna in COLONNE}
     dipendenti = pulito["employees"]
     return (
-        str(pulito["symbol"]),
+        str(pulito["symbol"]), pulito["name"],
         pulito["sector"], pulito["industry"], pulito["company_country"],
         int(dipendenti) if dipendenti is not None else None,
         pulito["shares_outstanding"], pulito["market_cap"], pulito["last_close"],
@@ -203,8 +203,13 @@ def _dove(sector, industry, min_market_cap, search) -> tuple[str, list]:
         condizioni.append("market_cap >= ?")
         parametri.append(float(min_market_cap))
     if search:
-        condizioni.append("symbol LIKE ?")
-        parametri.append(f"{search.strip().upper()}%")
+        # Si cerca nel simbolo E nel nome: chi cerca "nvidia" non sta cercando
+        # un ticker, e chi cerca "NVDA" non sta scrivendo un nome. Il simbolo
+        # dall'inizio, il nome ovunque — "Corporation" non aiuta nessuno a
+        # trovare NVIDIA, ma "vidia" si'.
+        cercato = search.strip()
+        condizioni.append("(symbol LIKE ? OR name LIKE ? COLLATE NOCASE)")
+        parametri.extend([f"{cercato.upper()}%", f"%{cercato}%"])
 
     return (f"WHERE {' AND '.join(condizioni)}" if condizioni else ""), parametri
 
