@@ -27,8 +27,9 @@ from pathlib import Path
 import config
 from core import llm, registry
 from core.db import db_read, db_session
+from core.tipi import python_puro
 from data import defeatbeta
-from domain import scansione
+from domain import pannello, prospetti, scansione, segnali
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +53,10 @@ METODI = {
     },
     "fondamentale": {
         "nome": "Qualita' fondamentale",
-        "natura": "deterministica + veti del modello",
-        "pronta": False,
-        "fonte": "i cinque segnali F1-F5, che gia' esistono e si vedono nella scheda",
-        "manca": "i veti del modello sopra i segnali, e il classificatore per tipo di azienda",
+        "natura": "deterministica + sintesi del modello",
+        "pronta": True,
+        "fonte": "i cinque segnali F1-F5 e le metriche di Defeatbeta, "
+                 "col confronto di settore",
     },
     "qualitativa": {
         "nome": "Report qualitativo a 10 sezioni",
@@ -187,7 +188,106 @@ def _tecnica(simbolo: str, run_id: str | None) -> dict:
             "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
 
 
-ESECUTORI = {"tecnica": _tecnica}
+# --- l'analisi fondamentale -------------------------------------------------
+
+# Le metriche del pannello, e la loro gemella di settore dove esiste. Il
+# confronto vale quanto il numero: "ROE del 15%" non si legge da solo.
+PANNELLO_FONDAMENTALE = {
+    "roe": "industry_roe",
+    "roic": "industry_roic",
+    "quarterly_gross_margin": "industry_quarterly_gross_margin",
+    "quarterly_net_margin": "industry_quarterly_net_margin",
+    "quarterly_operating_margin": None,
+    "quarterly_revenue_yoy_growth": None,
+    "net_debt_ttm": None,
+    "debt_to_equity": None,
+    "ttm_pe": None,
+}
+
+
+def _metrica_compressa(simbolo: str, nome: str, run_id: str | None) -> dict | None:
+    """Una metrica ridotta ai tre numeri che si leggono. `None` se non c'e'.
+
+    Una metrica che manca non ferma il pannello: le altre otto continuano a
+    dire quello che sanno, e la sua assenza finisce fra i dati mancanti.
+    """
+    try:
+        lettura = defeatbeta.metrica(simbolo, nome, run_id=run_id)
+    except defeatbeta.DefeatbetaUnavailable:
+        logger.warning("[ANALISI] metrica %s non disponibile per %s", nome, simbolo)
+        return None
+
+    if not lettura.available:
+        return None
+
+    colonne = [c for c in lettura.frame.columns if c != "symbol"]
+    righe = [{c: python_puro(r[c]) for c in colonne} for _, r in lettura.frame.iterrows()]
+    return pannello.comprimi(righe, colonne)
+
+
+def _pannello(simbolo: str, run_id: str | None) -> tuple[dict, list[str]]:
+    """Tutte le metriche del pannello, col settore accanto. E cosa non c'era."""
+    misure, mancanti = {}, []
+
+    for nome, gemella in PANNELLO_FONDAMENTALE.items():
+        titolo = _metrica_compressa(simbolo, nome, run_id)
+        if titolo is None:
+            mancanti.append(nome)
+            continue
+        settore = _metrica_compressa(simbolo, gemella, run_id) if gemella else None
+        misure[nome] = pannello.confronta(titolo, settore)
+
+    return misure, mancanti
+
+
+def _segnali_fondamentali(simbolo: str, run_id: str | None) -> dict:
+    """I cinque segnali di rischio, dagli stessi bilanci della scheda."""
+    lettura = defeatbeta.statements(simbolo, run_id=run_id)
+    if not lettura.available:
+        raise AnalisiError(f"nessun bilancio per {simbolo}: {lettura.reason}")
+
+    tabelle = {
+        nome: prospetti.tabella(lettura.frame, nome, prospetti.TRIMESTRALE)
+        for nome in prospetti.PROSPETTI
+    }
+    return segnali.tutti(tabelle)
+
+
+def _fondamentale(simbolo: str, run_id: str | None) -> dict:
+    """Calcola il pannello e i segnali, poi chiede al modello di leggerli.
+
+    Si ferma invece di degradare se non c'e' nemmeno una metrica: una lettura
+    fondamentale senza numeri non e' una lettura povera, e' una lettura
+    inventata.
+    """
+    rischi = _segnali_fondamentali(simbolo, run_id)
+    misure, mancanti = _pannello(simbolo, run_id)
+
+    if not misure:
+        raise AnalisiError(
+            f"nessuna metrica disponibile per {simbolo}: l'analisi si ferma "
+            f"invece di degradare"
+        )
+
+    sistema = _prompt("analisi_fondamentale",
+                      contesto=_contesto(simbolo, run_id),
+                      segnali=json.dumps(rischi, indent=2, ensure_ascii=False),
+                      metriche=json.dumps(misure, indent=2, ensure_ascii=False))
+
+    risposta = llm.chiedi(fase="analisi_fondamentale", sistema=sistema,
+                          messaggio=f"Produci la lettura fondamentale di {simbolo}.",
+                          scope=simbolo, run_id=run_id)
+
+    if risposta["rifiutata"]:
+        raise AnalisiError("il modello ha rifiutato di rispondere")
+
+    return {"contenuto": {**_leggi_json(risposta["testo"]),
+                          "segnali": rischi, "metriche": misure,
+                          "metriche_mancanti": mancanti},
+            "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
+
+
+ESECUTORI = {"tecnica": _tecnica, "fondamentale": _fondamentale}
 
 
 # --- eseguire e conservare --------------------------------------------------

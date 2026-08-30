@@ -380,11 +380,25 @@ vecchio prompt — *"non ricalcolare NULLA"* — diventa strutturale invece che
 raccomandata, perche' senza strumenti da chiamare non ha modo di inventare un
 numero.
 
-*Non fatto, e ognuno sa perche':* la **qualitativa** aspetta la lettura dei
-filing da sec.gov; la **forward** aspetta il suo pacchetto (3.295 righe mai
-girate); l'**earnings review** la tabella delle trascrizioni; il **verdetto**
-gli altri metodi; il **fondamentale** i veti del modello sopra i segnali che
-gia' ci sono; lo **spin-off** e' il candidato a essere tolto.
+**Le metriche di Defeatbeta si usano.** `Ticker` porta un'ottantina di metodi
+che calcolano ROE, ROIC, margini, debito netto, multipli e — cosa che il vecchio
+tradash non aveva — i **confronti di settore**. Passano da
+`defeatbeta.metrica()`, quindi dal registro con la provenienza misurata. Le
+serie si comprimono in `domain/pannello.py` prima di arrivare a un modello:
+`ttm_pe` da solo ha 6.875 righe, e mandarle intere costerebbe ~200.000 token
+per un numero che si guarda alla fine.
+
+*Fatta anche la seconda analisi:* la **qualita' fondamentale**, che mette
+insieme i cinque segnali e nove metriche col confronto di settore. Su NVDA
+misurato: ROE 33,1%, **il 45% sotto la sua industria**, con i margini invece
+sopra — la lettura che il vecchio sistema non sapeva produrre per undici ticker
+su diciotto.
+
+*Non fatto, e ognuno sa perche':* la **qualitativa** aspetta le quattro fasi (i
+documenti si possono gia' preparare: la scheda dice quali servono e con che nome
+salvarli); la **forward** aspetta il suo pacchetto (3.295 righe mai girate);
+l'**earnings review** la tabella delle trascrizioni; il **verdetto** gli altri
+metodi; lo **spin-off** e' il candidato a essere tolto.
 
 *Non verificato dal vivo:* la lettura tecnica non e' mai stata eseguita con un
 modello vero — servono la chiave e la decisione di spendere. La memoria dice che

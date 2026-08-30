@@ -17,7 +17,7 @@ import config
 from core import llm
 from core.db import db_read
 from data import analisi, defeatbeta, filing_locali
-from domain import segnali
+from domain import pannello, segnali
 
 TRIMESTRI = ["2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
              "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]
@@ -589,3 +589,110 @@ def test_una_metrica_inventata_viene_rifiutata_dalla_route(client):
 
     assert risposta.status_code == 400
     assert "sconosciuta" in risposta.get_json()["error"]
+
+
+# --- il pannello: le serie ridotte a cio' che si legge ---------------------
+
+def test_una_serie_diventa_tre_numeri():
+    """`ttm_pe` ha 6.875 righe: mandarle intere costerebbe ~200.000 token per un
+    numero che si guarda alla fine."""
+    righe = [{"report_date": f"2025-0{i+1}-01", "roe": 0.10 + i * 0.01} for i in range(8)]
+
+    compressa = pannello.comprimi(righe, ["report_date", "roe"])
+
+    assert compressa["adesso"] == 0.17
+    assert compressa["un_anno_fa"] == 0.13, "quattro punti indietro su serie trimestrale"
+    assert compressa["movimento"] == "in aumento"
+    assert compressa["punti"] == 8
+
+
+def test_il_valore_che_conta_e_l_ultima_colonna_numerica():
+    """Le tabelle della libreria portano i valori intermedi accanto al risultato:
+    `roe` ha utile, patrimonio e ROE, in quest'ordine."""
+    righe = [{"report_date": "2025-01-01", "net_income": 100.0,
+              "avg_equity": 1000.0, "roe": 0.1}]
+
+    compressa = pannello.comprimi(righe, ["report_date", "net_income", "avg_equity", "roe"])
+
+    assert compressa["misura"] == "roe"
+    assert compressa["adesso"] == 0.1
+
+
+def test_una_serie_giornaliera_guarda_indietro_di_un_anno_di_borsa():
+    righe = [{"report_date": f"g{i}", "pe": 20.0 + i * 0.01} for i in range(300)]
+
+    compressa = pannello.comprimi(righe, ["report_date", "pe"])
+
+    assert compressa["punti"] == 300
+    assert compressa["un_anno_fa"] == round(20.0 + (300 - 1 - 252) * 0.01, 4)
+
+
+def test_una_serie_vuota_non_vale_zero():
+    assert pannello.comprimi([], ["roe"]) is None
+    assert pannello.comprimi([{"report_date": "2025-01-01"}], ["report_date"]) is None
+
+
+def test_senza_un_anno_di_storia_il_movimento_non_si_pronuncia():
+    righe = [{"d": "1", "roe": 0.1}, {"d": "2", "roe": 0.2}]
+
+    compressa = pannello.comprimi(righe, ["d", "roe"])
+
+    assert compressa["un_anno_fa"] is None
+    assert compressa["movimento"] == "non confrontabile"
+
+
+def test_il_confronto_col_settore_dice_di_quanto_ci_si_discosta():
+    """"Questo numero e' alto?" non ha senso da solo: e' la domanda che il vecchio
+    sistema non sapeva rispondere per undici ticker su diciotto."""
+    titolo = {"adesso": 0.33, "misura": "roe"}
+    settore = {"adesso": 0.60, "misura": "industry_roe"}
+
+    confrontato = pannello.confronta(titolo, settore)
+
+    assert confrontato["settore"] == 0.60
+    assert confrontato["scarto_dal_settore"] == -0.45
+    assert confrontato["sopra_il_settore"] is False
+
+
+def test_senza_settore_il_confronto_lascia_il_titolo_com_e():
+    titolo = {"adesso": 0.33, "misura": "roe"}
+
+    assert pannello.confronta(titolo, None) == titolo
+    assert pannello.confronta(None, {"adesso": 0.6}) is None
+
+
+# --- l'analisi fondamentale -------------------------------------------------
+
+def test_la_fondamentale_e_pronta_e_dice_su_cosa_poggia():
+    metodi = {m["metodo"]: m for m in analisi.elenco()}
+
+    assert metodi["fondamentale"]["pronta"] is True
+    assert "settore" in metodi["fondamentale"]["fonte"]
+
+
+def test_una_metrica_che_manca_non_ferma_il_pannello(monkeypatch):
+    """Le altre otto continuano a dire quello che sanno."""
+    def _a_meta(simbolo, nome, run_id=None):
+        if nome == "roe":
+            raise defeatbeta.DefeatbetaUnavailable("questa no")
+        return defeatbeta.Lettura(
+            frame=pd.DataFrame({"symbol": ["X"], "report_date": ["2026-01-01"], "v": [1.0]}),
+            scope="X", category="metriche", source="cache", available=True, reason="finto")
+
+    monkeypatch.setattr(defeatbeta, "metrica", _a_meta)
+
+    misure, mancanti = analisi._pannello("X", None)
+
+    assert "roe" in mancanti
+    assert "roic" in misure
+
+
+def test_senza_nemmeno_una_metrica_la_fondamentale_si_ferma(monkeypatch):
+    """Una lettura fondamentale senza numeri non e' povera: e' inventata."""
+    monkeypatch.setattr(analisi, "_segnali_fondamentali", lambda s, r: {"segnali": {}})
+    monkeypatch.setattr(defeatbeta, "metrica", lambda s, n, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame(), scope=s, category="metriche", source="cache",
+        available=False, reason="niente"))
+
+    with pytest.raises(analisi.AnalisiError, match="si ferma"):
+        analisi._fondamentale("X", None)

@@ -15,17 +15,27 @@ qui, non altrove.
 import math
 
 
+def _da_numpy(valore):
+    """L'equivalente Python di un tipo numpy, o `None` se non si lascia convertire."""
+    try:
+        return valore.item()
+    except (ValueError, AttributeError):
+        return None
+
+
 def python_puro(valore):
     """Un valore di pandas/numpy reso in un tipo che Python, SQLite e JSON accettano.
 
-    Le stringhe vuote e i `NaN` diventano `None`: un dato assente e' assente,
-    e una stringa vuota che passa per «presente» falsa i conteggi di copertura.
+    Le stringhe vuote e i `NaN` diventano `None`: un dato assente e' assente, e
+    una stringa vuota che passa per «presente» falsa i conteggi di copertura.
+    Le date diventano stringhe ISO, che sono leggibili, ordinabili e
+    confrontabili — che e' come il resto del sistema tratta le date.
     """
     if valore is None:
         return None
 
-    # `math.isnan` invece del confronto con se stesso: dice la stessa cosa e la
-    # dice a chi legge, senza che serva un commento per spiegarla.
+    # `math.isnan` dice la stessa cosa del confronto con se stesso, e la dice a
+    # chi legge senza bisogno di un commento.
     if isinstance(valore, float) and math.isnan(valore):
         return None
 
@@ -33,11 +43,13 @@ def python_puro(valore):
         pulito = valore.strip()
         return pulito or None
 
-    # I tipi di numpy espongono `.item()`, che ritorna l'equivalente Python.
+    # Date e istanti — `pandas.Timestamp`, `datetime`, `date`: nessuno dei tre
+    # arriva in JSON, e `.item()` su un Timestamp non li salva.
+    if hasattr(valore, "isoformat"):
+        return valore.isoformat()
+
     if hasattr(valore, "item"):
-        try:
-            return python_puro(valore.item())
-        except (ValueError, AttributeError):
-            return None
+        convertito = _da_numpy(valore)
+        return python_puro(convertito) if convertito is not None else None
 
     return valore
