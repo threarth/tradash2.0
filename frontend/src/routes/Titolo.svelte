@@ -17,6 +17,7 @@
     import FilingDaSalvare from "../components/FilingDaSalvare.svelte";
     import Fondamentali from "../components/Fondamentali.svelte";
     import Grafico from "../components/Grafico.svelte";
+    import Metriche from "../components/Metriche.svelte";
     import Segnali from "../components/Segnali.svelte";
     import Testo from "../components/Testo.svelte";
     import Valore from "../components/Valore.svelte";
@@ -111,6 +112,14 @@
             Deterministici: calcolati dai bilanci, senza modelli linguistici.
         </p>
         <Segnali {simbolo} />
+
+        <hr class="my-4" />
+        <h2 class="h6">Metriche</h2>
+        <p class="small text-secondary">
+            Calcolate dalla libreria di Defeatbeta, lette attraverso il registro.
+            Nessuna parte aprendo la pagina: si chiedono una alla volta.
+        </p>
+        <Metriche {simbolo} />
 
         <hr class="my-4" />
         <h2 class="h6">Fondamentali</h2>

@@ -355,3 +355,80 @@ def filing_da_salvare(simbolo: str):
     protocollo, quindi un nome diverso va bene purche' quel numero ci sia.
     """
     return ok(filing_locali.stato(simbolo))
+
+
+# --- le metriche gia' calcolate --------------------------------------------
+
+# Quali metriche hanno una gemella di settore, per mostrarle accanto. E' il
+# confronto che il vecchio tradash non sapeva fare: il suo registro dei peer
+# copriva 7 ticker su 18.
+GEMELLE_DI_SETTORE = {
+    "roe": "industry_roe",
+    "roa": "industry_roa",
+    "roic": "industry_roic",
+    "ttm_pe": "industry_ttm_pe",
+    "quarterly_gross_margin": "industry_quarterly_gross_margin",
+    "quarterly_net_margin": "industry_quarterly_net_margin",
+}
+
+# Quante righe di una serie si mandano al frontend: le piu' recenti bastano.
+RIGHE_METRICA = 24
+
+
+@bp.get("/<simbolo>/metriche")
+def catalogo_metriche(simbolo: str):
+    """Quali metriche si possono chiedere per questo titolo, e quali costano.
+
+    Nessuna viene calcolata qui: aprire la pagina non deve far partire trenta
+    query (regola 2). Si chiedono una alla volta, quando servono.
+    """
+    return ok({
+        "symbol": simbolo.strip().upper(),
+        "metriche": [
+            {"nome": nome, "descrizione": descrizione,
+             "lenta": nome in defeatbeta.METRICHE_LENTE,
+             "gemella_di_settore": GEMELLE_DI_SETTORE.get(nome)}
+            for nome, descrizione in sorted(defeatbeta.METRICHE.items())
+            if not nome.startswith("industry_")
+        ],
+    })
+
+
+def _serie(simbolo: str, nome: str) -> dict:
+    """Una metrica come serie di righe pronte da mostrare."""
+    lettura = defeatbeta.metrica(simbolo, nome)
+    if not lettura.available:
+        return {"available": False, "reason": lettura.reason, "action": lettura.action,
+                "righe": []}
+
+    frame = lettura.frame.tail(RIGHE_METRICA)
+    return {
+        "available": True, "source": lettura.source,
+        "colonne": [c for c in frame.columns if c != "symbol"],
+        "righe": [
+            {c: python_puro(riga[c]) for c in frame.columns if c != "symbol"}
+            for _, riga in frame.iterrows()
+        ],
+    }
+
+
+@bp.get("/<simbolo>/metriche/<nome>")
+def metrica(simbolo: str, nome: str):
+    """Una metrica, con accanto quella dell'industria quando esiste.
+
+    La serie arriva con le sue date: chi vuole ricostruire a una data passata
+    taglia lei, come per i bilanci.
+    """
+    if nome not in defeatbeta.METRICHE:
+        return fail(f"metrica sconosciuta: {nome!r}")
+
+    try:
+        risposta = {"symbol": simbolo.strip().upper(), "nome": nome,
+                    "descrizione": defeatbeta.METRICHE[nome],
+                    "titolo": _serie(simbolo, nome)}
+        gemella = GEMELLE_DI_SETTORE.get(nome)
+        if gemella and request.args.get("con_settore", "1") == "1":
+            risposta["settore"] = {"nome": gemella, **_serie(simbolo, gemella)}
+        return ok(risposta)
+    except defeatbeta.DefeatbetaUnavailable as exc:
+        return fail(str(exc))

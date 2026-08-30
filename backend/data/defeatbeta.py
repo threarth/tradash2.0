@@ -78,6 +78,7 @@ CATEGORIA_PER_TABELLA = {
 # La derivazione dell'universo non e' la lettura di una tabella: e' una query
 # sola che ne unisce quattro, e non appartiene a nessun titolo.
 CATEGORY_UNIVERSE = "universe"
+CATEGORY_METRICHE = "metriche"
 ENDPOINT_UNIVERSE = "universo:derivazione"
 
 # Tutte le tabelle che questo modulo puo' nominare. L'elenco e' chiuso perche'
@@ -226,16 +227,27 @@ def _uri_nella_query(sql: str) -> list[str]:
 
 
 def _ricomincia_da_capo(sql: str) -> None:
-    """Butta via la cache del file e il client, poi lascia che si ricostruisca.
+    """Svuota le cache, dentro e fuori dal processo, e forza un client nuovo.
 
-    Il dataset si aggiorna ogni notte. `cache_httpfs` tiene i byte gia'
-    scaricati, e la libreria confronta `spec.json` con la cache **solo quando
-    costruisce il client**: un processo acceso da prima dell'aggiornamento non
-    ripete quel controllo mai piu' e continua a mescolare byte di due versioni.
+    Il dataset si aggiorna ogni notte. La libreria confronta `spec.json` con la
+    cache **solo quando costruisce il client**: un processo acceso da prima
+    dell'aggiornamento non ripete quel controllo mai piu' e continua a mescolare
+    byte di due versioni.
 
-    Buttare il client e' la mossa giusta perche' ricostruirlo fa rifare alla
-    libreria il SUO controllo, che sa svuotare tutta la cache quando serve —
-    cosa che noi, file per file, non sapremmo fare.
+    Ci sono volute tre correzioni per farlo davvero, e le prime due sbagliavano
+    perche' non avevo verificato dove stessero le cose:
+
+    1. la cache non e' solo su disco. `cache_httpfs` tiene anche i metadati dei
+       parquet **in memoria, per otto ore**: svuotare i file sul disco lasciava
+       in piedi i piedini di pagina vecchi;
+    2. **la libreria tiene il client in un singleton suo**. Azzerare il nostro
+       riferimento e richiamare `get_duckdb_client()` restituiva esattamente lo
+       stesso oggetto, con le stesse cache in memoria — cioe' non ricostruiva
+       niente.
+
+    Per questo qui si tocca `duckdb_client._instance`, che e' privato: non e'
+    eleganza, e' l'unico modo che la libreria lascia per ottenere davvero una
+    connessione nuova, e con lei il suo controllo su `spec.json`.
     """
     cliente = _stato.get("client")
     indirizzi = _uri_nella_query(sql)
@@ -245,14 +257,32 @@ def _ricomincia_da_capo(sql: str) -> None:
             try:
                 cliente.connection.execute(f"SELECT cache_httpfs_clear_cache_for_file('{uri}')")
             except Exception:
-                logger.exception("[DEFEATBETA] cache non svuotata per %s", uri)
+                logger.exception("[DEFEATBETA] cache su disco non svuotata per %s", uri)
+        try:
+            # Questa svuota anche cio' che sta in memoria, che e' il pezzo che
+            # le prime due correzioni non toccavano.
+            cliente.connection.execute("SELECT cache_httpfs_clear_cache()")
+        except Exception:
+            logger.exception("[DEFEATBETA] cache in memoria non svuotata")
 
-    _stato["client"] = None
+    _dimentica_il_client()
     logger.warning(
-        "[DEFEATBETA] lettura fallita: svuotata la cache di %d file e buttato il client, "
-        "riprovo una volta. Succede quando il dataset si aggiorna mentre il processo "
-        "e' acceso.", len(indirizzi),
+        "[DEFEATBETA] lettura fallita: svuotate le cache di %d file, quella in memoria "
+        "e il client, riprovo una volta. Succede quando il dataset si aggiorna mentre "
+        "il processo e' acceso.", len(indirizzi),
     )
+
+
+def _dimentica_il_client() -> None:
+    """Fa dimenticare il client anche alla libreria, non solo a noi."""
+    _stato["client"] = None
+    try:
+        from defeatbeta_api.client import duckdb_client  # noqa: PLC0415
+
+        duckdb_client._instance = None
+    except ImportError:
+        # La libreria non e' importata: non c'e' nessun singleton da azzerare.
+        pass
 
 
 def _esegui(sql: str, parametri: list) -> tuple[pd.DataFrame, int]:
@@ -438,6 +468,112 @@ def news(symbol: str, limit: int = config.DEFEATBETA_NEWS_LIMIT_DEFAULT,
         )
     return _read(TABLE_NEWS, symbol, extra="ORDER BY report_date DESC LIMIT ?",
                  extra_params=[limit], run_id=run_id)
+
+
+# --- le metriche gia' calcolate dalla libreria ------------------------------
+#
+# `Ticker` porta un'ottantina di metodi che calcolano ROE, ROIC, margini, debito
+# netto, multipli e — cosa che il vecchio tradash non aveva affatto — i
+# confronti di SETTORE. Sono SQL sui parquet, non chiamate di rete in piu'.
+#
+# Non li si usa direttamente: passano di qui, e quindi dal registro, con la
+# provenienza misurata come ogni altra lettura. La differenza fra usarli e
+# scriverli a mano non deve essere che gli uni si vedono nel log e gli altri no.
+#
+# L'elenco e' chiuso perche' il nome del metodo finisce in un `getattr`: chiuso,
+# non e' una porta.
+METRICHE = {
+    # sul titolo
+    "roe": "capitale proprio: quanto rende",
+    "roa": "attivo: quanto rende",
+    "roic": "capitale investito: quanto rende",
+    "roce": "capitale impiegato: quanto rende",
+    "wacc": "costo medio del capitale",
+    "net_debt_ttm": "debito netto",
+    "debt_to_equity": "debito su patrimonio",
+    "enterprise_value": "valore d'impresa",
+    "ttm_revenue": "ricavi negli ultimi dodici mesi",
+    "ttm_fcf": "flusso di cassa libero negli ultimi dodici mesi",
+    "ttm_ebitda": "EBITDA negli ultimi dodici mesi",
+    "ttm_pe": "prezzo su utili",
+    "ps_ratio": "prezzo su ricavi",
+    "pb_ratio": "prezzo su patrimonio",
+    "peg_ratio": "prezzo su utili corretto per la crescita",
+    "market_capitalization": "capitalizzazione",
+    "quarterly_gross_margin": "margine lordo, per trimestre",
+    "quarterly_operating_margin": "margine operativo, per trimestre",
+    "quarterly_net_margin": "margine netto, per trimestre",
+    "quarterly_fcf_margin": "margine di cassa, per trimestre",
+    "quarterly_revenue_yoy_growth": "crescita dei ricavi su un anno",
+    "beta": "beta rispetto al mercato",
+    # sul settore: il confronto che il vecchio sistema non sapeva fare
+    "industry_ttm_pe": "prezzo su utili dell'industria",
+    "industry_roe": "capitale proprio dell'industria: quanto rende",
+    "industry_roa": "attivo dell'industria: quanto rende",
+    "industry_roic": "capitale investito dell'industria: quanto rende",
+    "industry_quarterly_gross_margin": "margine lordo dell'industria",
+    "industry_quarterly_net_margin": "margine netto dell'industria",
+}
+
+# Alcune costano molto piu' di altre: `industry_ttm_pe` misurato in 32 secondi
+# contro gli 0,6 di `roe`. Chi le chiama in gruppo deve saperlo, e chi le chiama
+# da una pagina deve chiamarle una alla volta.
+METRICHE_LENTE = frozenset({"industry_ttm_pe", "wacc", "peg_ratio", "enterprise_value"})
+
+
+def _ticker(simbolo: str):
+    """L'oggetto della libreria per un titolo. Usa la connessione che abbiamo gia'."""
+    from defeatbeta_api.data.ticker import Ticker  # noqa: PLC0415
+
+    _ensure_client()
+    return Ticker(simbolo, log_level=DUCKDB_LOG_LEVEL_SILENT)
+
+
+def _esegui_metodo(simbolo: str, metodo: str) -> tuple[pd.DataFrame, int]:
+    """Chiama un metodo della libreria contando le richieste HTTP che ha fatto.
+
+    Il conteggio funziona anche se il metodo usa un cursore suo: il log di
+    DuckDB e' della connessione, non del cursore.
+    """
+    cursore = _ensure_client().connection.cursor()
+    _stato["cursore_attivo"] = cursore
+    try:
+        cursore.execute(SQL_TRUNCATE_LOG)
+        frame = getattr(_ticker(simbolo), metodo)()
+        richieste = cursore.execute(SQL_COUNT_HTTP).fetchone()[0]
+        return frame, int(richieste)
+    finally:
+        _stato["cursore_attivo"] = None
+        cursore.close()
+
+
+def metrica(simbolo: str, nome: str, run_id: str | None = None) -> Lettura:
+    """Una metrica gia' calcolata dalla libreria, letta attraverso il registro.
+
+    Ritorna la SERIE storica con le sue date, non un numero solo: il taglio a
+    una data passata lo fa chi legge, come per i bilanci. E' il motivo per cui
+    questi metodi si possono usare anche nelle ricostruzioni.
+    """
+    if nome not in METRICHE:
+        raise ValueError(f"metrica non prevista: {nome!r}. "
+                         f"Ci sono: {', '.join(sorted(METRICHE))}")
+
+    ambito = freshness.normalize_scope(simbolo)
+    if not SYMBOL_PATTERN.match(ambito):
+        return _simbolo_rifiutato(ambito, CATEGORY_METRICHE)
+
+    with calls.track(PROVIDER_NAME, f"metrica:{nome}", scope=ambito, run_id=run_id) as chiamata:
+        try:
+            with _read_lock:
+                frame, richieste = _esegui_metodo(ambito, nome)
+        except Exception as exc:
+            raise DefeatbetaUnavailable(
+                f"metrica {nome} per {ambito} fallita: {type(exc).__name__}: {exc}"
+            ) from exc
+        _dichiara_provenienza(chiamata, richieste, ambito, CATEGORY_METRICHE)
+        provenienza = chiamata.source
+
+    return _esito(frame, ambito, CATEGORY_METRICHE, provenienza)
 
 
 # --- l'universo: una query sola che ne unisce quattro ----------------------

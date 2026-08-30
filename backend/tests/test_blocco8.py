@@ -524,3 +524,68 @@ def test_il_segnale_dice_quale_soglia_ha_usato_e_perche():
     assert esito["misure"]["tolleranza"] == "bassa"
     assert "soglia" in esito["perche"]
     assert esito["misure"]["soglia_accesa"] == config.F5_SOGLIE["bassa"]["acceso"]
+
+
+# --- le metriche della libreria, lette dal registro ------------------------
+
+def test_l_elenco_delle_metriche_e_chiuso():
+    """Il nome finisce in un `getattr`: chiuso, non e' una porta."""
+    with pytest.raises(ValueError, match="non prevista"):
+        defeatbeta.metrica("NVDA", "__class__")
+
+    assert "roe" in defeatbeta.METRICHE
+    assert all(not n.startswith("_") for n in defeatbeta.METRICHE)
+
+
+def test_una_metrica_passa_dal_registro_come_ogni_lettura(monkeypatch):
+    """La differenza fra usare i metodi della libreria e scrivere il calcolo a
+    mano non deve essere che gli uni si vedono nel log e gli altri no."""
+    frame = pd.DataFrame({"symbol": ["X"] * 3, "report_date": ["2025-12-31"] * 3,
+                          "roe": [0.1, 0.2, 0.3]})
+    monkeypatch.setattr(defeatbeta, "_esegui_metodo", lambda s, n: (frame, 2))
+
+    lettura = defeatbeta.metrica("X", "roe")
+
+    assert lettura.available is True
+    assert lettura.source == "network", "due richieste HTTP: e' rete"
+    with db_read() as conn:
+        righe = [dict(r) for r in conn.execute("SELECT * FROM calls")]
+    assert righe[0]["endpoint"] == "metrica:roe"
+    assert righe[0]["scope"] == "X"
+
+
+def test_una_metrica_servita_dalla_cache_lo_dice(monkeypatch):
+    frame = pd.DataFrame({"symbol": ["X"], "roe": [0.1]})
+    monkeypatch.setattr(defeatbeta, "_esegui_metodo", lambda s, n: (frame, 0))
+
+    assert defeatbeta.metrica("X", "roe").source == "cache"
+
+
+def test_un_simbolo_malformato_non_arriva_alla_libreria(monkeypatch):
+    """La libreria interpola il ticker nel testo SQL: la porta si chiude prima."""
+    def _mai(simbolo, nome):
+        raise AssertionError("non doveva arrivare qui")
+
+    monkeypatch.setattr(defeatbeta, "_esegui_metodo", _mai)
+
+    lettura = defeatbeta.metrica("robaccia'; DROP TABLE calls; --", "roe")
+
+    assert lettura.available is False
+    assert lettura.action == defeatbeta.ACTION_SIMBOLO_MALFORMATO
+
+
+def test_il_catalogo_dice_quali_costano_e_quali_hanno_il_settore(client):
+    d = client.get("/api/titolo/NVDA/metriche").get_json()["data"]
+    per_nome = {m["nome"]: m for m in d["metriche"]}
+
+    assert "industry_roe" not in per_nome, "le gemelle non si scelgono, si accompagnano"
+    assert per_nome["roe"]["gemella_di_settore"] == "industry_roe"
+    assert per_nome["wacc"]["lenta"] is True
+    assert all(m["descrizione"] for m in d["metriche"])
+
+
+def test_una_metrica_inventata_viene_rifiutata_dalla_route(client):
+    risposta = client.get("/api/titolo/NVDA/metriche/oroscopo")
+
+    assert risposta.status_code == 400
+    assert "sconosciuta" in risposta.get_json()["error"]
