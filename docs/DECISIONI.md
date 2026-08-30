@@ -558,6 +558,53 @@ secondo sta dentro il primo.
 `<script>` e `<style>` e stringendo gli spazi ripetuti: ognuno di quelli, in un
 filing HTML, e' un token pagato. Nessuna dipendenza nuova.
 
+### Il collegamento diretto, e perche' e' una convenzione
+
+Defeatbeta da' l'indirizzo della CARTELLA del deposito, dove ci sono
+centoquattordici file e bisogna cercare a mano quale sia il documento. Il
+collegamento diretto si costruisce invece per convenzione:
+
+    {cartella}/{simbolo minuscolo}-{fine periodo senza trattini}.htm
+    -> .../000104581026000021/nvda-20260125.htm
+
+Dal 2019 la gran parte degli emittenti nomina cosi' il documento principale.
+**Non e' una regola della SEC: e' un'abitudine**, e chi non la segue da' un 404.
+Per questo la pagina mostra DUE collegamenti — "documento", comodo e non
+garantito, e "cartella", scomodo e sempre valido — dicendo quale e' quale.
+
+**Sapere il nome vero si potrebbe**: sta nel campo `primaryDocument` di
+`data.sec.gov/submissions/CIK{cik}.json`, verificato. Era stato scritto, e poi
+tolto: **decisione dell'utente del 30/08/2026, tradash non fa accessi a
+sec.gov.** Il testo dei filing lo scarica lui col browser; il programma non
+parla con la SEC.
+
+---
+
+## Una cache di byte puo' disallinearsi mentre il processo e' acceso
+
+Trovato dal vivo il 30/08/2026. Una lettura che il giorno prima funzionava —
+`stock_sec_filing` — ha cominciato a rispondere `don't know what type:`, e
+falliva anche un semplice `COUNT(*)` con un filtro.
+
+La causa: **il dataset si aggiorna ogni notte** (04:50 UTC quel giorno), e
+`cache_httpfs` teneva pezzi della versione precedente. Mescolati ai nuovi, danno
+un parquet illeggibile. La libreria un controllo ce l'ha — confronta
+`update_time` di `spec.json` con la cache — ma **solo quando costruisce il
+client**: un server lasciato acceso attraversa l'aggiornamento e non lo ripete
+mai piu'.
+
+La difesa: un errore con la forma dei byte disallineati fa svuotare la cache di
+QUEL file e riprovare, **una volta sola**. Riprovare all'infinito nasconderebbe
+un guasto vero.
+
+E resta scritto il caso peggiore, quello che non abbiamo visto: una cache
+disallineata potrebbe restituire dati SBAGLIATI invece di un errore. Qui e'
+andata bene perche' il parquet si e' rotto rumorosamente.
+
+---
+
+
+
 ---
 
 ## Un test lasciava vivo il proprio thread

@@ -210,23 +210,70 @@ def _prepara(table: str, extra: str) -> str:
     return f"SELECT * FROM '{_table_uri(table)}' WHERE symbol = ? {extra}".strip()
 
 
+# Come si presenta una cache di byte disallineata. Misurato il 30/08/2026: il
+# dataset si aggiorna di notte, e un processo acceso da prima continua a tenere
+# pezzi della versione vecchia — mescolati ai nuovi danno un parquet illeggibile.
+SEGNI_DI_CACHE_GUASTA = ("don't know what type", "Invalid Input Error",
+                         "Corrupt", "magic bytes")
+
+
+def _cache_guasta(errore: Exception) -> bool:
+    """L'errore ha la forma di byte disallineati, non di una query sbagliata."""
+    testo = str(errore)
+    return any(segno in testo for segno in SEGNI_DI_CACHE_GUASTA)
+
+
+def _uri_nella_query(sql: str) -> str | None:
+    """L'URL del parquet dentro la query: e' l'unica cosa fra apici singoli."""
+    pezzi = sql.split("'")
+    return next((p for p in pezzi if p.startswith("http")), None)
+
+
 def _esegui(sql: str, parametri: list) -> tuple[pd.DataFrame, int]:
     """Esegue la query e ritorna (righe, richieste HTTP fatte per servirla).
 
     Se il log HTTP non fosse leggibile, questa funzione solleva invece di
     tirare a indovinare: un percorso che non sa dichiarare la propria
     provenienza non deve poter leggere dati (regola 1).
+
+    **Un solo secondo tentativo, e solo per la cache disallineata.** Il dataset
+    si aggiorna ogni notte; la libreria confronta `spec.json` con la cache
+    quando costruisce il client, e un processo acceso da prima
+    dell'aggiornamento non ripete quel controllo mai piu'. Il risultato,
+    misurato: `don't know what type:` su una tabella che il giorno prima si
+    leggeva. Si svuota la cache di QUEL file e si riprova una volta sola —
+    riprovare all'infinito nasconderebbe un guasto vero.
     """
     cursore = _ensure_client().connection.cursor()
     _stato["cursore_attivo"] = cursore
     try:
         cursore.execute(SQL_TRUNCATE_LOG)
-        frame = cursore.execute(sql, parametri).df()
+        try:
+            frame = cursore.execute(sql, parametri).df()
+        except Exception as exc:
+            if not _cache_guasta(exc):
+                raise
+            frame = _riprova_senza_cache(cursore, sql, parametri, exc)
         richieste = cursore.execute(SQL_COUNT_HTTP).fetchone()[0]
         return frame, int(richieste)
     finally:
         _stato["cursore_attivo"] = None
         cursore.close()
+
+
+def _riprova_senza_cache(cursore, sql: str, parametri: list, errore: Exception):
+    """Svuota la cache del file coinvolto e riprova. Una volta sola."""
+    uri = _uri_nella_query(sql)
+    if uri is None:
+        raise errore
+
+    logger.warning(
+        "[DEFEATBETA] byte disallineati su %s (%s): svuoto la sua cache e riprovo. "
+        "Succede quando il dataset si aggiorna mentre il processo e' acceso.",
+        uri.rsplit("/", maxsplit=1)[-1], errore,
+    )
+    cursore.execute(f"SELECT cache_httpfs_clear_cache_for_file('{uri}')")
+    return cursore.execute(sql, parametri).df()
 
 
 def interrupt() -> bool:

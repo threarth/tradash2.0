@@ -10,6 +10,11 @@
     avviene sul numero di protocollo — la chiave univoca di EDGAR, che compare
     gia' nell'URL. Se salvi con un nome tuo ma quel numero c'e' dentro, il
     documento viene trovato lo stesso.
+
+    I collegamenti sono DUE: il primo punta dritto al documento, costruito per
+    convenzione (`nvda-20260125.htm`) e quindi non garantito; il secondo apre la
+    cartella e funziona sempre. Sapere il nome vero vorrebbe dire chiederlo a
+    sec.gov, e a sec.gov questo sistema non chiede niente.
 -->
 <script>
     import Assente from "./Assente.svelte";
@@ -100,10 +105,18 @@
                                         <i class="bi bi-clipboard"></i>
                                     </button>
                                 {/if}
-                                <a class="btn btn-sm btn-outline-primary"
-                                   href={documento.filing_url}
-                                   target="_blank" rel="noopener noreferrer">
-                                    apri su sec.gov ↗
+                                <a class="btn btn-sm btn-primary"
+                                   href={documento.url}
+                                   target="_blank" rel="noopener noreferrer"
+                                   title="Va dritto al documento. Costruito per
+                                          convenzione: se da' 404, usa la cartella.">
+                                    documento ↗
+                                </a>
+                                <a class="btn btn-sm btn-outline-secondary"
+                                   href={documento.url_cartella}
+                                   target="_blank" rel="noopener noreferrer"
+                                   title="La cartella del deposito: funziona sempre">
+                                    cartella ↗
                                 </a>
                             </div>
                         </div>
@@ -112,9 +125,11 @@
             </div>
 
             <p class="small text-secondary mt-2 mb-0">
-                Il nome proposto e' un suggerimento: il riconoscimento avviene sul
-                numero di protocollo, che compare gia' nell'indirizzo. Un nome
-                diverso va bene, purche' quel numero ci sia dentro.
+                <strong>documento</strong> va dritto al file, ed e' costruito per
+                convenzione — quasi tutti gli emittenti la seguono, chi non la segue
+                da' un 404 e allora si usa <strong>cartella</strong>, che funziona
+                sempre. Il nome proposto e' un suggerimento: il riconoscimento
+                avviene sul numero di protocollo, che compare gia' nell'indirizzo.
             </p>
         {/if}
     {/snippet}

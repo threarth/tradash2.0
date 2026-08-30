@@ -112,6 +112,7 @@ def _periodici(simbolo: str, run_id: str | None) -> list[dict]:
             "report_date": str(python_puro(riga.get("report_date")) or "")[:10],
             "filing_date": str(python_puro(riga.get("filing_date")) or "")[:10],
             "accession_number": protocollo,
+            "cik": python_puro(riga.get("cik")),
             "filing_url": python_puro(riga.get("filing_url")),
         })
 
@@ -140,9 +141,35 @@ def richiesti(simbolo: str, run_id: str | None = None) -> list[dict]:
         {**voce,
          "nome_atteso": nome_atteso(ambito, voce),
          "presente": _protocollo_nudo(voce["accession_number"]) in presenti,
-         "file": str(presenti.get(_protocollo_nudo(voce["accession_number"]), "")) or None}
+         "file": str(presenti.get(_protocollo_nudo(voce["accession_number"]), "")) or None,
+         **_collegamenti(ambito, voce)}
         for voce in sorted(scelti, key=lambda v: v["filing_date"], reverse=True)
     ]
+
+
+def _collegamenti(simbolo: str, voce: dict) -> dict:
+    """I due indirizzi: quello che punta al documento, e quello della cartella.
+
+    **Il primo e' costruito per convenzione, non letto da nessuna parte.** Dal
+    2019 la gran parte degli emittenti nomina il documento principale
+    `{simbolo}-{fine periodo}.htm` — per NVDA, `nvda-20260125.htm`. Non e' una
+    regola della SEC: e' un'abitudine, e per chi non la segue quell'indirizzo
+    da' un 404.
+
+    Per questo la cartella resta accanto, e la pagina dice quale dei due e'
+    sicuro. Sapere il nome vero richiederebbe di chiedere a sec.gov, e a
+    sec.gov questo sistema non chiede niente.
+    """
+    cartella_url = voce.get("filing_url")
+    periodo = voce.get("report_date", "").replace("-", "")
+    if not cartella_url or not periodo:
+        return {"url": cartella_url, "url_cartella": cartella_url, "per_convenzione": False}
+
+    return {
+        "url": f"{cartella_url}/{simbolo.lower()}-{periodo}.htm",
+        "url_cartella": cartella_url,
+        "per_convenzione": True,
+    }
 
 
 def _per_protocollo(simbolo: str) -> dict[str, Path]:
