@@ -129,6 +129,29 @@ UNIVERSE_AVG_VOLUME_SESSIONS = 30
 UNIVERSE_PAGE_LIMIT_DEFAULT = 100
 UNIVERSE_PAGE_LIMIT_MAX = 2000
 
+# --- Filing salvati a mano (Blocco 8) --------------------------------------
+#
+# L'analisi qualitativa ha come fonte primaria il TESTO dei documenti SEC, che
+# Defeatbeta non ha: ha l'indice (tipo, date, URL) ma non il contenuto. Il testo
+# lo scarichi tu da sec.gov e lo salvi qui; il sistema ti dice QUALI servono e
+# con quale nome.
+PRODUCTION_FILING_DIR = BASE_DIR / "data" / "filings"
+FILING_DIR = Path(os.environ.get("TRADASH2_FILINGS", PRODUCTION_FILING_DIR))
+
+# Quali documenti servono all'analisi qualitativa: l'ultimo annuale, e gli
+# ultimi trimestrali. Tre documenti coprono l'anno in corso piu' il quadro
+# completo dell'esercizio precedente.
+FILING_QUALITATIVA_ANNUALI = 1
+FILING_QUALITATIVA_TRIMESTRALI = 2
+
+# Le estensioni che sappiamo leggere. EDGAR serve HTML; il testo semplice si
+# accetta perche' e' cio' che ottieni con "salva come testo".
+FILING_ESTENSIONI = (".html", ".htm", ".txt")
+
+# Oltre questa dimensione un file non e' un filing: e' qualcos'altro salvato
+# per sbaglio, e leggerlo tutto per accorgersene costa.
+FILING_DIMENSIONE_MASSIMA_MB = 40
+
 # --- Modelli linguistici (Blocco 8) ----------------------------------------
 #
 # Il modello si dichiara qui perche' e' una scelta che si paga: cambiarlo cambia

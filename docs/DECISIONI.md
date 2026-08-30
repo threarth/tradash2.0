@@ -518,6 +518,48 @@ di essere un costo.
 
 ---
 
+## I filing li scarichi tu, e il nome e' il numero di protocollo
+
+L'analisi qualitativa — l'unica davvero usata nel vecchio sistema, 46 referti su
+69 — ha come fonte primaria il **testo** dei documenti SEC. Defeatbeta porta
+l'INDICE dei depositi (tipo, date, URL, numero di protocollo) ma non il
+contenuto, e senza contenuto quell'analisi non produce una versione povera: non
+ne produce nessuna.
+
+**Scelta dell'utente (30/08/2026): li scarica lui.** Il sistema dice quali
+servono, dove metterli e con che nome; l'utente apre l'URL e salva. Niente
+fetch automatico verso sec.gov.
+
+### Il nome del file
+
+    NVDA_10-Q_2026-07-26_0001045810-26-000075.html
+    ^^^^ ^^^^ ^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^
+      |    |      |        il numero di protocollo: LA CHIAVE
+      |    |      fine periodo, per ordinarli a occhio nella cartella
+      |    che documento e'
+      il titolo, cosi' un file spostato resta riconoscibile
+
+**Il riconoscimento avviene sul numero di protocollo, non sul resto del nome.**
+E' la chiave univoca di EDGAR e compare gia' dentro l'URL che si apre: se il
+file viene salvato con un nome qualunque ma quel numero c'e', il documento viene
+trovato lo stesso. Verificato con un file chiamato
+`nvidia scaricato ieri 000104581026000075.html`.
+
+Il confronto ignora i trattini, perche' il protocollo compare in due forme:
+`0001045810-26-000075` nel documento, `000104581026000075` nel percorso.
+
+**Perche' non l'accession number e basta.** Sarebbe univoco e sufficiente per la
+macchina, e illeggibile per chi guarda la cartella: `0001045810-26-000075.html`
+non dice di che societa' sia ne' di quale trimestre. Il nome completo serve
+all'occhio, il protocollo alla macchina, e i due non litigano perche' il
+secondo sta dentro il primo.
+
+**Il testo si estrae con `html.parser` della libreria standard**, saltando
+`<script>` e `<style>` e stringendo gli spazi ripetuti: ognuno di quelli, in un
+filing HTML, e' un token pagato. Nessuna dipendenza nuova.
+
+---
+
 ## Un test lasciava vivo il proprio thread
 
 Trovato dall'avviso di pytest su un'eccezione in un thread: il test delle route

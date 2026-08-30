@@ -23,3 +23,7 @@ backend/data/watchlist.json.tmp
 backend/data/watchlist_events.jsonl
 backend/data/grafici.json
 backend/data/grafici.json.tmp
+
+# i documenti SEC che scarichi tu: sono grossi e sono pubblici,
+# il repo non e' il posto giusto per tenerli
+backend/data/filings/

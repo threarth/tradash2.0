@@ -14,6 +14,7 @@
     import Errore from "../components/Errore.svelte";
     import Analisi from "../components/Analisi.svelte";
     import Documenti from "../components/Documenti.svelte";
+    import FilingDaSalvare from "../components/FilingDaSalvare.svelte";
     import Fondamentali from "../components/Fondamentali.svelte";
     import Grafico from "../components/Grafico.svelte";
     import Segnali from "../components/Segnali.svelte";
@@ -112,6 +113,15 @@
 
         <hr class="my-4" />
         <Documenti {simbolo} />
+
+        <hr class="my-4" />
+        <h2 class="h6">Documenti SEC per l'analisi qualitativa</h2>
+        <p class="small text-secondary">
+            Defeatbeta porta l'indice dei depositi, non il loro testo — e il testo
+            e' la fonte primaria della qualitativa. Questi sono i documenti che
+            servono: aprili, salvali nella cartella, e il sistema li riconosce.
+        </p>
+        <FilingDaSalvare {simbolo} />
 
         <hr class="my-4" />
         <h2 class="h6">Analisi</h2>

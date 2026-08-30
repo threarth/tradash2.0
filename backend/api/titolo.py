@@ -18,7 +18,7 @@ from flask import Blueprint, request
 import config
 from api import HTTP_NOT_FOUND, fail, ok
 from core.tipi import python_puro
-from data import defeatbeta, depositi, grafici
+from data import defeatbeta, depositi, filing_locali, grafici
 from data.grafici import GraficiError
 from domain import indicators, prospetti, publication_dates, segnali
 
@@ -328,3 +328,15 @@ def segnali_fondamentali(simbolo: str):
         ) if quando else None,
         "source": lettura.source,
     })
+
+
+@bp.get("/<simbolo>/filing-da-salvare")
+def filing_da_salvare(simbolo: str):
+    """Quali documenti SEC servono all'analisi qualitativa, e dove metterli.
+
+    Defeatbeta ha l'indice dei depositi ma non il loro testo, e il testo e' la
+    fonte primaria della qualitativa. Qui si dice quali servono, con che nome
+    salvarli e in quale cartella: il riconoscimento avviene sul numero di
+    protocollo, quindi un nome diverso va bene purche' quel numero ci sia.
+    """
+    return ok(filing_locali.stato(simbolo))

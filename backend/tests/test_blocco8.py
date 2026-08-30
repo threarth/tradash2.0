@@ -16,7 +16,7 @@ import pytest
 import config
 from core import llm
 from core.db import db_read
-from data import analisi, defeatbeta
+from data import analisi, defeatbeta, filing_locali
 from domain import segnali
 
 TRIMESTRI = ["2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
@@ -326,7 +326,7 @@ def test_i_metodi_non_ancora_costruiti_restano_in_elenco_e_dicono_cosa_manca():
 
 
 def test_chiedere_un_metodo_non_pronto_dice_cosa_gli_manca():
-    with pytest.raises(analisi.AnalisiError, match=r"sec\.gov"):
+    with pytest.raises(analisi.AnalisiError, match="quattro fasi"):
         analisi.esegui("qualitativa", "NVDA")
 
     with pytest.raises(analisi.AnalisiError, match="metodo sconosciuto"):
@@ -346,3 +346,108 @@ def test_un_rifiuto_del_modello_non_diventa_un_referto_vuoto(monkeypatch):
 
     with pytest.raises(analisi.AnalisiError, match="rifiutato"):
         analisi.esegui("tecnica", "AAA")
+
+
+# --- i filing che scarichi tu ----------------------------------------------
+
+INDICE_FILING = pd.DataFrame([
+    {"form_type": "10-Q", "report_date": "2026-07-26", "filing_date": "2026-08-26",
+     "accession_number": "0001045810-26-000075",
+     "filing_url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000075"},
+    {"form_type": "10-K", "report_date": "2026-01-25", "filing_date": "2026-02-25",
+     "accession_number": "0001045810-26-000021",
+     "filing_url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021"},
+    {"form_type": "8-K", "report_date": "2026-03-01", "filing_date": "2026-03-02",
+     "accession_number": "0001045810-26-000030", "filing_url": "https://x.example"},
+])
+
+
+@pytest.fixture
+def indice_finto(monkeypatch):
+    monkeypatch.setattr(defeatbeta, "sec_filings", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=INDICE_FILING, scope=s, category="sec_filings", source="cache",
+        available=True, reason="finto"))
+
+
+def test_chiede_solo_i_documenti_periodici(indice_finto):
+    """Un 8-K non chiude nessun periodo e non serve alla qualitativa."""
+    voci = filing_locali.richiesti("NVDA")
+
+    assert [v["form_type"] for v in voci] == ["10-Q", "10-K"]
+    assert all(v["accession_number"] for v in voci)
+
+
+def test_il_nome_proposto_porta_il_protocollo(indice_finto):
+    """Il resto del nome e' per gli occhi; il protocollo e' la chiave."""
+    voce = filing_locali.richiesti("NVDA")[0]
+
+    assert voce["nome_atteso"] == "NVDA_10-Q_2026-07-26_0001045810-26-000075.html"
+    assert voce["accession_number"] in voce["nome_atteso"]
+
+
+def test_riconosce_il_file_anche_con_un_nome_diverso(indice_finto, tmp_path, monkeypatch):
+    """Se hai salvato con un nome tuo ma il protocollo c'e', il documento e' quello:
+    non c'e' motivo di non riconoscerlo."""
+    monkeypatch.setattr(config, "FILING_DIR", tmp_path)
+    cartella = tmp_path / "NVDA"
+    cartella.mkdir()
+    (cartella / "nvidia scaricato ieri 000104581026000075.html").write_text(
+        "<html><body>Item 1A. Risk Factors</body></html>", encoding="utf-8")
+
+    stato = filing_locali.stato("NVDA")
+
+    trovato = next(d for d in stato["documenti"] if d["form_type"] == "10-Q")
+    assert trovato["presente"] is True
+    assert stato["pronti"] == 1 and stato["richiesti"] == 2
+    assert stato["completo"] is False
+    assert "mancano 1" in stato["reason"]
+
+
+def test_estrae_il_testo_senza_fogli_di_stile_ne_script(indice_finto, tmp_path, monkeypatch):
+    """Finirebbero nel prompt come migliaia di token che non dicono niente."""
+    monkeypatch.setattr(config, "FILING_DIR", tmp_path)
+    cartella = tmp_path / "NVDA"
+    cartella.mkdir()
+    (cartella / "NVDA_10-K_2026-01-25_0001045810-26-000021.html").write_text(
+        "<html><head><style>body{color:red}</style>"
+        "<script>var x = 1;</script></head>"
+        "<body><h1>ANNUAL REPORT</h1><p>Our business   depends on few customers.</p>"
+        "</body></html>", encoding="utf-8")
+
+    testo, errore = filing_locali.testo("NVDA", "0001045810-26-000021")
+
+    assert errore is None
+    assert "ANNUAL REPORT" in testo
+    assert "color:red" not in testo and "var x" not in testo
+    assert "business depends" in testo, "gli spazi ripetuti si stringono: ognuno e' un token"
+
+
+def test_un_documento_che_manca_dice_dove_metterlo(indice_finto, tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "FILING_DIR", tmp_path)
+
+    testo, errore = filing_locali.testo("NVDA", "0001045810-26-000021")
+
+    assert testo is None
+    assert str(tmp_path / "NVDA") in errore
+
+
+def test_lo_stato_dice_cosa_fare_quando_manca_qualcosa(indice_finto, tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "FILING_DIR", tmp_path)
+
+    stato = filing_locali.stato("NVDA")
+
+    assert stato["completo"] is False
+    assert stato["pronti"] == 0
+    assert "salva" in stato["action"]
+    assert stato["cartella"].endswith("NVDA")
+
+
+def test_senza_depositi_nell_indice_lo_dice(monkeypatch):
+    monkeypatch.setattr(defeatbeta, "sec_filings", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame(), scope=s, category="sec_filings", source="cache",
+        available=False, reason="nessun deposito"))
+
+    stato = filing_locali.stato("XYZ")
+
+    assert stato["documenti"] == []
+    assert "nessun documento periodico" in stato["reason"]

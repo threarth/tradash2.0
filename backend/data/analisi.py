@@ -61,8 +61,9 @@ METODI = {
         "nome": "Report qualitativo a 10 sezioni",
         "natura": "quattro fasi separate del modello",
         "pronta": False,
-        "fonte": "il TESTO dei documenti SEC, che Defeatbeta non ha",
-        "manca": "la lettura dei filing da sec.gov, seguendo l'URL che Defeatbeta fornisce",
+        "fonte": "il TESTO dei documenti SEC, che scarichi tu e salvi in data/filings",
+        "manca": "le quattro fasi. I documenti pero' si possono gia' preparare: "
+                 "la scheda del titolo dice quali servono e con che nome salvarli",
     },
     "forward": {
         "nome": "Forward analysis",
