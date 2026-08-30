@@ -107,6 +107,11 @@ export const api = {
         chiama(`/titolo/${encodeURIComponent(simbolo)}/grafico`,
             corpoJson("PUT", configurazione)),
 
+    // --- scanner ---
+    scannerCriteri: () => chiama("/scanner/criteri"),
+    scannerAvvia: (richiesta) => chiama("/scanner", corpoJson("POST", richiesta)),
+    scannerEsito: (runId) => chiama(`/scanner/${encodeURIComponent(runId)}`),
+
     // --- glossario ---
     glossario: () => chiama("/glossario"),
 

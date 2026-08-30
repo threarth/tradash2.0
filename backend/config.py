@@ -129,6 +129,13 @@ UNIVERSE_AVG_VOLUME_SESSIONS = 30
 UNIVERSE_PAGE_LIMIT_DEFAULT = 100
 UNIVERSE_PAGE_LIMIT_MAX = 2000
 
+# --- Scanner ---------------------------------------------------------------
+
+# Quanti titoli al massimo esamina una scansione. L'universo ne ha 11.256, e
+# leggerli tutti vorrebbe dire un lavoro da ore: il tetto costringe a filtrare
+# prima, che e' anche il modo di ottenere un risultato leggibile.
+SCANNER_TITOLI_MAX = 300
+
 # --- Watchlist e tag: i dati TUOI ------------------------------------------
 #
 # Questi non sono una vista ricostruibile: sono l'unica cosa nel sistema che, se

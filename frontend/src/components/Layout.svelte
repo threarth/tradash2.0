@@ -30,6 +30,7 @@
     const PAGINE = [
         { percorso: "/", etichetta: "Universo", icona: "bi-globe2" },
         { percorso: "/watchlist", etichetta: "Watchlist", icona: "bi-bookmark-star" },
+        { percorso: "/scanner", etichetta: "Scanner", icona: "bi-search" },
         { percorso: "/operazioni", etichetta: "Operazioni", icona: "bi-activity" },
         { percorso: "/glossario", etichetta: "Glossario", icona: "bi-book" }
     ];

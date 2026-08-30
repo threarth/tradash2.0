@@ -414,8 +414,21 @@ filing non producono un'analisi povera: non ne producono nessuna. L'avvio si
 ferma. Gli altri metodi leggono dati gia' calcolati e usano i filing come
 complemento facoltativo — bloccarli sarebbe sbagliato.
 
-**Blocco 9 — Scanner sul passato.** Solo su Defeatbeta, cache il piu' possibile,
-ogni scan con run_id e Stop.
+**Blocco 9 — Scanner sul passato. FATTO il 2026-08-30, 158 test verdi.**
+Solo su Defeatbeta, con la cache dei byte che rende gratis la seconda passata,
+e ogni scansione dentro il registro: si vede in `/api/ops/active` e si ferma.
+
+`domain/drawdown.py` e' il **good_drawdown promesso come feature deterministica**
+— profondita', durata e recupero calcolati dai prezzi, senza LLM e senza
+servizio che gira per conto suo. `domain/scansione.py` decide, e ogni titolo
+trovato porta **il perche'**: "sette titoli" costringe a fidarsi, e "basato su
+cosa?" nel vecchio sistema non aveva risposta.
+
+*Verifica passata dal vivo: 51 tecnologici sopra i 100 miliardi esaminati, 17
+trovati fra scesi almeno il 15% e che hanno recuperato almeno il 20% — MU a
+-23,1% con il 41% recuperato in 45 sedute sotto il massimo, ognuno con la
+propria riga di spiegazione. Una scansione fermata a meta' conserva quello che
+aveva trovato: e' meno di quanto chiesto, non niente.*
 
 ---
 

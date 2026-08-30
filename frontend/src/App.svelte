@@ -8,6 +8,7 @@
     import { percorso } from "./lib/router.js";
     import Glossario from "./routes/Glossario.svelte";
     import Operazioni from "./routes/Operazioni.svelte";
+    import Scanner from "./routes/Scanner.svelte";
     import Titolo from "./routes/Titolo.svelte";
     import Universo from "./routes/Universo.svelte";
     import Watchlist from "./routes/Watchlist.svelte";
@@ -16,6 +17,7 @@
         "/": Universo,
         "/watchlist": Watchlist,
         "/operazioni": Operazioni,
+        "/scanner": Scanner,
         "/glossario": Glossario
     };
 

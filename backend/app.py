@@ -15,6 +15,7 @@ import config
 from api.calls import bp as calls_bp
 from api.glossary import bp as glossary_bp
 from api.ops import bp as ops_bp
+from api.scanner import bp as scanner_bp
 from api.titolo import bp as titolo_bp
 from api.universe import bp as universe_bp
 from api.watchlist import bp as watchlist_bp
@@ -38,6 +39,7 @@ def create_app() -> Flask:
     app.register_blueprint(ops_bp)
     app.register_blueprint(calls_bp)
     app.register_blueprint(glossary_bp)
+    app.register_blueprint(scanner_bp)
     app.register_blueprint(titolo_bp)
     app.register_blueprint(universe_bp)
     app.register_blueprint(watchlist_bp)
