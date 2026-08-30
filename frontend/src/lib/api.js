@@ -96,6 +96,12 @@ export const api = {
     titolo: (simbolo) => chiama(`/titolo/${encodeURIComponent(simbolo)}`),
     titoloPrezzi: (simbolo, intervallo) =>
         chiama(`/titolo/${encodeURIComponent(simbolo)}/prezzi${query({ intervallo })}`),
+    fondamentali: (simbolo, asOf, periodicita) =>
+        chiama(`/titolo/${encodeURIComponent(simbolo)}/fondamentali${query({ as_of: asOf, periodicita })}`),
+    filings: (simbolo, asOf) =>
+        chiama(`/titolo/${encodeURIComponent(simbolo)}/filings${query({ as_of: asOf })}`),
+    news: (simbolo, asOf) =>
+        chiama(`/titolo/${encodeURIComponent(simbolo)}/news${query({ as_of: asOf })}`),
     titoloGrafico: (simbolo) => chiama(`/titolo/${encodeURIComponent(simbolo)}/grafico`),
     titoloSalvaGrafico: (simbolo, configurazione) =>
         chiama(`/titolo/${encodeURIComponent(simbolo)}/grafico`,

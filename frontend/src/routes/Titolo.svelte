@@ -12,6 +12,8 @@
     import Assente from "../components/Assente.svelte";
     import Caricamento from "../components/Caricamento.svelte";
     import Errore from "../components/Errore.svelte";
+    import Documenti from "../components/Documenti.svelte";
+    import Fondamentali from "../components/Fondamentali.svelte";
     import Grafico from "../components/Grafico.svelte";
     import Testo from "../components/Testo.svelte";
     import Valore from "../components/Valore.svelte";
@@ -95,7 +97,15 @@
             </p>
         {/if}
 
-        <div class="row g-3 mt-3">
+        <hr class="my-4" />
+        <h2 class="h6">Fondamentali</h2>
+        <Fondamentali {simbolo} />
+
+        <hr class="my-4" />
+        <Documenti {simbolo} />
+
+        <hr class="my-4" />
+        <div class="row g-3">
             {#each Object.entries(scheda.dato.sezioni_future) as [nome, sezione] (nome)}
                 <div class="col-12 col-lg-6">
                     <h2 class="h6 text-capitalize">{nome}</h2>

@@ -76,6 +76,31 @@ DEFEATBETA_CACHE_DIR = Path(
 DEFEATBETA_NEWS_LIMIT_DEFAULT = 50
 DEFEATBETA_NEWS_LIMIT_MAX = 500
 
+# --- as_of: quando un bilancio e' diventato pubblico ------------------------
+#
+# Un trimestre che chiude il 30 giugno viene depositato a inizio agosto. Un
+# analisi ricostruita al 15 luglio, se tronca sulla fine del periodo, vede un
+# bilancio che allora non esisteva: sono ~40 giorni di futuro, proprio nella
+# finestra in cui il prezzo si muove di piu'. E' il look-ahead piu' grave e meno
+# visibile, perche' non produce nessun errore — solo un backtest bravissimo.
+#
+# Dove non c'e' la data di deposito reale si usa un ritardo prudente, e prudente
+# qui significa TARDI: meglio non vedere un dato che c'era, che vederne uno che
+# non c'era. Sono gli estremi delle scadenze SEC per un depositante non
+# accelerato.
+AS_OF_RITARDO_TRIMESTRALE_GIORNI = 45
+AS_OF_RITARDO_ANNUALE_GIORNI = 75
+
+# Le due fonti non si allineano sempre al giorno: un trimestre "chiuso il 28
+# giugno" nei bilanci puo' comparire come 30 giugno nell'indice dei depositi.
+# Senza tolleranza si ricadrebbe sulla stima pur avendo il dato vero.
+AS_OF_TOLLERANZA_PERIODO_GIORNI = 10
+
+# Quanti documenti e quante notizie mostra la scheda di un titolo. Un tetto,
+# perche' un titolo con vent'anni di storia ne ha centinaia e nessuno li legge.
+FILINGS_MOSTRATI = 60
+NEWS_MOSTRATE = 40
+
 # --- Grafici ---------------------------------------------------------------
 
 # Le impostazioni del grafico sono TUE come la watchlist: quali indicatori hai

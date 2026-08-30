@@ -87,6 +87,20 @@ def test_ogni_eccezione_porta_il_suo_motivo():
         assert motivo and len(motivo) > 10, f"{nome} e' esentato senza una spiegazione"
 
 
+def test_nessuna_eccezione_e_inutile():
+    """Un'eccezione per un componente che il glossario lo usa gia' non fa
+    fallire niente, e per questo resta li' a far sembrare la regola piu' larga
+    di quello che e'."""
+    inutili = [
+        nome for nome in SENZA_GLOSSARIO
+        if nome != COMPONENTE_TESTO
+        and any(f.name == nome and COMPONENTE_TESTO in f.read_text(encoding="utf-8")
+                for f in _componenti())
+    ]
+
+    assert not inutili, f"questi usano gia' {COMPONENTE_TESTO}: togli l'eccezione {inutili}"
+
+
 def test_le_porte_della_prosa_usano_il_glossario():
     """Sono loro a rendere vere le eccezioni: se smettessero, quelle sarebbero false."""
     for nome in PORTE_DELLA_PROSA:

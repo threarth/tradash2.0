@@ -329,8 +329,28 @@ intervallo mostrato. A un mese di grafico l'EMA50 aveva 22 valori — una "media
 50 giorni" costruita su ventidue sedute, un numero che sembra giusto e non lo e'.
 Ora si calcola su tutta la storia (6.943 sedute per NVDA) e si taglia dopo.*
 
-**Blocco 7 — Matematica e as_of.** Porting di `domain/`, con i test. **Nella
-scheda titolo arrivano fondamentali, filing e news.**
+**Blocco 7 — Matematica e as_of. IN PARTE, il 2026-08-30, 146 test verdi.**
+
+*Fatto:* `domain/publication_dates.py` (copiato e **reso puro**: le date di
+deposito gliele passa chi chiama, invece di andarsele a prendere),
+`domain/prospetti.py`, `domain/statements_math.py`, `data/depositi.py` che
+costruisce la mappa dei depositi da Defeatbeta. Nella scheda titolo sono
+arrivati **fondamentali, filing e news**, col taglio `as_of` e la **base del
+taglio dichiarata** in ogni risposta.
+
+*Misurato dal vivo, e meglio del vecchio sistema:* AAPL 20/20 periodi con date
+di deposito reali, CIEN 20/20 (era 11/17), RACE 7/20 — che infatti risulta
+`mixed`, ed e' esattamente cio' che `truncation_basis` serve a dire.
+
+*Non fatto, e non per dimenticanza:* `point_in_time_service`, `capm`,
+`technical_features` e `feature_engine` non sono matematica pura — importano
+`fundamentals_service`, `market_data`, `fq_service`, `forward_service`, cioe'
+**servizi del Blocco 8**. Portarli adesso vorrebbe dire portarsi dietro mezzo
+Blocco 8 travestito da `domain/`. Vanno con l'8, e la pagina di confronto
+point-in-time con loro.
+
+*Da chiudere ancora:* `before` su `get_recent_filings` — qui il taglio dei
+filing e' esatto e usato, ma la lezione vale per ogni parametro nuovo.
 Comprende la **pagina di confronto point-in-time**: ricostruire l'analisi a una
 data passata e confrontarla con l'evoluzione reale (`compare_point_in_time`,
 `fair_value_history`). `truncation_basis()` deve continuare a dichiarare se un

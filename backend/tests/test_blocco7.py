@@ -1,0 +1,198 @@
+"""
+test_blocco7.py — as_of: cosa si sapeva allora, e su cosa poggia il taglio.
+# feat: se questi test non passano, non si va al Blocco 8.
+
+Il look-ahead che questo blocco chiude non produce nessun errore. Un trimestre
+chiuso il 30 giugno viene depositato ad agosto: chi tronca sulla fine del
+periodo, ricostruendo un'analisi al 15 luglio, vede un bilancio che allora non
+esisteva. Sono quaranta giorni di futuro nella finestra in cui il prezzo si
+muove di piu', e il risultato non e' un'eccezione — e' un backtest bravissimo.
+
+Per questo i test qui sotto non guardano solo il risultato: guardano se il
+risultato sa dire su cosa poggia.
+"""
+import pandas as pd
+
+import config
+from data import defeatbeta, depositi
+from domain import prospetti, publication_dates
+
+# Una mappa di depositi come la costruisce `data/depositi.py`: fine periodo →
+# (data di deposito, fonte).
+REALE = publication_dates.SOURCE_FILING_INDEX
+DEPOSITI = {
+    "2024-03-31": ("2024-05-02", REALE),
+    "2024-06-30": ("2024-08-01", REALE),
+}
+
+
+# --- quando un periodo e' diventato pubblico -------------------------------
+
+def test_una_data_di_deposito_reale_vince_sulla_stima():
+    quando, fonte = publication_dates.publication_date(DEPOSITI, "2024-06-30")
+
+    assert quando == "2024-08-01"
+    assert fonte == REALE
+
+
+def test_senza_deposito_si_stima_TARDI():
+    """Prudente qui significa tardi: meglio non vedere un dato che c'era, che
+    vederne uno che non c'era."""
+    quando, fonte = publication_dates.publication_date({}, "2024-09-30", is_quarterly=True)
+
+    assert fonte == publication_dates.SOURCE_ESTIMATED
+    assert quando == "2024-11-14", (
+        f"{config.AS_OF_RITARDO_TRIMESTRALE_GIORNI} giorni dopo la fine del trimestre"
+    )
+
+
+def test_un_annuale_si_stima_ancora_piu_tardi():
+    trimestre, _ = publication_dates.publication_date({}, "2024-12-31", is_quarterly=True)
+    annuale, _ = publication_dates.publication_date({}, "2024-12-31", is_quarterly=False)
+
+    assert annuale > trimestre
+
+
+def test_le_due_fonti_non_si_allineano_al_giorno():
+    """Un trimestre "chiuso il 28 giugno" nei bilanci puo' essere il 30 giugno
+    nell'indice dei depositi. Senza tolleranza si ricadrebbe sulla stima pur
+    avendo il dato vero."""
+    quando, fonte = publication_dates.publication_date(DEPOSITI, "2024-06-28")
+
+    assert fonte == REALE
+    assert quando == "2024-08-01"
+
+
+def test_un_periodo_e_pubblico_solo_dopo_il_deposito():
+    """Il cuore del blocco: la fine del trimestre non e' la data in cui si sa."""
+    assert publication_dates.was_public(DEPOSITI, "2024-06-30", "2024-08-02") is True
+    assert publication_dates.was_public(DEPOSITI, "2024-06-30", "2024-07-15") is False, (
+        "il 15 luglio quel bilancio non esisteva ancora"
+    )
+
+
+# --- e su cosa poggia il taglio --------------------------------------------
+
+def test_la_base_del_taglio_distingue_i_fatti_dalle_stime():
+    tutte_reali = publication_dates.truncation_basis(DEPOSITI, list(DEPOSITI))
+    assert tutte_reali["source"] == REALE
+    assert tutte_reali["estimated_periods"] == 0
+
+    meta = publication_dates.truncation_basis(DEPOSITI, [*DEPOSITI, "2023-01-31"])
+    assert meta["source"] == publication_dates.SOURCE_MIXED
+    assert meta["real_periods"] == 2 and meta["estimated_periods"] == 1
+
+    nessuna = publication_dates.truncation_basis({}, ["2024-06-30"])
+    assert nessuna["source"] == publication_dates.SOURCE_ESTIMATED
+
+
+def test_senza_periodi_la_base_non_e_affidabile_ma_non_pervenuta():
+    """`None` non e' "va tutto bene": e' "non c'e' niente su cui pronunciarsi"."""
+    vuota = publication_dates.truncation_basis(DEPOSITI, [])
+
+    assert vuota["source"] is None
+    assert vuota["periods"] == 0
+
+
+# --- la mappa dei depositi, letta da Defeatbeta ----------------------------
+
+def test_vince_il_primo_deposito_non_la_rettifica(monkeypatch):
+    """Una rettifica successiva non retrodata la notizia."""
+    frame = pd.DataFrame([
+        {"form_type": "10-Q", "report_date": "2024-06-30", "filing_date": "2024-11-20"},
+        {"form_type": "10-Q", "report_date": "2024-06-30", "filing_date": "2024-08-01"},
+        {"form_type": "8-K", "report_date": "2024-06-30", "filing_date": "2024-07-02"},
+    ])
+    monkeypatch.setattr(defeatbeta, "sec_filings", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=frame, scope="X", category="sec_filings", source="cache",
+        available=True, reason="finto",
+    ))
+
+    mappa = depositi.mappa("X")
+
+    assert mappa["2024-06-30"] == ("2024-08-01", REALE), "il primo 10-Q, non la rettifica"
+    assert len(mappa) == 1, "l'8-K non chiude nessun trimestre e non entra"
+
+
+def test_un_titolo_senza_depositi_non_e_un_errore(monkeypatch):
+    monkeypatch.setattr(defeatbeta, "sec_filings", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame(), scope="X", category="sec_filings", source="cache",
+        available=False, reason="nessun deposito", action="verifica il simbolo",
+    ))
+
+    assert depositi.mappa("X") == {}
+
+
+# --- i prospetti ------------------------------------------------------------
+
+def _bilanci() -> pd.DataFrame:
+    righe = []
+    for periodo in ("2024-03-31", "2024-06-30", "TTM"):
+        for voce, valore in (("total_revenue", 100.0), ("net_income", 10.0)):
+            righe.append({"report_date": periodo, "item_name": voce, "item_value": valore,
+                          "finance_type": prospetti.CONTO_ECONOMICO,
+                          "period_type": prospetti.TRIMESTRALE})
+    return pd.DataFrame(righe)
+
+
+def test_il_ttm_non_e_una_data_e_resta_fuori():
+    """Un filtro sulle date lo tratterebbe come una stringa qualsiasi, finendo
+    dove capita."""
+    assert prospetti.periodi(_bilanci()) == ["2024-06-30", "2024-03-31"]
+
+    tabella = prospetti.tabella(_bilanci(), prospetti.CONTO_ECONOMICO)
+    assert prospetti.PERIODO_TTM not in tabella["periodi"]
+
+
+def test_la_tabella_tiene_solo_i_periodi_ammessi():
+    """E' il taglio temporale: chi lo passa ha gia' deciso cosa era pubblico."""
+    tabella = prospetti.tabella(_bilanci(), prospetti.CONTO_ECONOMICO,
+                                periodi_ammessi=["2024-03-31"])
+
+    assert tabella["periodi"] == ["2024-03-31"]
+    assert tabella["voci"]["total_revenue"] == {"2024-03-31": 100.0}
+
+
+# --- le route ---------------------------------------------------------------
+
+def test_una_data_scritta_male_non_diventa_nessun_taglio(client):
+    """Senza taglio si vede il futuro: l'opposto di quello che chiedeva chi
+    ha scritto quella data."""
+    risposta = client.get("/api/titolo/NVDA/fondamentali?as_of=ieri")
+
+    assert risposta.status_code == 400
+    assert "YYYY-MM-DD" in risposta.get_json()["error"]
+
+
+def test_una_periodicita_inventata_viene_rifiutata(client):
+    risposta = client.get("/api/titolo/NVDA/fondamentali?periodicita=mensile")
+
+    assert risposta.status_code == 400
+    assert "periodicita" in risposta.get_json()["error"]
+
+
+def test_i_fondamentali_dichiarano_sempre_la_base_del_taglio(client, monkeypatch):
+    monkeypatch.setattr(defeatbeta, "statements", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=_bilanci(), scope="X", category="statements", source="cache",
+        available=True, reason="finto",
+    ))
+    monkeypatch.setattr(depositi, "mappa", lambda s, run_id=None: DEPOSITI)
+
+    d = client.get("/api/titolo/X/fondamentali").get_json()["data"]
+
+    assert d["base_del_taglio"]["source"] == REALE
+    assert d["periodi_totali"] == 2
+    assert set(d["prospetti"]) == set(prospetti.PROSPETTI)
+
+
+def test_ricostruire_a_una_data_riduce_i_periodi(client, monkeypatch):
+    monkeypatch.setattr(defeatbeta, "statements", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=_bilanci(), scope="X", category="statements", source="cache",
+        available=True, reason="finto",
+    ))
+    monkeypatch.setattr(depositi, "mappa", lambda s, run_id=None: DEPOSITI)
+
+    d = client.get("/api/titolo/X/fondamentali?as_of=2024-07-15").get_json()["data"]
+
+    assert d["periodi_visibili"] == 1, "il trimestre di giugno era depositato ad agosto"
+    assert d["prospetti"][prospetti.CONTO_ECONOMICO]["periodi"] == ["2024-03-31"]
