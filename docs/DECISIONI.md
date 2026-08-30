@@ -672,3 +672,127 @@ sistema: un docstring che dichiarava una difesa inesistente. Chiuso.
   29/08) con `period_type = trailing`. Un filtro `report_date <= as_of` scritto
   senza pensarci fa entrare periodi non ancora chiusi. **Ogni dataset nuovo apre
   una porta nuova al look-ahead.**
+
+---
+
+## Un rimando dentro una sezione ne rovinava due (Blocco 8)
+
+Dividere un 10-K nei suoi Item sembra un problema di espressioni regolari, e
+non lo e': lo stesso «Item 1A» compare nell'indice, come titolo, e in ogni
+rimando interno. Misurato su un documento costruito con le trappole vere:
+
+La frase «For a discussion of these risks, see **Item 1A**. Risk Factors»,
+scritta **dentro** la sezione Business, faceva due danni insieme — chiudeva
+Business a un terzo della sua lunghezza, e faceva cominciare li' i Risk
+Factors, che si portavano dietro la coda di Business. Due sezioni sbagliate per
+una frase, e nessuna delle due segnalata come tale.
+
+La regola che le distingue e' banale e regge: **un titolo apre la riga, un
+rimando sta in mezzo a una frase.**
+
+E poi un fatto strutturale sui trimestrali, che il primo test ha trovato subito:
+**in un 10-Q la numerazione riparte nella Parte II.** L'MD&A e' l'Item 2 della
+Parte I, i Risk Factors sono l'Item 1A della Parte II — che ha un numero piu'
+basso. Cercando "il prossimo Item successivo" l'MD&A si prendeva dentro anche i
+rischi. Si chiude al primo Item **diverso**, il che ha anche il pregio di non
+farsi chiudere dalle intestazioni ripetute in testa a ogni pagina.
+
+Il divisore non ha ancora incontrato un filing vero: e' provato su un documento
+costruito. Va detto, perche' i documenti veri hanno sempre una trappola in piu'.
+
+---
+
+## Una citazione si verifica, non si crede (Blocco 8)
+
+Il report qualitativo chiude chiedendo al modello le frasi che sostengono ogni
+affermazione. **Una frase ricostruita a memoria assomiglia moltissimo a una
+citata**, e l'unico modo di distinguerle e' cercarla nel testo.
+
+Ogni citazione viene cercata alla lettera nel documento che il modello indica.
+Quelle che non si trovano non vengono corrette: vengono scartate, e il referto
+dice quante ne ha scartate — che e' l'informazione utile, perche' dice quali
+parti del report non poggiano sul testo.
+
+Gli spazi non contano nel confronto: il modello riavvolge le righe, e un a capo
+in piu' non fa di una frase copiata una frase inventata.
+
+Stessa forma per la **tassonomia**. Nel vecchio sistema il vocabolario chiuso
+stava nell'enum dello schema di un tool, e a farlo rispettare era la validazione
+del tool. Qui non ci sono tool: il modello risponde con un JSON, e un JSON
+contiene qualunque parola. Il vocabolario sta nel codice e le etichette si
+controllano dopo — un'etichetta fuori elenco viene **scartata e dichiarata**,
+mai corretta d'ufficio: correggerla vorrebbe dire indovinare cosa intendeva il
+modello, e un'etichetta indovinata da noi finirebbe nella watchlist come se
+l'avesse scelta lui.
+
+---
+
+## Un DCF e' un'opinione sui propri ingressi (Blocco 9)
+
+Le 3.295 righe di `forward_analysis` del vecchio sistema **non sono mai
+girate** — zero istantanee, zero chiamate al modello. Riportarle avrebbe voluto
+dire chiamare funzionalita' del codice mai visto funzionare. La forward analysis
+e' ricostruita sul DCF che Defeatbeta calcola gia': WACC col CAPM, crescita
+dagli utili, tasso terminale dal Tesoro a cinque anni.
+
+Rifarlo in proprio serve a **poterlo rifare con altre ipotesi**, e i tre casi
+misurati dal vivo dicono perche':
+
+| | prezzo equo | mercato | letto male | letto per intero |
+|---|---|---|---|---|
+| NVDA | 52,59 | 217,55 | "sopravvalutata del 300%" | la crescita e' fissata al 20% (il tetto della libreria) mentre i ricavi crescono dell'88% annuo; per giustificare il mercato servirebbe il **55,6%** annuo |
+| KO | 255,48 | 89,66 | "occasione, vale 3 volte tanto" | **l'82% del valore e' nel valore terminale**, e lo sconto e' il 6,15% |
+| F | 69,05 | 13,88 | "occasione, vale 5 volte tanto" | **l'83% nel valore terminale**, sconto 5,5%, crescita al minimo del 5% |
+
+Il nostro conto e quello della libreria coincidono fino all'ultima cifra
+(52.58542482851447 contro ...48), e un controllo lo verifica a ogni referto: il
+giorno che divergono, il referto lo dice invece di pubblicare una griglia di
+sensibilita' che non descrive piu' il numero accanto a cui sta.
+
+**Due cose della libreria non si propagano.** Il campo `recommendation`, con
+scritto "Buy" o "Sell": e' un giudizio di una riga costruito sul confronto fra
+due numeri, e accanto a un'analisi sembrerebbe la sua conclusione. E il loro
+margine di sicurezza, che divide per il prezzo equo invece che per il mercato:
+il -3,14 di NVDA si legge come "sopravvalutata del 314%" e non e' cio' che dice.
+Diviso per il mercato fa -0,76, e non si puo' fraintendere.
+
+---
+
+## Il verdetto non e' un punteggio (Blocco 9)
+
+Il vecchio sistema chiudeva con un giudizio sintetico. **Un numero unico che
+riassume sei analisi discordanti nasconde esattamente cio' che va visto: che
+discordano.**
+
+La parte utile del verdetto sono le contraddizioni — la lettura tecnica che vede
+forza mentre i segnali fondamentali si deteriorano, il DCF che dice caro mentre
+la earnings call racconta un'accelerazione — e per ognuna il modello deve dire
+**quale osservazione la scioglierebbe**.
+
+E ogni referto gli arriva con la propria eta' in giorni, quelli oltre il mese
+marcati vecchi: una sintesi che mette insieme una lettura di tre mesi fa e una
+di stamattina e' coerente e sbagliata, e il difetto non si vede perche' il testo
+di un referto e' scritto al presente e non dice quando e' stato scritto.
+
+Con meno di due referti si ferma: la sintesi di uno solo e' una parafrasi.
+
+---
+
+## Il point-in-time ha due tagli, e sono diversi (Blocco 7, chiuso col 8)
+
+Il valore della pagina di confronto sta in una condizione sola: **cio' che
+mostra come "quello che si sapeva" dev'essere davvero quello che si sapeva.**
+Bastano due sedute di troppo nel taglio perche' il confronto diventi la
+dimostrazione che il metodo funziona, e sarebbe una dimostrazione falsa.
+
+I prezzi si tagliano sulla data. I bilanci si tagliano sulla **data di
+deposito** — un trimestre chiuso il 31 gennaio diventa pubblico a fine febbraio.
+Il taglio dei bilanci e' una funzione sola, condivisa con la rotta dei segnali:
+due tagli scritti due volte divergono, e il giorno che divergono una delle due
+pagine mostra il futuro senza dirlo.
+
+Verificato su NVDA al 2025-08-29: 17 periodi su 20 visibili, tutti su date di
+deposito reali. E un difetto trovato proprio li': il rendimento a un anno veniva
+calcolato — l'ultima seduta distava 364 giorni, dentro la tolleranza di sette —
+ma l'orizzonte risultava non maturato. **Due campi della stessa risposta che si
+contraddicono sono peggio di entrambe le letture.**
