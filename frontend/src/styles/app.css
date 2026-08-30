@@ -147,3 +147,11 @@
     border-left: 1px solid var(--bs-border-color);
     z-index: 1045;
 }
+
+/* Il contenitore del grafico: lightweight-charts ci disegna dentro il suo DOM. */
+.grafico {
+    width: 100%;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .375rem;
+    overflow: hidden;
+}

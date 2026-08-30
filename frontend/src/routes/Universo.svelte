@@ -159,7 +159,10 @@
                     <tbody>
                         {#each dati.titoli as titolo (titolo.symbol)}
                             <tr>
-                                <td class="fw-semibold">{titolo.symbol}</td>
+                                <td class="fw-semibold">
+                                    <a href="/titolo/{titolo.symbol}"
+                                       class="text-decoration-none">{titolo.symbol}</a>
+                                </td>
                                 <td><Valore valore={titolo.sector} mancante="non classificato" /></td>
                                 <td><Valore valore={titolo.industry} mancante="non classificata" /></td>
                                 <td class="numerico"><Valore valore={titolo.market_cap} /></td>

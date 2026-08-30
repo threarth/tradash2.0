@@ -76,6 +76,22 @@ DEFEATBETA_CACHE_DIR = Path(
 DEFEATBETA_NEWS_LIMIT_DEFAULT = 50
 DEFEATBETA_NEWS_LIMIT_MAX = 500
 
+# --- Grafici ---------------------------------------------------------------
+
+# Le impostazioni del grafico sono TUE come la watchlist: quali indicatori hai
+# scelto per quale titolo non si ricostruisce da nessuna parte. Stesso trattamento:
+# un file JSON leggibile, fuori da git, che il rebuild del database non tocca.
+PRODUCTION_GRAFICI_PATH = BASE_DIR / "data" / "grafici.json"
+GRAFICI_PATH = Path(os.environ.get("TRADASH2_GRAFICI", PRODUCTION_GRAFICI_PATH))
+GRAFICI_FILE_VERSION = 1
+
+# Gli intervalli che il selettore del grafico offre, in giorni di calendario.
+# `None` significa tutta la storia disponibile.
+INTERVALLI_GRAFICO = {
+    "1M": 31, "3M": 92, "6M": 183, "1A": 366, "5A": 1827, "tutto": None,
+}
+INTERVALLO_GRAFICO_PREDEFINITO = "1A"
+
 # --- Universo -------------------------------------------------------------
 
 # Su quante sedute si media il volume. Sedute, non giorni di calendario: un

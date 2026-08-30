@@ -84,7 +84,8 @@
                     }}>
                 <i class="bi {titolo.favorite ? 'bi-star-fill text-warning' : 'bi-star'}"></i>
             </button>
-            <b class="simbolo">{titolo.symbol}</b>
+            <a class="simbolo text-decoration-none" href="/titolo/{titolo.symbol}"
+               onclick={(e) => e.stopPropagation()}>{titolo.symbol}</a>
             <span class="text-truncate">
                 <span class="small"><Valore valore={titolo.sector} mancante="non classificato" /></span>
                 <small class="d-block text-secondary">

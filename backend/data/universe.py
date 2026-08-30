@@ -31,6 +31,7 @@ import config
 from core import freshness, registry
 from core.db import db_read, db_session
 from core.schema import GLOBAL_SCOPE
+from core.tipi import python_puro
 from data import defeatbeta
 
 logger = logging.getLogger(__name__)
@@ -70,31 +71,9 @@ def _adesso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
-def _pulisci(valore):
-    """Da tipi pandas/numpy a tipi Python, e da 'non disponibile' a None.
-
-    SQLite non sa cosa farsene di un `numpy.float64`, e uno STRICT lo rifiuta:
-    la conversione va fatta qui, non sperando che passi.
-
-    Una stringa vuota diventa None, e non e' un dettaglio: nel profilo di
-    Defeatbeta il settore manca 635 volte come NULL e **886 volte come stringa
-    vuota**. Tenendole distinte, un `IS NULL` conta 635 buchi su 1.521 e la
-    copertura dichiarata risulta il doppio di quella vera — un buco silenzioso
-    prodotto proprio dal codice che doveva dichiararli.
-    """
-    if valore is None or pd.isna(valore):
-        return None
-    if isinstance(valore, str):
-        pulito = valore.strip()
-        return pulito if pulito else None
-    if hasattr(valore, "item"):
-        return valore.item()
-    return valore
-
-
 def _riga(record: dict) -> tuple:
     """Una riga dell'universo pronta per l'INSERT, coi tipi giusti."""
-    pulito = {colonna: _pulisci(record.get(colonna)) for colonna in COLONNE}
+    pulito = {colonna: python_puro(record.get(colonna)) for colonna in COLONNE}
     dipendenti = pulito["employees"]
     return (
         str(pulito["symbol"]),

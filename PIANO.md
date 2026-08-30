@@ -316,9 +316,18 @@ di non esserci (regola 5).
 
 ---
 
-**Blocco 6 — Grafici.** `lightweight-charts` pilotato dai nodi indicatore.
-Pannelli, overlay, impostazioni per ticker. **Piu' il guscio della scheda
-titolo**, che e' anche il posto dove il grafico va a vivere.
+**Blocco 6 — Grafici. FATTO il 2026-08-30, 130 test verdi.**
+`lightweight-charts` pilotato dai nodi indicatore, con `domain/indicators.py`
+(copiato: 456 righe, topo-sort sul grafo) e `lib/indicators.ts` (copiato: la
+tabella condivisa fra pannello e disegno). Pannelli, overlay, e impostazioni per
+ticker in `data/grafici.json` — tue, quindi in un file come la watchlist.
+**Piu' il guscio della scheda titolo**, che dichiara le sezioni dei blocchi 7 e
+8 invece di farle mancare in silenzio.
+
+*Difetto trovato dal vivo e chiuso: gli indicatori venivano calcolati sul solo
+intervallo mostrato. A un mese di grafico l'EMA50 aveva 22 valori — una "media a
+50 giorni" costruita su ventidue sedute, un numero che sembra giusto e non lo e'.
+Ora si calcola su tutta la storia (6.943 sedute per NVDA) e si taglia dopo.*
 
 **Blocco 7 — Matematica e as_of.** Porting di `domain/`, con i test. **Nella
 scheda titolo arrivano fondamentali, filing e news.**

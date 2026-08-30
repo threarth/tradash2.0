@@ -92,6 +92,15 @@ export const api = {
             { method: "DELETE" }),
     storico: (limit) => chiama(`/watchlist/storico${query({ limit })}`),
 
+    // --- scheda di un titolo ---
+    titolo: (simbolo) => chiama(`/titolo/${encodeURIComponent(simbolo)}`),
+    titoloPrezzi: (simbolo, intervallo) =>
+        chiama(`/titolo/${encodeURIComponent(simbolo)}/prezzi${query({ intervallo })}`),
+    titoloGrafico: (simbolo) => chiama(`/titolo/${encodeURIComponent(simbolo)}/grafico`),
+    titoloSalvaGrafico: (simbolo, configurazione) =>
+        chiama(`/titolo/${encodeURIComponent(simbolo)}/grafico`,
+            corpoJson("PUT", configurazione)),
+
     // --- glossario ---
     glossario: () => chiama("/glossario"),
 

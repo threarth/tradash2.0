@@ -21,3 +21,5 @@ backend/data/httpfs_cache/
 backend/data/watchlist.json
 backend/data/watchlist.json.tmp
 backend/data/watchlist_events.jsonl
+backend/data/grafici.json
+backend/data/grafici.json.tmp
