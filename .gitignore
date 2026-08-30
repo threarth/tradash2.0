@@ -1,6 +1,7 @@
 # ambienti e artefatti
 .venv/
 node_modules/
+frontend/dist/
 __pycache__/
 *.pyc
 

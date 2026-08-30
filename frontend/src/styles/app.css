@@ -1,0 +1,108 @@
+/*
+ * app.css — Bootstrap 5.3, solo il CSS.
+ * feat (Blocco 4): niente `bootstrap.bundle.js`.
+ *
+ * Il JavaScript di Bootstrap muta il DOM che Svelte considera suo, e va
+ * distrutto a mano allo smontaggio. I comportamenti che servono davvero sono
+ * quattro — dropdown, modale, tooltip, collapse — e in Svelte si scrivono in
+ * poche righe, dove lo smontaggio e' gia' gestito dal framework.
+ */
+@import "bootstrap/dist/css/bootstrap.min.css";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
+/* I numeri incolonnati si leggono solo se le cifre hanno tutte la stessa
+   larghezza: senza, una colonna di capitalizzazioni balla. */
+.numerico {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+/* Un dato che manca non e' una cella vuota: e' una cella che dice di mancare. */
+.assente {
+    color: var(--bs-secondary-color);
+    font-style: italic;
+}
+
+/* La barra in alto resta visibile mentre si scorre un elenco di 11.000 titoli. */
+.navbar-tradash {
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* L'area di lavoro non tocca i bordi della finestra su schermi larghi. */
+.contenuto {
+    max-width: 1400px;
+}
+
+/* --- lo stile del thematic-equity-monitor, portato su Bootstrap -----------
+ *
+ * Le schede del monitor: una riga che si apre, il ticker in evidenza, e a
+ * destra le pillole che dicono a colpo d'occhio tema, profilo e maturity.
+ * I colori vengono dalle variabili di Bootstrap, cosi' funzionano identici in
+ * tema chiaro e scuro invece di essere due palette da tenere allineate.
+ */
+.scheda-titolo {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    margin-bottom: .5rem;
+    overflow: hidden;
+}
+
+.scheda-titolo > summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .75rem 1rem;
+}
+
+.scheda-titolo > summary::-webkit-details-marker { display: none; }
+
+.scheda-titolo > summary::after {
+    content: "+";
+    color: var(--bs-primary);
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.scheda-titolo[open] > summary::after { content: "\2212"; }
+
+.scheda-titolo[open] > summary { border-bottom: 1px solid var(--bs-border-color); }
+
+.scheda-corpo { padding: 1rem; background: var(--bs-tertiary-bg); }
+
+.simbolo {
+    font-weight: 800;
+    color: var(--bs-primary);
+    min-width: 4.5rem;
+}
+
+/* Le pillole: bordo colorato e testo colorato, sfondo trasparente — si leggono
+   su entrambi i temi senza inventare due palette. */
+.pillola {
+    display: inline-block;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    padding: .05rem .5rem;
+    font-size: .72rem;
+    white-space: nowrap;
+}
+
+.pillola-core { color: var(--bs-success); }
+.pillola-emerging { color: var(--bs-warning); }
+.pillola-optionality { color: var(--bs-danger); }
+.pillola-tema { color: var(--bs-info); }
+.pillola-maturity { color: var(--bs-secondary-color); }
+
+.riga-filtri {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(9rem, 1fr));
+    gap: .5rem;
+}
+
+@media (max-width: 800px) {
+    .riga-filtri { grid-template-columns: repeat(2, 1fr); }
+    .scheda-titolo > summary { align-items: flex-start; }
+}

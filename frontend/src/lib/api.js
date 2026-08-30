@@ -1,0 +1,101 @@
+/**
+ * api.js — l'unico punto da cui il frontend parla col backend.
+ * feat (Blocco 4): un solo inviluppo da scartare, un solo errore da gestire.
+ *
+ * Ogni risposta del backend ha la forma `{success, data, error}`. Scartarla in
+ * venti posti diversi significa venti modi diversi di sbagliare: qui si scarta
+ * una volta, e chi chiama riceve `data` oppure un'eccezione con dentro il
+ * motivo che il backend ha scritto.
+ *
+ * Nessuna chiamata parte da sola: le funzioni si invocano quando qualcuno
+ * chiede qualcosa (regola 2).
+ */
+
+// Prefisso di tutte le API. Relativo apposta: in sviluppo lo gira il proxy di
+// Vite, in uso reale Flask serve anche il frontend e i due coincidono.
+const BASE_API = "/api";
+
+/** Errore che arriva dal backend, col messaggio che ha scritto lui. */
+export class ErroreApi extends Error {
+    constructor(messaggio, stato) {
+        super(messaggio);
+        this.name = "ErroreApi";
+        this.stato = stato;
+    }
+}
+
+/**
+ * Esegue una chiamata e ritorna il solo `data`.
+ * Solleva `ErroreApi` se il backend dice di no o se la rete non risponde.
+ */
+async function chiama(percorso, opzioni = {}) {
+    let risposta;
+    try {
+        risposta = await fetch(`${BASE_API}${percorso}`, {
+            headers: { "Content-Type": "application/json" },
+            ...opzioni
+        });
+    } catch (errore) {
+        // Il backend spento e' il caso piu' frequente in sviluppo: dirlo con
+        // parole sue vale piu' che ripetere "Failed to fetch".
+        throw new ErroreApi(`il backend non risponde (${errore.message})`, 0);
+    }
+
+    let corpo;
+    try {
+        corpo = await risposta.json();
+    } catch {
+        throw new ErroreApi(
+            `risposta non leggibile da ${percorso} (HTTP ${risposta.status})`,
+            risposta.status
+        );
+    }
+
+    if (!corpo.success) {
+        throw new ErroreApi(corpo.error || `richiesta rifiutata (HTTP ${risposta.status})`,
+            risposta.status);
+    }
+    return corpo.data;
+}
+
+/** Compone una query string, saltando i parametri non valorizzati. */
+function query(parametri) {
+    const pieni = Object.entries(parametri ?? {}).filter(
+        ([, valore]) => valore !== undefined && valore !== null && valore !== ""
+    );
+    return pieni.length ? `?${new URLSearchParams(pieni)}` : "";
+}
+
+const corpoJson = (metodo, dati) => ({ method: metodo, body: JSON.stringify(dati) });
+
+export const api = {
+    // --- universo ---
+    universo: (filtri) => chiama(`/universe${query(filtri)}`),
+    universoStato: () => chiama("/universe/stato"),
+    universoCostruisci: (forzato) => chiama(`/universe/build${query({ force: forzato ? 1 : "" })}`,
+        { method: "POST" }),
+
+    // --- watchlist ---
+    watchlist: (filtri) => chiama(`/watchlist${query(filtri)}`),
+    watchlistAggiungi: (testo, tag) => chiama("/watchlist", corpoJson("POST", { testo, tag })),
+    watchlistRimuovi: (simboli) => chiama("/watchlist", corpoJson("DELETE", { simboli })),
+    watchlistModifica: (dati) => chiama("/watchlist", corpoJson("PATCH", dati)),
+    watchlistAttributi: (simbolo, attributi) =>
+        chiama(`/watchlist/${encodeURIComponent(simbolo)}`, corpoJson("PATCH", attributi)),
+    esporta: () => chiama("/watchlist/esporta"),
+    importa: (dati) => chiama("/watchlist/importa", corpoJson("POST", dati)),
+    prompt: (simboli) => chiama(`/watchlist/prompt${query({ simboli })}`),
+    tagElenco: () => chiama("/watchlist/tag"),
+    tagCrea: (etichetta, padre) => chiama("/watchlist/tag", corpoJson("POST", { etichetta, padre })),
+    tagElimina: (nome, cascata) =>
+        chiama(`/watchlist/tag/${encodeURIComponent(nome)}${query({ cascata: cascata ? 1 : "" })}`,
+            { method: "DELETE" }),
+    storico: (limit) => chiama(`/watchlist/storico${query({ limit })}`),
+
+    // --- lavori e chiamate: la regola 1 vista dal frontend ---
+    lavoriAttivi: () => chiama("/ops/active"),
+    lavoriStorici: () => chiama("/ops/history"),
+    fermaLavoro: (runId) => chiama(`/ops/stop/${encodeURIComponent(runId)}`, { method: "POST" }),
+    chiamate: (filtri) => chiama(`/calls${query(filtri)}`),
+    chiamateRiepilogo: () => chiama("/calls/summary")
+};

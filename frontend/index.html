@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="it" data-bs-theme="dark">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>tradash</title>
+        <!--
+            Il tema si applica PRIMA che la pagina venga disegnata: leggerlo in
+            Svelte, a componente montato, farebbe lampeggiare il chiaro sullo
+            scuro a ogni caricamento. Sono sei righe, e stanno qui apposta.
+        -->
+        <script>
+            (function () {
+                try {
+                    const salvato = localStorage.getItem("tradash-tema");
+                    if (salvato === "light" || salvato === "dark") {
+                        document.documentElement.setAttribute("data-bs-theme", salvato);
+                    }
+                } catch (errore) {
+                    // localStorage negato (finestra privata, permessi): si tiene il tema
+                    // di partenza. Non e' un motivo per non mostrare la pagina.
+                }
+            })();
+        </script>
+    </head>
+    <body>
+        <div id="app"></div>
+        <script type="module" src="/src/main.js"></script>
+    </body>
+</html>
