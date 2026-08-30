@@ -232,12 +232,33 @@ class _Uso:
 
 
 class _Blocco:
-    def __init__(self, testo):
-        self.type = "text"
+    def __init__(self, testo, tipo="text"):
+        self.type = tipo
         self.text = testo
 
 
 class _Risposta:
+    """Una risposta nella forma di OpenAI, che e' il fornitore predefinito.
+
+    I doppioni parlano la forma della libreria vera perche' e' li' che passa
+    l'adattatore: un finto che restituisse gia' il dizionario normalizzato
+    salterebbe proprio il pezzo di codice che traduce.
+    """
+
+    def __init__(self, testo, entrata=1000, uscita=500, stato="completed",
+                 rifiuto=False):
+        self.output_text = testo
+        self.usage = _Uso(entrata, uscita)
+        self.status = stato
+        self.incomplete_details = None
+        pezzi = [_Blocco(testo, "refusal" if rifiuto else "output_text")]
+        self.output = [type("Voce", (), {"type": "message", "content": pezzi})()]
+
+
+class _RispostaAnthropic:
+    """La forma dell'altro fornitore. Serve a un test solo, ed e' quello che
+    verifica che l'adattatore di Anthropic non sia marcito mentre non lo usiamo."""
+
     def __init__(self, testo, entrata=1000, uscita=500, stop="end_turn"):
         self.content = [_Blocco(testo)]
         self.usage = _Uso(entrata, uscita)
@@ -246,11 +267,16 @@ class _Risposta:
 
 class _ClienteFinto:
     """Un client che risponde senza uscire. Il finto sta SOTTO cio' che si misura:
-    costo, registrazione, lettura del JSON e salvataggio sono codice vero."""
+    costo, registrazione, lettura del JSON e salvataggio sono codice vero.
+
+    Espone sia `responses.create` sia `messages.create`, cosi' lo stesso
+    doppione serve tutti e due gli adattatori.
+    """
 
     def __init__(self, risposta):
         self._risposta = risposta
         self.chiamate = []
+        self.responses = self
         self.messages = self
 
     def create(self, **argomenti):
@@ -260,9 +286,25 @@ class _ClienteFinto:
         return self._risposta
 
 
+def _sistema_di(chiamata: dict) -> str:
+    """Il prompt di sistema di una chiamata registrata, con qualunque fornitore.
+
+    OpenAI lo chiama `instructions`, Anthropic `system`: i test verificano cosa
+    ha ricevuto il modello, non come si chiama il parametro.
+    """
+    return chiamata.get("instructions") or chiamata.get("system") or ""
+
+
+def _messaggio_di(chiamata: dict) -> str:
+    """La domanda di una chiamata registrata, con qualunque fornitore."""
+    if "input" in chiamata:
+        return chiamata["input"]
+    return chiamata["messages"][0]["content"]
+
+
 def _finto(monkeypatch, risposta):
     cliente = _ClienteFinto(risposta)
-    monkeypatch.setattr(llm, "_client", lambda: cliente)
+    monkeypatch.setattr(llm, "_client", lambda fornitore: cliente)
     return cliente
 
 
@@ -279,9 +321,11 @@ def test_un_modello_senza_listino_non_inventa_un_costo():
 
 def test_ogni_chiamata_lascia_due_righe_una_col_costo(monkeypatch):
     """Una in `calls` come tutte le altre chiamate, una in `llm_calls` col dettaglio."""
-    _finto(monkeypatch, _Risposta("va bene"))
+    monkeypatch.setattr(llm, "_client",
+                        lambda f: _ClienteFinto(_RispostaAnthropic("va bene")))
 
-    esito = llm.chiedi(fase="prova", sistema="sei un test", messaggio="ciao", scope="AAPL")
+    esito = llm.chiedi(fase="prova", sistema="sei un test", messaggio="ciao",
+                       scope="AAPL", modello="claude-opus-5")
 
     assert esito["costo_usd"] > 0
     with db_read() as conn:
@@ -293,6 +337,65 @@ def test_ogni_chiamata_lascia_due_righe_una_col_costo(monkeypatch):
     assert dettagli[0]["fase"] == "prova"
     assert dettagli[0]["token_entrata"] == 1000
     assert dettagli[0]["costo_usd"] == esito["costo_usd"]
+
+
+# --- due fornitori, un punto solo ------------------------------------------
+
+def test_il_fornitore_si_riconosce_dal_nome_del_modello():
+    """Chiedere gpt-5.5 e ottenere una risposta di Claude perche' un valore di
+    configurazione era rimasto indietro sarebbe invisibile nei referti."""
+    assert llm.provider_di("gpt-5.5") == llm.PROVIDER_OPENAI
+    assert llm.provider_di("claude-opus-5") == llm.PROVIDER_ANTHROPIC
+
+    with pytest.raises(llm.LlmNonDisponibile, match="non so di chi sia"):
+        llm.provider_di("llama-3")
+
+
+def test_i_due_adattatori_rendono_la_stessa_forma(monkeypatch):
+    """Il resto del sistema non deve sapere quale libreria ha risposto."""
+    cliente = _finto(monkeypatch, _Risposta('{"ok": 1}', entrata=10, uscita=5))
+    da_openai = llm.chiedi(fase="p", sistema="s", messaggio="m", modello="gpt-5.5")
+
+    monkeypatch.setattr(llm, "_client",
+                        lambda f: _ClienteFinto(_RispostaAnthropic('{"ok": 1}', 10, 5)))
+    da_anthropic = llm.chiedi(fase="p", sistema="s", messaggio="m",
+                              modello="claude-opus-5")
+
+    for esito in (da_openai, da_anthropic):
+        assert esito["testo"] == '{"ok": 1}'
+        assert esito["rifiutata"] is False
+        assert esito["token"] == {"entrata": 10, "uscita": 5}
+    assert da_openai["fornitore"] == "openai"
+    assert da_anthropic["fornitore"] == "anthropic"
+    assert "instructions" in cliente.chiamate[0], "OpenAI vuole instructions/input"
+
+
+def test_un_rifiuto_di_openai_e_un_pezzo_di_contenuto_non_uno_stato(monkeypatch):
+    """Nella loro API il rifiuto non e' uno stato della risposta: e' un pezzo."""
+    _finto(monkeypatch, _Risposta("non posso", rifiuto=True))
+
+    esito = llm.chiedi(fase="p", sistema="s", messaggio="m", modello="gpt-5.5")
+
+    assert esito["rifiutata"] is True
+    assert esito["stop_reason"] == "completed", "e infatti lo stato dice completata"
+
+
+def test_le_chiamate_senza_listino_si_dichiarano(monkeypatch):
+    """Un listino mancante letto come «gratis» nasconde proprio cio' che il
+    registro dei costi esiste per mostrare."""
+    doppioni = {"openai": _ClienteFinto(_Risposta("va bene", 1000, 500)),
+                "anthropic": _ClienteFinto(_RispostaAnthropic("va bene", 1000, 500))}
+    monkeypatch.setattr(llm, "_client", doppioni.get)
+
+    llm.chiedi(fase="p", sistema="s", messaggio="m", modello="gpt-5.5")
+    llm.chiedi(fase="p", sistema="s", messaggio="m", modello="claude-opus-5")
+
+    speso = llm.speso_totale()
+    assert speso["chiamate"] == 2
+    assert speso["chiamate_senza_listino"] == 1
+    assert speso["modelli_senza_listino"] == ["gpt-5.5"]
+    assert speso["token_senza_listino"] == 1500
+    assert speso["costo_usd"] > 0, "quella con listino conta comunque"
 
 
 def test_una_chiamata_fallita_resta_nel_registro(monkeypatch):
@@ -367,7 +470,7 @@ def test_chiedere_un_metodo_non_pronto_dice_cosa_gli_manca():
 
 
 def test_un_rifiuto_del_modello_non_diventa_un_referto_vuoto(monkeypatch):
-    _finto(monkeypatch, _Risposta("", stop="refusal"))
+    _finto(monkeypatch, _Risposta("", rifiuto=True))
     monkeypatch.setattr(defeatbeta, "prices", lambda s, run_id=None: defeatbeta.Lettura(
         frame=pd.DataFrame({"close": [100 + i for i in range(300)],
                             "volume": [1e6] * 300,
@@ -393,6 +496,12 @@ INDICE_FILING = pd.DataFrame([
     {"form_type": "8-K", "report_date": "2026-03-01", "filing_date": "2026-03-02",
      "accession_number": "0001045810-26-000030", "filing_url": "https://x.example"},
 ])
+
+
+# La voce dell'indice del 10-K, come la ritorna `richiesti`. Serve ai test che
+# leggono il testo: il riconoscimento guarda protocollo E fine periodo.
+VOCE_ANNUALE = {"accession_number": "0001045810-26-000021", "report_date": "2026-01-25",
+                "form_type": "10-K", "filing_date": "2026-02-25"}
 
 
 @pytest.fixture
@@ -447,7 +556,7 @@ def test_estrae_il_testo_senza_fogli_di_stile_ne_script(indice_finto, tmp_path, 
         "<body><h1>ANNUAL REPORT</h1><p>Our business   depends on few customers.</p>"
         "</body></html>", encoding="utf-8")
 
-    testo, errore = filing_locali.testo("NVDA", "0001045810-26-000021")
+    testo, errore = filing_locali.testo("NVDA", VOCE_ANNUALE)
 
     assert errore is None
     assert "ANNUAL REPORT" in testo
@@ -458,7 +567,7 @@ def test_estrae_il_testo_senza_fogli_di_stile_ne_script(indice_finto, tmp_path, 
 def test_un_documento_che_manca_dice_dove_metterlo(indice_finto, tmp_path, monkeypatch):
     monkeypatch.setattr(config, "FILING_DIR", tmp_path)
 
-    testo, errore = filing_locali.testo("NVDA", "0001045810-26-000021")
+    testo, errore = filing_locali.testo("NVDA", VOCE_ANNUALE)
 
     assert testo is None
     assert str(tmp_path / "NVDA") in errore
@@ -1082,7 +1191,11 @@ class _ClienteASequenza:
     def __init__(self, risposte):
         self._risposte = list(risposte)
         self.chiamate = []
+        self.responses = self
         self.messages = self
+
+    def __init_subclass__(cls):  # pragma: no cover - non si eredita
+        pass
 
     def create(self, **argomenti):
         self.chiamate.append(argomenti)
@@ -1150,7 +1263,7 @@ def qualitativa_pronta(indice_finto, tmp_path, monkeypatch):
 
     cliente = _ClienteASequenza([_Risposta(FASE1), _Risposta(FASE2),
                                  _Risposta(FASE3), _Risposta(FASE4)])
-    monkeypatch.setattr(llm, "_client", lambda: cliente)
+    monkeypatch.setattr(llm, "_client", lambda fornitore: cliente)
     return cliente
 
 
@@ -1167,7 +1280,6 @@ def test_le_quattro_fasi_girano_in_fila_e_il_costo_e_la_somma(qualitativa_pronta
     contenuto = referto["contenuto"]
     for sezione in ("business_overview", "competitors", "five_year_narrative"):
         assert contenuto[sezione], f"manca {sezione}"
-    assert referto["costo_usd"] > 0
 
 
 def test_la_classificazione_unisce_le_due_fasi_e_dichiara_cosa_manca(qualitativa_pronta):
@@ -1250,7 +1362,7 @@ def test_una_sezione_troncata_lo_dichiara_nel_prompt_e_nel_referto(
 
     referto = qualitativa.esegui("NVDA", _lavoro_finto())
 
-    prompt_fase1 = qualitativa_pronta.chiamate[0]["system"]
+    prompt_fase1 = _sistema_di(qualitativa_pronta.chiamate[0])
     assert "sezione troncata a 300 caratteri su" in prompt_fase1
     assert referto["contenuto"]["copertura"]["sezioni_troncate"], "il referto lo ripete"
 
@@ -1259,7 +1371,7 @@ def test_la_fase_3_riceve_le_conclusioni_della_fase_1(qualitativa_pronta):
     """Due narrative scollegate sullo stesso dato sono peggio di un disaccordo."""
     qualitativa.esegui("NVDA", _lavoro_finto())
 
-    prompt_fase3 = qualitativa_pronta.chiamate[2]["system"]
+    prompt_fase3 = _sistema_di(qualitativa_pronta.chiamate[2])
     assert "La domanda di calcolo cresce." in prompt_fase3
     assert "espansione" in prompt_fase3
 
@@ -1269,7 +1381,7 @@ def test_la_fase_competitiva_dichiara_di_non_avere_i_documenti_dei_concorrenti(
     """Il vecchio sistema li scaricava; questo no, e non deve fingere di si'."""
     referto = qualitativa.esegui("NVDA", _lavoro_finto())
 
-    prompt_fase2 = qualitativa_pronta.chiamate[1]["system"]
+    prompt_fase2 = _sistema_di(qualitativa_pronta.chiamate[1])
     assert "i documenti dei concorrenti" in prompt_fase2.lower()
     assert any("concorrenti" in f
                for f in referto["contenuto"]["copertura"]["fonti_non_disponibili"])
@@ -1280,7 +1392,12 @@ def test_ogni_fase_e_una_chiamata_separata_e_non_eredita_le_altre(qualitativa_pr
     cresce da una fase all'altra."""
     qualitativa.esegui("NVDA", _lavoro_finto())
 
-    messaggi = [c["messages"][0]["content"] for c in qualitativa_pronta.chiamate]
-    assert len({m for m in messaggi}) == 4, "quattro domande diverse"
-    for chiamata in qualitativa_pronta.chiamate:
-        assert len(chiamata["messages"]) == 1, "nessuna cronologia riaccodata"
+    messaggi = [_messaggio_di(c) for c in qualitativa_pronta.chiamate]
+    assert len(set(messaggi)) == 4, "quattro domande diverse"
+
+    # Nessuna cronologia riaccodata: ogni fase manda una domanda sola, e il
+    # prompt di sistema di ognuna e' il suo — non la somma dei precedenti.
+    sistemi = [_sistema_di(c) for c in qualitativa_pronta.chiamate]
+    assert len(set(sistemi)) == 4
+    for i in range(1, 4):
+        assert sistemi[i - 1] not in sistemi[i], f"la fase {i + 1} eredita la {i}"

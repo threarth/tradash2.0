@@ -796,3 +796,55 @@ deposito reali. E un difetto trovato proprio li': il rendimento a un anno veniva
 calcolato — l'ultima seduta distava 364 giorni, dentro la tolleranza di sette —
 ma l'orizzonte risultava non maturato. **Due campi della stessa risposta che si
 contraddicono sono peggio di entrambe le letture.**
+
+---
+
+## Due fornitori, e il fornitore lo dice il nome del modello
+
+Scelta dell'utente il 31/08/2026: **GPT-5.5 come modello predefinito**, con la
+strada Anthropic tenuta accanto. Il fornitore si riconosce dal prefisso del
+nome — `gpt-*` a OpenAI, `claude-*` ad Anthropic — e non da un interruttore in
+configurazione: chiedere `gpt-5.5` e ottenere una risposta di Claude perche' un
+valore era rimasto indietro sarebbe un difetto invisibile nei referti.
+
+Le due API non si somigliano — `system`+`messages` contro
+`instructions`+`input`, pensiero adattivo contro sforzo esplicito, e un rifiuto
+che da una parte e' uno stato della risposta e dall'altra un pezzo di contenuto
+— e ogni adattatore restituisce la stessa forma. Il resto del sistema non sa
+quale libreria ha risposto.
+
+`openai` era **gia' installata**: arriva come dipendenza di defeatbeta-api.
+
+**Il listino di GPT-5.5 non ce l'ho, e non l'ho scritto a memoria.** Un prezzo
+inventato darebbe la cosa peggiore possibile: un numero in dollari che sembra
+misurato. Finche' manca, `speso_totale()` dichiara quante chiamate non sanno
+quanto sono costate, con quali modelli e quanti token — e il frontend lo mostra
+dove mostra il totale. Un listino mancante letto come «gratis» nasconderebbe
+proprio cio' che il registro dei costi esiste per mostrare.
+
+---
+
+## I due assenti di pandas, e quello che non si fermava
+
+La prima analisi qualitativa vera si e' fermata alla **terza fase**, dopo che le
+prime due erano state pagate — 78.000 token — con
+`TypeError: Object of type NAType is not JSON serializable`.
+
+`pandas.NA` arrivava dall'elenco dei dirigenti di NVDA, dove eta', anno di
+nascita e compenso mancano per sette righe su dieci. Non e' un float, non ha
+`.item()`, non ha `.isoformat()`: passava indenne attraverso ogni controllo di
+`core/tipi.py` — il modulo che esiste **proprio** per questo — e arrivava fino a
+`json.dumps`.
+
+Cercandolo si e' trovato il suo gemello peggiore. **`pandas.NaT` non si
+fermava**: ha `.isoformat()`, e quel metodo restituisce la stringa `"NaT"`. Una
+data mancante diventava il testo «NaT» dentro un referto, dove nessuno l'avrebbe
+riconosciuta per un dato assente. Un guasto che si vede costa due fasi; uno che
+non si vede costa un referto sbagliato che sembra giusto.
+
+Adesso i modi di dire «non c'e'» sono quattro e stanno in una funzione sola,
+controllata **prima** di ogni altra cosa: `None`, `NaN`, `NA`, `NaT`.
+
+E una lezione sul metodo: dopo il guasto, i quattro prompt sono stati costruiti
+**senza chiamare il modello** per vedere se qualcos'altro esplodeva. Provare a
+vuoto cio' che costa e' gratis, e va fatto prima.

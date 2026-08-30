@@ -23,6 +23,13 @@ chiave univoca di EDGAR e compare gia' nell'URL che apri: se salvi il file con
 un nome diverso ma quel numero c'e' dentro, il sistema lo trova lo stesso. Il
 resto del nome serve ai tuoi occhi quando guardi la cartella.
 
+**E se il numero non c'e' affatto**, si riconosce anche il nome che il browser
+propone da solo — `nvda-20260125.html`, cioe' simbolo e fine periodo. Non era
+previsto, ed e' successo al primo tentativo vero: il sistema chiede un nome, ma
+premere Ctrl+S ne produce un altro, e chiedere a chi salva di rinominare tre
+file e' chiedere una cosa che si dimentica. Il protocollo resta la chiave
+prima; questa e' la seconda, e vale solo se combacia anche la fine periodo.
+
 Il protocollo si confronta anche senza trattini, perche' nell'URL sta cosi':
 `0001045810-26-000075` nel documento, `000104581026000075` nel percorso.
 """
@@ -50,6 +57,26 @@ TAG_DA_SALTARE = frozenset({"script", "style", "head"})
 # e' un token pagato.
 SPAZI_RIPETUTI = re.compile(r"[ \t\xa0]+")
 RIGHE_VUOTE = re.compile(r"\n{3,}")
+
+# La codifica dichiarata nell'intestazione del documento. I filing di EDGAR
+# arrivano in **windows-1252**, non in UTF-8, e leggerli come UTF-8 con
+# `errors="replace"` non fallisce: peggio, riesce e corrompe. Misurato sul 10-Q
+# vero di NVDA, il byte 0x92 — l'apostrofo tipografico — diventava un carattere
+# di sostituzione, e «Management's Discussion» arrivava al modello spezzato.
+#
+# Conta doppio qui: le citazioni si verificano confrontando le frasi con il
+# testo. Se il testo e' corrotto, o il modello ci restituisce la frase corretta
+# e la verifica fallisce, oppure la ricopia corrotta e finisce nel referto.
+CHARSET_DICHIARATO = re.compile(rb"charset=[\"']?([\w-]+)", re.IGNORECASE)
+
+# Quanto in testa al file si cerca la dichiarazione. La `<meta>` sta nel `<head>`,
+# ma un filing ha righe lunghissime: qualche migliaio di byte le copre tutte.
+BYTE_DI_INTESTAZIONE = 4096
+
+# L'ultima spiaggia. `cp1252` non fallisce mai su nessun byte, quindi e' un
+# ripiego che non lascia mai il documento illeggibile — e per i filing di EDGAR
+# e' anche quello giusto quasi sempre.
+CODIFICA_DI_RIPIEGO = "cp1252"
 
 
 class _EstrattoreTesto(HTMLParser):
@@ -136,15 +163,15 @@ def richiesti(simbolo: str, run_id: str | None = None) -> list[dict]:
         [:config.FILING_QUALITATIVA_TRIMESTRALI]
     )
 
-    presenti = _per_protocollo(ambito)
-    return [
-        {**voce,
-         "nome_atteso": nome_atteso(ambito, voce),
-         "presente": _protocollo_nudo(voce["accession_number"]) in presenti,
-         "file": str(presenti.get(_protocollo_nudo(voce["accession_number"]), "")) or None,
-         **_collegamenti(ambito, voce)}
-        for voce in sorted(scelti, key=lambda v: v["filing_date"], reverse=True)
-    ]
+    voci = []
+    for voce in sorted(scelti, key=lambda v: v["filing_date"], reverse=True):
+        file = _trova(ambito, voce)
+        voci.append({**voce,
+                     "nome_atteso": nome_atteso(ambito, voce),
+                     "presente": file is not None,
+                     "file": str(file) if file is not None else None,
+                     **_collegamenti(ambito, voce)})
+    return voci
 
 
 def _collegamenti(simbolo: str, voce: dict) -> dict:
@@ -172,6 +199,15 @@ def _collegamenti(simbolo: str, voce: dict) -> dict:
     }
 
 
+def _file_salvati(simbolo: str) -> list[Path]:
+    """I documenti nella cartella del titolo, esclusi gli scarti del salvataggio."""
+    dove = cartella(simbolo)
+    if not dove.is_dir():
+        return []
+    return [f for f in sorted(dove.iterdir())
+            if f.is_file() and f.suffix.lower() in config.FILING_ESTENSIONI]
+
+
 def _per_protocollo(simbolo: str) -> dict[str, Path]:
     """I file gia' salvati, indicizzati per numero di protocollo trovato nel nome.
 
@@ -179,25 +215,50 @@ def _per_protocollo(simbolo: str) -> dict[str, Path]:
     nome tuo ma il protocollo c'e', il documento e' quello e non c'e' motivo di
     non riconoscerlo.
     """
-    dove = cartella(simbolo)
-    if not dove.is_dir():
-        return {}
-
     trovati: dict[str, Path] = {}
-    for file in dove.iterdir():
-        if not file.is_file() or file.suffix.lower() not in config.FILING_ESTENSIONI:
-            continue
+    for file in _file_salvati(simbolo):
         nudo = _protocollo_nudo(file.stem)
         for pezzo in re.findall(r"\d{18}", nudo):
             trovati.setdefault(pezzo, file)
     return trovati
 
 
-def testo(simbolo: str, accession_number: str) -> tuple[str | None, str | None]:
-    """Il testo di un documento salvato. Ritorna `(testo, errore)`, mai un None muto."""
-    file = _per_protocollo(simbolo).get(_protocollo_nudo(accession_number))
+def _per_convenzione(simbolo: str, voce: dict) -> Path | None:
+    """Il file salvato col nome che il browser propone: `nvda-20260125.html`.
+
+    E' il nome del documento su EDGAR — la stessa convenzione con cui questo
+    modulo costruisce il collegamento diretto. Si accetta solo se combacia
+    ANCHE la fine periodo: `nvda-20260125` e `nvda-20260726` sono due documenti
+    diversi, e confonderli metterebbe il trimestrale al posto dell'annuale.
+    """
+    periodo = str(voce.get("report_date") or "").replace("-", "")
+    if not periodo:
+        return None
+
+    atteso = f"{simbolo.lower()}-{periodo}"
+    for file in _file_salvati(simbolo):
+        if file.stem.lower() == atteso:
+            return file
+    return None
+
+
+def _trova(simbolo: str, voce: dict) -> Path | None:
+    """Il file di un documento, cercato prima per protocollo e poi per convenzione."""
+    per_protocollo = _per_protocollo(simbolo)
+    trovato = per_protocollo.get(_protocollo_nudo(voce["accession_number"]))
+    return trovato if trovato is not None else _per_convenzione(simbolo, voce)
+
+
+def testo(simbolo: str, voce: dict) -> tuple[str | None, str | None]:
+    """Il testo di un documento salvato. Ritorna `(testo, errore)`, mai un None muto.
+
+    Riceve la VOCE dell'indice e non il solo numero di protocollo, perche' il
+    file si puo' riconoscere anche dal nome che il browser propone — e quel nome
+    porta la fine periodo, non il protocollo.
+    """
+    file = _trova(simbolo, voce)
     if file is None:
-        return None, (f"il documento {accession_number} non e' in "
+        return None, (f"il documento {voce['accession_number']} non e' in "
                       f"{cartella(simbolo)}: salvalo li'")
 
     dimensione = file.stat().st_size / BYTE_PER_MB
@@ -206,9 +267,12 @@ def testo(simbolo: str, accession_number: str) -> tuple[str | None, str | None]:
                       f"{config.FILING_DIMENSIONE_MASSIMA_MB}: non sembra un filing")
 
     try:
-        grezzo = file.read_text(encoding="utf-8", errors="replace")
+        byte = file.read_bytes()
     except OSError as exc:
         return None, f"{file.name} non e' leggibile: {exc}"
+
+    grezzo, codifica = _decodifica(byte)
+    logger.info("[FILING] %s letto come %s", file.name, codifica)
 
     if file.suffix.lower() == ".txt":
         return _ripulisci(grezzo), None
@@ -216,6 +280,28 @@ def testo(simbolo: str, accession_number: str) -> tuple[str | None, str | None]:
     estrattore = _EstrattoreTesto()
     estrattore.feed(grezzo)
     return _ripulisci("\n".join(estrattore.pezzi)), None
+
+
+def _decodifica(byte: bytes) -> tuple[str, str]:
+    """Il testo del documento, nella codifica che il documento dichiara.
+
+    Si prova prima quella dichiarata, poi UTF-8, poi il ripiego. Ritorna anche
+    il nome della codifica usata, perche' quando una citazione non si verifica
+    la prima domanda utile e' "con che codifica l'abbiamo letto".
+    """
+    trovata = CHARSET_DICHIARATO.search(byte[:BYTE_DI_INTESTAZIONE])
+    candidate = [trovata.group(1).decode("ascii", "ignore")] if trovata else []
+    candidate += ["utf-8", CODIFICA_DI_RIPIEGO]
+
+    for codifica in candidate:
+        try:
+            return byte.decode(codifica), codifica
+        except (UnicodeDecodeError, LookupError):
+            continue
+
+    # Non ci si arriva: cp1252 accetta qualunque byte. Se cambiasse, meglio un
+    # testo con qualche carattere sostituito che nessun testo.
+    return byte.decode("utf-8", errors="replace"), "utf-8 con sostituzioni"
 
 
 def _ripulisci(testo_grezzo: str) -> str:

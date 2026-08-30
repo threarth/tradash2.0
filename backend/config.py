@@ -233,8 +233,13 @@ VERDETTO_GIORNI_VECCHIO = 30
 # dell'analisi qualitativa** — su Q ha prodotto un submit invalido bruciando
 # $0,24, mentre Sonnet ha chiuso a $0,99. Haiku resta buono per compressione e
 # triage, non per le fasi.
-LLM_MODELLO = os.environ.get("TRADASH2_MODELLO", "claude-opus-5")
-LLM_MODELLO_COMPRESSIONE = "claude-haiku-4-5"
+LLM_MODELLO = os.environ.get("TRADASH2_MODELLO", "gpt-5.5")
+LLM_MODELLO_COMPRESSIONE = "gpt-5.4-mini"
+
+# Quanto il modello deve ragionare prima di rispondere. Vale per i modelli
+# OpenAI, che vogliono un livello esplicito; quelli Anthropic decidono da soli
+# (pensiero adattivo), e li' questo valore non si usa.
+LLM_SFORZO = os.environ.get("TRADASH2_SFORZO", "medium")
 
 # Il tetto di token in uscita. Sopra i 16k conviene lo streaming, altrimenti si
 # rischia di sbattere contro il timeout HTTP prima della fine della risposta.
@@ -243,6 +248,11 @@ LLM_TOKEN_MASSIMI = 16000
 # Prezzo per milione di token, per calcolare il costo di ogni chiamata. Da
 # aggiornare quando cambiano i listini: un costo calcolato su prezzi vecchi e'
 # peggio di nessun costo, perche' sembra un dato.
+# **I modelli OpenAI non sono qui, e non e' una dimenticanza.** Non ho un
+# listino verificato per gpt-5.5 e le sue varianti, e scriverne uno a memoria
+# darebbe la cosa peggiore possibile: un numero in dollari che sembra misurato.
+# Finche' mancano, `speso_totale()` dichiara quante chiamate non sanno quanto
+# sono costate, invece di sommarci zero in silenzio.
 LLM_PREZZI = {
     "claude-opus-5": {"ingresso": 5.00, "uscita": 25.00},
     "claude-sonnet-5": {"ingresso": 2.00, "uscita": 10.00},

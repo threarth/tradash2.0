@@ -50,10 +50,22 @@
 
 <Riquadro richiesta={metodi} testoCaricamento="leggo i metodi…">
     {#snippet children(d)}
-        <p class="small text-secondary">
+        <p class="small text-secondary mb-1">
             Speso finora con i modelli: <strong>${d.speso.costo_usd.toFixed(4)}</strong>
             su {d.speso.chiamate} chiamate.
         </p>
+
+        <!-- Un listino mancante si legge come "gratis": il totale resta a zero
+             mentre i soldi escono. Va detto dove si guarda il totale. -->
+        {#if d.speso.chiamate_senza_listino > 0}
+            <p class="small text-warning">
+                Di quelle, <strong>{d.speso.chiamate_senza_listino}</strong> non
+                sanno quanto sono costate — manca il listino di
+                {d.speso.modelli_senza_listino.join(", ")}, e i loro
+                {d.speso.token_senza_listino.toLocaleString("it")} token non
+                entrano nel totale qui sopra.
+            </p>
+        {/if}
 
         <div class="list-group mb-3">
             {#each d.metodi as metodo (metodo.metodo)}

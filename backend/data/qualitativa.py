@@ -81,7 +81,7 @@ def _tronca(testo: str) -> tuple[str, bool]:
 
 def _sezioni_di(simbolo: str, voce: dict, quali: tuple) -> tuple[list[dict], list[str]]:
     """Le sezioni leggibili di un documento salvato, e cosa non si e' letto."""
-    testo, errore = filing_locali.testo(simbolo, voce["accession_number"])
+    testo, errore = filing_locali.testo(simbolo, voce)
     if testo is None:
         return [], [errore]
 

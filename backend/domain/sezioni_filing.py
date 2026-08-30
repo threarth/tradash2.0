@@ -68,8 +68,15 @@ INTESTAZIONE_LARGA = re.compile(r"(?i)\bitem\s*(\d{1,2})\s*([a-c])?\b")
 # Quanto si guarda avanti per vedere se accanto al numero c'e' il titolo atteso.
 FINESTRA_TITOLO = 120
 
-# Sotto questa lunghezza non e' una sezione, e' un rimando o una voce d'indice.
-LUNGHEZZA_MINIMA = 500
+# Sotto questa lunghezza non e' una sezione, e' una voce d'indice.
+#
+# Misurato sul 10-K vero di NVDA: la voce d'indice di «Item 3» apre 29
+# caratteri, la sezione vera ne apre 197 — ed e' una sezione vera che dice
+# «Please see Note 12». **Una sezione breve resta una sezione**, e la soglia
+# stava a 500: rifiutava un Item 3 che c'era, dicendo per giunta che erano
+# rimandi. Con le intestazioni ancorate a inizio riga i rimandi non arrivano
+# nemmeno qui, e questa soglia deve solo separare l'indice dal testo.
+LUNGHEZZA_MINIMA = 120
 
 
 def _rango(numero: str, lettera: str | None) -> tuple[int, str]:
@@ -154,7 +161,8 @@ def estrai(testo: str, sezione: str, forma: str) -> tuple[str | None, str | None
 
     if len(estratto) < LUNGHEZZA_MINIMA:
         return None, (f"«Item {definizione['item']}» compare ma apre solo "
-                      f"{len(estratto)} caratteri: sono rimandi, non la sezione")
+                      f"{len(estratto)} caratteri: e' la voce dell'indice, non "
+                      f"la sezione — nel documento la sezione potrebbe mancare")
 
     return estratto, None
 

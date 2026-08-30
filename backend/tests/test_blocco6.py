@@ -7,6 +7,7 @@ qui si verifica che continui a funzionare e che le due trappole trovate
 portandolo non tornino — il ciclo nell'albero dei source, e gli indicatori
 calcolati sul solo intervallo mostrato.
 """
+import json
 from datetime import date, timedelta
 
 import pandas as pd
@@ -14,6 +15,8 @@ import pytest
 
 import config
 from api import titolo
+from core import tipi
+from core.tipi import python_puro
 from data import defeatbeta, grafici
 from domain import indicators
 
@@ -176,3 +179,33 @@ def test_un_intervallo_inventato_elenca_quelli_veri(client):
 
     assert risposta.status_code == 400
     assert "1M" in risposta.get_json()["error"]
+
+
+# --- i quattro modi in cui i dati dicono «non c'e'» -------------------------
+
+def test_i_due_assenti_di_pandas_diventano_none():
+    """Trovati dal vivo leggendo i dirigenti di NVDA, dove eta' e compenso
+    mancano per sette righe su dieci.
+
+    `pandas.NA` non e' un float, non ha `.item()` ne' `.isoformat()`: passava
+    indenne fino a `json.dumps`, che si e' fermato — dopo che due fasi
+    dell'analisi qualitativa erano gia' state pagate.
+    """
+    assert python_puro(pd.NA) is None
+    assert python_puro(pd.NaT) is None
+    assert json.dumps({"eta": python_puro(pd.NA)}) == '{"eta": null}'
+
+
+def test_una_data_mancante_non_diventa_la_stringa_NaT():
+    """Il difetto peggiore dei due, perche' non si fermava: `NaT.isoformat()`
+    restituisce "NaT", e quel testo finiva dentro un referto dove nessuno
+    l'avrebbe riconosciuto per un dato mancante."""
+    assert pd.NaT.isoformat() == "NaT", "e' proprio quello che fa pandas"
+    assert python_puro(pd.NaT) is None, "e proprio per questo si controlla prima"
+
+
+def test_i_quattro_assenti_si_riconoscono_tutti():
+    for valore in (None, float("nan"), pd.NA, pd.NaT):
+        assert tipi.manca(valore) is True, valore
+    for valore in (0, 0.0, "", "x", False):
+        assert tipi.manca(valore) is False, valore

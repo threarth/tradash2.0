@@ -14,6 +14,20 @@ Qui ogni chiamata lascia due righe: una in `calls`, come tutte, e una in
 Il client si costruisce al PRIMO USO, non all'avvio: importare la libreria e
 costruire il client non deve succedere in `create_app()` (regola 2), e chi non
 usa le analisi non deve avere bisogno di una chiave.
+
+## Due fornitori, un punto solo
+
+Si parla con OpenAI **e** con Anthropic, e il fornitore si sceglie dal nome del
+modello: `gpt-*` va da OpenAI, `claude-*` da Anthropic. Non c'e' un interruttore
+da ricordarsi di girare — chiedere `gpt-5.5` e ottenere una risposta di Claude
+perche' un valore di configurazione era rimasto indietro sarebbe un difetto
+invisibile nei referti.
+
+Le due API non si somigliano — una vuole `system` e `messages`, l'altra
+`instructions` e `input`; una decide da sola quanto ragionare, l'altra vuole un
+livello — e ogni adattatore restituisce la stessa forma: testo, come si e'
+fermato, se ha rifiutato, e i token. Tutto il resto del modulo non sa quale dei
+due ha risposto.
 """
 import logging
 import threading
@@ -25,16 +39,20 @@ from core.db import db_read, db_session
 
 logger = logging.getLogger(__name__)
 
-PROVIDER = "anthropic"
+PROVIDER_OPENAI = "openai"
+PROVIDER_ANTHROPIC = "anthropic"
+
+# Da che nome si riconosce il fornitore. E' un prefisso e non un elenco chiuso
+# di modelli: i nomi nuovi escono di continuo, e un elenco chiuso vorrebbe dire
+# aggiornare il codice per provare `gpt-5.6`.
+PREFISSI = ((("gpt-", "o1", "o3", "o4"), PROVIDER_OPENAI),
+            (("claude-",), PROVIDER_ANTHROPIC))
 
 # Cosa succede quando manca la chiave. Non e' un guasto: e' una configurazione
 # assente, e va detto con il nome della variabile da riempire.
-CHIAVE_MANCANTE = (
-    "manca la chiave di Anthropic: esporta ANTHROPIC_API_KEY, oppure fai "
-    "`ant auth login`. Senza, le analisi che usano un modello non partono."
-)
+CHIAVI = {PROVIDER_OPENAI: "OPENAI_API_KEY", PROVIDER_ANTHROPIC: "ANTHROPIC_API_KEY"}
 
-_stato: dict = {"client": None}
+_stato: dict = {"client": {}}
 _lucchetto = threading.Lock()
 
 
@@ -50,31 +68,58 @@ def _adesso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
-def _client():
-    """Il client Anthropic, costruito al primo uso reale."""
-    if _stato["client"] is not None:
-        return _stato["client"]
+def provider_di(modello: str) -> str:
+    """Quale fornitore risponde a questo modello. Sbagliarlo e' peggio che fermarsi."""
+    nome = (modello or "").lower()
+    for prefissi, fornitore in PREFISSI:
+        if nome.startswith(prefissi):
+            return fornitore
+    raise LlmNonDisponibile(
+        f"non so di chi sia il modello {modello!r}: i nomi riconosciuti "
+        f"cominciano per gpt- (OpenAI) o claude- (Anthropic)"
+    )
+
+
+def _client(fornitore: str):
+    """Il client del fornitore, costruito al primo uso reale."""
+    if _stato["client"].get(fornitore) is not None:
+        return _stato["client"][fornitore]
 
     with _lucchetto:
-        if _stato["client"] is not None:
-            return _stato["client"]
-        try:
-            import anthropic  # noqa: PLC0415
-        except ImportError as exc:
-            raise LlmNonDisponibile(
-                "la libreria `anthropic` non e' installata. E' in "
-                "requirements.txt: `uv pip install -r requirements.txt`"
-            ) from exc
+        if _stato["client"].get(fornitore) is not None:
+            return _stato["client"][fornitore]
+        _stato["client"][fornitore] = _costruisci(fornitore)
 
-        try:
-            # Il costruttore senza argomenti risolve la chiave dall'ambiente o
-            # da un profilo `ant auth login`: non la si passa a mano, cosi' non
-            # puo' finire in un sorgente.
-            _stato["client"] = anthropic.Anthropic()
-        except Exception as exc:
-            raise LlmNonDisponibile(f"{CHIAVE_MANCANTE} ({type(exc).__name__})") from exc
+    return _stato["client"][fornitore]
 
-    return _stato["client"]
+
+def _costruisci(fornitore: str):
+    """Importa la libreria giusta e costruisce il client.
+
+    Il costruttore senza argomenti risolve la chiave dall'ambiente: non la si
+    passa a mano, cosi' non puo' finire in un sorgente.
+    """
+    try:
+        if fornitore == PROVIDER_OPENAI:
+            from openai import OpenAI  # noqa: PLC0415
+            costruttore = OpenAI
+        else:
+            from anthropic import Anthropic  # noqa: PLC0415
+            costruttore = Anthropic
+    except ImportError as exc:
+        raise LlmNonDisponibile(
+            f"la libreria di {fornitore} non e' installata. E' in "
+            f"requirements.txt: `uv pip install -r requirements.txt`"
+        ) from exc
+
+    try:
+        return costruttore()
+    except Exception as exc:
+        raise LlmNonDisponibile(
+            f"manca la chiave di {fornitore}: mettila in .env come "
+            f"{CHIAVI[fornitore]}. Senza, le analisi che usano un modello non "
+            f"partono ({type(exc).__name__})"
+        ) from exc
 
 
 def costo(modello: str, token_entrata: int, token_uscita: int) -> float:
@@ -94,15 +139,18 @@ def costo(modello: str, token_entrata: int, token_uscita: int) -> float:
     )
 
 
-def _registra(dove: dict, uso, esito: dict) -> float:
+def _registra(dove: dict, risposta: dict | None, esito: dict) -> float:
     """Scrive la riga di dettaglio. Ritorna il costo, che serve a chi chiama.
 
     `dove` dice modello, fase, ambito e lavoro; `esito` dice com'e' andata. Due
     dizionari invece di otto parametri: a otto, chi chiama sbaglia l'ordine.
+
+    I token arrivano gia' normalizzati dall'adattatore: qui non si sa, e non si
+    deve sapere, quale libreria ha risposto.
     """
     modello, fase = dove["modello"], dove["fase"]
-    entrata = getattr(uso, "input_tokens", 0) or 0
-    uscita = getattr(uso, "output_tokens", 0) or 0
+    entrata = (risposta or {}).get("entrata", 0) or 0
+    uscita = (risposta or {}).get("uscita", 0) or 0
     speso = costo(modello, entrata, uscita)
 
     try:
@@ -122,6 +170,68 @@ def _registra(dove: dict, uso, esito: dict) -> float:
     return speso
 
 
+def _chiedi_a_openai(cliente, scelto: str, sistema: str, messaggio: str) -> dict:
+    """Una domanda a un modello OpenAI, attraverso l'API delle risposte.
+
+    Lo sforzo di ragionamento e' esplicito: questi modelli vogliono un livello,
+    e senza lo scelgono loro. I token di ragionamento sono gia' dentro
+    `output_tokens`, quindi il costo li comprende — misurato: 34 token di uscita
+    di cui 23 di ragionamento, su una risposta di undici.
+    """
+    risposta = cliente.responses.create(
+        model=scelto,
+        instructions=sistema,
+        input=messaggio,
+        max_output_tokens=config.LLM_TOKEN_MASSIMI,
+        reasoning={"effort": config.LLM_SFORZO},
+    )
+    uso = risposta.usage
+    incompleta = getattr(risposta, "incomplete_details", None)
+    return {
+        "testo": risposta.output_text or "",
+        "stop_reason": risposta.status if incompleta is None
+                       else f"{risposta.status}: {getattr(incompleta, 'reason', '?')}",
+        "rifiutata": _rifiutata_openai(risposta),
+        "entrata": getattr(uso, "input_tokens", 0) or 0,
+        "uscita": getattr(uso, "output_tokens", 0) or 0,
+    }
+
+
+def _rifiutata_openai(risposta) -> bool:
+    """Un rifiuto e' un pezzo di contenuto suo, non uno stato della risposta."""
+    for voce in getattr(risposta, "output", []) or []:
+        for pezzo in getattr(voce, "content", []) or []:
+            if getattr(pezzo, "type", None) == "refusal":
+                return True
+    return False
+
+
+def _chiedi_ad_anthropic(cliente, scelto: str, sistema: str, messaggio: str) -> dict:
+    """Una domanda a un modello Anthropic.
+
+    Il pensiero e' in modalita' adattiva: il modello decide da solo quanto
+    ragionare, invece di un tetto fisso di token che va indovinato.
+    """
+    risposta = cliente.messages.create(
+        model=scelto,
+        max_tokens=config.LLM_TOKEN_MASSIMI,
+        thinking={"type": "adaptive"},
+        system=sistema,
+        messages=[{"role": "user", "content": messaggio}],
+    )
+    return {
+        "testo": "".join(b.text for b in risposta.content if b.type == "text"),
+        "stop_reason": risposta.stop_reason,
+        "rifiutata": risposta.stop_reason == "refusal",
+        "entrata": risposta.usage.input_tokens,
+        "uscita": risposta.usage.output_tokens,
+    }
+
+
+ADATTATORI = {PROVIDER_OPENAI: _chiedi_a_openai,
+              PROVIDER_ANTHROPIC: _chiedi_ad_anthropic}
+
+
 def chiedi(fase: str, sistema: str, messaggio: str, scope: str | None = None,
            run_id: str | None = None, modello: str | None = None) -> dict:
     """Una domanda al modello. Ritorna testo, costo e come si e' fermato.
@@ -130,23 +240,17 @@ def chiedi(fase: str, sistema: str, messaggio: str, scope: str | None = None,
     registro, e le quattro fasi dell'analisi qualitativa si distinguono solo da
     li'.
 
-    Il pensiero e' in modalita' adattiva: il modello decide da solo quanto
-    ragionare, invece di un tetto fisso di token che va indovinato.
+    Il fornitore lo decide il nome del modello, non una configurazione a parte.
     """
     scelto = modello or config.LLM_MODELLO
+    fornitore = provider_di(scelto)
     dove = {"modello": scelto, "fase": fase, "scope": scope, "run_id": run_id}
-    cliente = _client()
+    cliente = _client(fornitore)
 
-    with calls.track(PROVIDER, f"messaggio:{fase}", scope=scope, run_id=run_id) as chiamata:
+    with calls.track(fornitore, f"messaggio:{fase}", scope=scope, run_id=run_id) as chiamata:
         chiamata.from_network()
         try:
-            risposta = cliente.messages.create(
-                model=scelto,
-                max_tokens=config.LLM_TOKEN_MASSIMI,
-                thinking={"type": "adaptive"},
-                system=sistema,
-                messages=[{"role": "user", "content": messaggio}],
-            )
+            esito = ADATTATORI[fornitore](cliente, scelto, sistema, messaggio)
         except Exception as exc:
             _registra(dove, None, {"stato": calls.STATUS_ERROR,
                                    "errore": f"{type(exc).__name__}: {exc}"})
@@ -154,21 +258,25 @@ def chiedi(fase: str, sistema: str, messaggio: str, scope: str | None = None,
                 f"chiamata a {scelto} fallita: {type(exc).__name__}: {exc}"
             ) from exc
 
-    speso = _registra(dove, risposta.usage,
-                      {"stato": calls.STATUS_OK, "stop_reason": risposta.stop_reason})
+    speso = _registra(dove, esito, {"stato": calls.STATUS_OK,
+                                    "stop_reason": esito["stop_reason"]})
 
     # Un rifiuto non e' una risposta vuota: va distinto, perche' significa che
     # il modello ha DECISO di non rispondere, e riprovare non serve.
-    testo = "".join(b.text for b in risposta.content if b.type == "text")
-    return {"testo": testo, "modello": scelto, "costo_usd": speso,
-            "stop_reason": risposta.stop_reason,
-            "rifiutata": risposta.stop_reason == "refusal",
-            "token": {"entrata": risposta.usage.input_tokens,
-                      "uscita": risposta.usage.output_tokens}}
+    return {"testo": esito["testo"], "modello": scelto, "costo_usd": speso,
+            "fornitore": fornitore, "stop_reason": esito["stop_reason"],
+            "rifiutata": esito["rifiutata"],
+            "token": {"entrata": esito["entrata"], "uscita": esito["uscita"]}}
 
 
 def speso_totale(run_id: str | None = None) -> dict:
-    """Quanto si e' speso, in tutto o dentro un lavoro."""
+    """Quanto si e' speso, in tutto o dentro un lavoro.
+
+    Dice anche **quante chiamate non sanno quanto sono costate**, e con quali
+    modelli. Senza, un listino mancante si legge come "gratis": il totale
+    resterebbe a zero mentre i soldi escono, ed e' il difetto peggiore che
+    questo modulo possa avere — nasconde proprio la cosa che esiste per mostrare.
+    """
     dove = "WHERE run_id = ?" if run_id else ""
     parametri = [run_id] if run_id else []
 
@@ -180,6 +288,17 @@ def speso_totale(run_id: str | None = None) -> dict:
             f"       COALESCE(SUM(token_uscita), 0) AS uscita "
             f"FROM llm_calls {dove}", parametri,
         ).fetchone()
+        per_modello = conn.execute(
+            f"SELECT modello, COUNT(*) AS chiamate, "
+            f"       COALESCE(SUM(token_entrata), 0) AS entrata, "
+            f"       COALESCE(SUM(token_uscita), 0) AS uscita "
+            f"FROM llm_calls {dove} GROUP BY modello", parametri,
+        ).fetchall()
+
+    ignoti = [dict(r) for r in per_modello if r["modello"] not in config.LLM_PREZZI]
 
     return {"chiamate": riga["chiamate"], "costo_usd": round(riga["costo"], 4),
-            "token_entrata": riga["entrata"], "token_uscita": riga["uscita"]}
+            "token_entrata": riga["entrata"], "token_uscita": riga["uscita"],
+            "chiamate_senza_listino": sum(r["chiamate"] for r in ignoti),
+            "modelli_senza_listino": sorted(r["modello"] for r in ignoti),
+            "token_senza_listino": sum(r["entrata"] + r["uscita"] for r in ignoti)}
