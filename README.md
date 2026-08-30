@@ -87,10 +87,19 @@ puo' cancellare senza danno. Il file non e' in git: **il backup e' copiarlo.**
 | 3 — Watchlist e tag: verita' in un file, temi multipli, profilo e maturity | **fatto** |
 | 4 — Frontend, scheletro: Svelte 5 + Vite + Bootstrap CSS | **fatto** |
 | 5 — Glossario: 171 termini, sottolineatura sistematica per costruzione | **fatto** |
-| 6-9 | da fare |
+| 6 — Grafici a nodi + guscio della scheda titolo | **fatto** |
+| 7 — as_of: cosa era pubblico a una data, con la base del taglio dichiarata | **in parte** |
+| 8 — Analisi: i cinque segnali deterministici, l'infrastruttura LLM, la lettura tecnica | **in parte** |
+| 9 — Scanner sul passato, fermabile, che dice in base a cosa | **fatto** |
 
-119 test Python in meno di due secondi (piu' 2 che escono davvero in rete e
+183 test Python in meno di due secondi (piu' 2 che escono davvero in rete e
 girano solo se richiesti) e 11 test JavaScript sul rilevatore del glossario.
+
+**Cosa resta**, e perche': la matematica che nel vecchio sistema dipendeva dai
+suoi servizi (`point_in_time`, `capm`, `technical_features`, `feature_engine`)
+va col Blocco 8, non prima — portarla adesso vorrebbe dire portarsi dietro mezzo
+Blocco 8 travestito da `domain/`. E delle sette analisi ne gira una: le altre
+sei restano nell'elenco, ognuna con scritto cosa le manca.
 
 ## La regola che governa tutto
 
