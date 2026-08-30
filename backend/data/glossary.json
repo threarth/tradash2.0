@@ -1,0 +1,2525 @@
+[
+  {
+    "id": "consensus-eps",
+    "label": "Consensus EPS",
+    "short": "Stima media degli analisti sull'EPS del prossimo trimestre, prima che venga riportato.",
+    "full": "Il Consensus EPS è la media (o mediana) delle stime di più analisti sull'utile per azione che un'azienda riporterà nel prossimo trimestre — a differenza dell'EPS storico (già riportato, un fatto), è una PREVISIONE aggregata, usata come benchmark: il confronto tra EPS effettivo e consensus produce l'earnings surprise (beat/miss).",
+    "formula": "Consensus EPS = media (o mediana) delle stime EPS pubblicate dagli analisti che coprono il titolo",
+    "example": "Consensus EPS $1.30 per il trimestre, EPS effettivo riportato $1.40 → earnings surprise +7.7% (beat).",
+    "context": "In Tradash: tab Fondamentali → Stime & Calendario. Storico accumulato nel tempo (una riga per fetch) per costruire il trend delle revisioni — richiede alcune settimane di accumulo prima di essere significativo, prima resta 'insufficient'.",
+    "source_label": "Investopedia — Consensus Estimate",
+    "source_url": "https://www.investopedia.com/terms/c/consensusestimate.asp",
+    "related": [
+      "eps",
+      "earnings_beat"
+    ]
+  },
+  {
+    "id": "momentum",
+    "label": "Momentum",
+    "short": "Tendenza di un titolo a continuare nella direzione del suo trend recente.",
+    "full": "Il momentum misura la velocità e la forza del movimento di prezzo di un titolo in un dato periodo. Un titolo con momentum positivo ha sovraperformato il mercato nelle settimane/mesi precedenti, e statisticamente tende a continuare a farlo nel breve termine.",
+    "formula": "Momentum (N giorni) = (Prezzo oggi / Prezzo N giorni fa - 1) × 100",
+    "example": "SNDK aveva momentum 6m = +180% a settembre 2024, mentre l'indice SMH era +30% nello stesso periodo: segnale forte di momentum relativo positivo.",
+    "context": "Usato nello scanner per confrontare la performance del titolo rispetto all'ETF settoriale di riferimento su finestre 1m, 3m, 6m.",
+    "source_label": "Investopedia — Momentum",
+    "source_url": "https://www.investopedia.com/terms/m/momentum.asp",
+    "related": [
+      "relative_strength",
+      "volume_anomaly",
+      "breakout",
+      "stage_analysis"
+    ]
+  },
+  {
+    "id": "relative_strength",
+    "label": "Relative Strength (RS)",
+    "short": "Performance di un titolo rispetto a un indice o al mercato generale.",
+    "full": "La Relative Strength (RS) confronta la performance percentuale di un titolo con quella di un benchmark (es. S&P 500 o ETF settoriale) in un dato periodo. Un RS Rating alto (scala 1-99) significa che il titolo ha sovraperformato la maggior parte degli altri titoli del mercato.",
+    "formula": "RS Rating = percentile della performance del titolo rispetto all'universo analizzato",
+    "example": "Un RS Rating di 92 significa che il titolo ha sovraperformato il 92% dei titoli dell'universo negli ultimi 12 mesi.",
+    "context": "Componente chiave del pattern CAN SLIM (criterio L — Leader). Nello scanner è calcolato rispetto all'ETF di settore.",
+    "source_label": "Investopedia — Relative Strength",
+    "source_url": "https://www.investopedia.com/terms/r/relativestrength.asp",
+    "related": [
+      "momentum",
+      "can_slim",
+      "breakout"
+    ]
+  },
+  {
+    "id": "volume_anomaly",
+    "label": "Volume Anomaly (Anomalia di Volume)",
+    "short": "Volume di scambi significativamente superiore alla media storica.",
+    "full": "Un'anomalia di volume si verifica quando il numero di azioni scambiate in un periodo è molto superiore alla media storica. È spesso un segnale di interesse istituzionale, notizie rilevanti in arrivo, o inizio di un movimento di prezzo significativo. Particolarmente significativa quando accompagna un breakout di prezzo.",
+    "formula": "Volume Ratio = Volume medio ultimi 5gg / Volume medio ultimi 90gg\nSoglia tipica: ratio > 1.5 = segnale, > 2.0 = segnale forte",
+    "example": "WDC a febbraio 2024: volume ratio 3.2x rispetto alla media 90gg, tre settimane prima dell'annuncio dello spin-off SanDisk.",
+    "context": "Nello scanner è uno dei segnali principali. Nel pattern discovery è analizzato nella finestra 3-6 mesi pre-breakout.",
+    "source_label": "Investopedia — Volume Analysis",
+    "source_url": "https://www.investopedia.com/articles/technical/02/010702.asp",
+    "related": [
+      "momentum",
+      "breakout",
+      "institutional_ownership",
+      "dark_pool"
+    ]
+  },
+  {
+    "id": "short_interest",
+    "label": "Short Interest",
+    "short": "Percentuale delle azioni di un titolo che sono vendute allo scoperto.",
+    "full": "Lo short interest rappresenta il numero totale di azioni vendute short (allo scoperto) che non sono ancora state coperte o chiuse, espresso come percentuale del float. Un valore alto indica che molti investitori scommettono sul ribasso del titolo. In presenza di notizie positive, può innescare uno short squeeze.",
+    "formula": "Short Interest % Float = (Azioni vendute short / Float totale) × 100\nSoglia attenzione: > 15% del float",
+    "example": "GME nel gennaio 2021 aveva short interest > 140% del float, condizione che ha innescato uno short squeeze estremo.",
+    "context": "Nello scanner è combinato con momentum positivo: se un titolo sale nonostante alto short interest, i venditori allo scoperto sono costretti a coprire (acquistare), amplificando il rialzo.",
+    "source_label": "Investopedia — Short Interest",
+    "source_url": "https://www.investopedia.com/terms/s/shortinterest.asp",
+    "related": [
+      "short_squeeze",
+      "float",
+      "momentum"
+    ]
+  },
+  {
+    "id": "short_squeeze",
+    "label": "Short Squeeze",
+    "short": "Rialzo rapido causato dai venditori allo scoperto costretti a ricomprare.",
+    "full": "Uno short squeeze avviene quando un titolo con alto short interest inizia a salire, forzando i venditori allo scoperto a chiudere le loro posizioni acquistando azioni. Questo acquisto forzato accelera ulteriormente il rialzo, creando un effetto a cascata. È uno dei meccanismi che può trasformare un rialzo ordinario in un movimento esplosivo.",
+    "formula": "Short Squeeze Potential = Short Interest % Float × (1 / Days to Cover)\nDays to Cover = Azioni short / Volume medio giornaliero",
+    "example": "SNDK: combinazione di high short interest + catalyst (spin-off, superciclo AI) + momentum → contributo significativo alla corsa +3000%.",
+    "context": "Il modulo scanner identifica candidati con short squeeze potential: short interest > 15% del float + momentum positivo in accelerazione.",
+    "source_label": "Investopedia — Short Squeeze",
+    "source_url": "https://www.investopedia.com/terms/s/shortsqueeze.asp",
+    "related": [
+      "short_interest",
+      "float",
+      "momentum",
+      "volume_anomaly"
+    ]
+  },
+  {
+    "id": "float",
+    "label": "Float (Flottante)",
+    "short": "Numero di azioni di un'azienda disponibili per il trading pubblico.",
+    "full": "Il float è il numero di azioni di una società disponibili per essere acquistate e vendute dal pubblico, escluse le azioni detenute da insider, management e grandi azionisti strategici. Un float basso significa che ci sono poche azioni disponibili: movimenti di prezzo più amplificati a parità di domanda.",
+    "formula": "Float = Azioni totali outstanding - Azioni restricted (insider, lock-up, strategici)",
+    "example": "Un titolo con 10M di azioni in float e un catalizzatore positivo può muoversi del 20-30% in un giorno, mentre un titolo con 500M di azioni in float difficilmente si muove così tanto.",
+    "context": "Rilevante per valutare la volatilità potenziale e il rischio di short squeeze. Float basso + high short interest = combinazione esplosiva.",
+    "source_label": "Investopedia — Float",
+    "source_url": "https://www.investopedia.com/terms/f/float.asp",
+    "related": [
+      "short_interest",
+      "short_squeeze",
+      "market_cap"
+    ]
+  },
+  {
+    "id": "eps",
+    "label": "EPS (Earnings Per Share)",
+    "short": "Utile netto dell'azienda diviso per il numero di azioni in circolazione.",
+    "full": "L'EPS (Utile Per Azione) misura la redditività di un'azienda su base per-azione. È uno degli indicatori fondamentali più seguiti: un EPS in forte crescita trimestre dopo trimestre è segnale di un business in accelerazione. Nel pattern CAN SLIM, la crescita EPS è il primo criterio (C).",
+    "formula": "EPS = Utile Netto / Numero medio azioni in circolazione\nEPS Growth YoY = (EPS trimestre corrente / EPS stesso trimestre anno precedente - 1) × 100",
+    "example": "SNDK Q3 FY2026: EPS $23.41 vs consensus $14.66, crescita YoY oltre +400%. Segnale CAN SLIM criterio C soddisfatto ampiamente.",
+    "context": "Usato nello scanner (accelerazione EPS) e nei pattern standard (CAN SLIM criterio C: EPS growth > 25% YoY).",
+    "source_label": "Investopedia — EPS",
+    "source_url": "https://www.investopedia.com/terms/e/eps.asp",
+    "related": [
+      "revenue_acceleration",
+      "can_slim",
+      "earnings_beat",
+      "peg_ratio"
+    ]
+  },
+  {
+    "id": "revenue_acceleration",
+    "label": "Revenue Acceleration",
+    "short": "Crescita dei ricavi che accelera di trimestre in trimestre.",
+    "full": "Non basta che i ricavi crescano: il segnale più potente è quando la crescita stessa accelera. Se un'azienda cresceva del 20% YoY e ora cresce del 40%, l'accelerazione indica un cambiamento strutturale nel business (nuovo mercato, superciclo, catalyst). Spesso precede movimenti di prezzo esplosivi.",
+    "formula": "Revenue Growth QoQ = (Revenue growth YoY trimestre corrente) - (Revenue growth YoY trimestre precedente)\nSegnale positivo: accelerazione > 10 punti percentuali",
+    "example": "SNDK: revenue crescita YoY passata da +45% (Q1 FY2026) a +251% (Q3 FY2026) — accelerazione massiccia guidata dal superciclo NAND/AI.",
+    "context": "Componente dello scanner e criterio chiave nel pattern discovery. Segnale 'Momentum Quality' quando presente insieme a EPS acceleration.",
+    "source_label": "Investopedia — Revenue",
+    "source_url": "https://www.investopedia.com/terms/r/revenue.asp",
+    "related": [
+      "eps",
+      "can_slim",
+      "catalyst",
+      "supercycle"
+    ]
+  },
+  {
+    "id": "earnings_beat",
+    "label": "Earnings Beat",
+    "short": "Risultato trimestrale superiore alle aspettative degli analisti.",
+    "full": "Un earnings beat si verifica quando un'azienda riporta EPS o revenue superiori al consensus degli analisti. Beat consecutivi (più trimestri di fila) indicano che il management è conservativo nelle guidance o che il business sta accelerando più del previsto. Spesso catalizzatore di movimenti positivi.",
+    "formula": "Beat % = (EPS effettivo / EPS consensus - 1) × 100\nEarnings Beat consecutivi: N trimestri con beat positivo",
+    "example": "WDC Q3 FY2026: EPS $2.72 vs consensus $2.39 (+14% beat). Terzo beat consecutivo + guidance raised = segnale catalyst forte.",
+    "context": "Nello scanner è uno dei catalyst flag: tre o più earnings beat consecutivi contribuiscono al composite score.",
+    "source_label": "Investopedia — Earnings Surprise",
+    "source_url": "https://www.investopedia.com/terms/e/earningssurprise.asp",
+    "related": [
+      "eps",
+      "catalyst",
+      "guidance_raised",
+      "can_slim"
+    ]
+  },
+  {
+    "id": "catalyst",
+    "label": "Catalyst",
+    "short": "Evento specifico che può innescare un movimento significativo del prezzo.",
+    "full": "Un catalyst è un evento, notizia o sviluppo che cambia le aspettative degli investitori su un titolo e può innescare un movimento di prezzo rilevante. I catalyst positivi includono: spin-off, nuovi prodotti, cambi di management, acquisizioni strategiche, upgrade analisti, guidance raised, ingresso in nuovo mercato.",
+    "formula": "Non calcolabile numericamente. Identificato tramite analisi degli eventi aziendali (corporate events feed).",
+    "example": "WDC: annuncio spin-off SanDisk (febbraio 2025) = catalyst strutturale che ha sbloccato valore nascosto. Nei 12 mesi successivi SNDK +3299%.",
+    "context": "Il sistema scanner monitora catalyst flag: spin-off negli ultimi 18 mesi, earnings beat consecutivi, guidance raised, cambi di management rilevanti.",
+    "source_label": "Investopedia — Catalyst",
+    "source_url": "https://www.investopedia.com/terms/c/catalyst.asp",
+    "related": [
+      "spinoff",
+      "earnings_beat",
+      "guidance_raised",
+      "can_slim"
+    ]
+  },
+  {
+    "id": "spinoff",
+    "label": "Spin-off",
+    "short": "Separazione di una divisione aziendale in una società indipendente quotata.",
+    "full": "Uno spin-off avviene quando un'azienda separa una sua divisione o controllata, creando una nuova società indipendente le cui azioni vengono distribuite agli azionisti esistenti o quotate sul mercato. Storicamente, le società derivate da spin-off tendono a sovraperformare nei primi 18-24 mesi perché il management si concentra su un unico business e il mercato può valutarle correttamente.",
+    "formula": "Non applicabile numericamente.",
+    "example": "WDC → SNDK spin-off (febbraio 2025): SanDisk separata come pure-play NAND. Nei 12 mesi successivi: SNDK +3299%, WDC +950%.",
+    "context": "Uno dei catalyst flag con peso più alto nello scanner: spin-off < 18 mesi è segnale ad alto valore predittivo nel pattern discovery.",
+    "source_label": "Investopedia — Spinoff",
+    "source_url": "https://www.investopedia.com/terms/s/spinoff.asp",
+    "related": [
+      "catalyst",
+      "institutional_ownership",
+      "can_slim",
+      "research_agent"
+    ]
+  },
+  {
+    "id": "guidance_raised",
+    "label": "Guidance Raised",
+    "short": "Management che alza le previsioni ufficiali per i trimestri futuri.",
+    "full": "Quando un'azienda rilascia risultati trimestrali e contestualmente alza la guidance (previsioni ufficiali) per il trimestre o l'anno successivo, è un segnale forte che il management ha visibilità su una domanda crescente e si sente confident nelle prospettive. È uno dei segnali più affidabili di accelerazione fondamentale.",
+    "formula": "Non calcolabile direttamente. Rilevato dal feed di corporate events.",
+    "example": "WDC Q3 FY2026: oltre all'earnings beat, annunciato aumento dividendo del 20% + guidance raised → doppio catalyst positivo.",
+    "context": "Catalyst flag nello scanner. Combinato con earnings beat consecutivi aumenta significativamente il composite score.",
+    "source_label": "Investopedia — Earnings Guidance",
+    "source_url": "https://www.investopedia.com/terms/e/earningsguidance.asp",
+    "related": [
+      "earnings_beat",
+      "catalyst",
+      "eps"
+    ]
+  },
+  {
+    "id": "institutional_ownership",
+    "label": "Institutional Ownership",
+    "short": "Percentuale di azioni detenute da fondi, banche e investitori istituzionali.",
+    "full": "L'institutional ownership indica quante azioni di una società sono detenute da investitori istituzionali (fondi comuni, ETF, hedge fund, fondi pensione, banche). Un aumento dell'ownership istituzionale è spesso precursore di un rialzo: gli istituzionali hanno team di analisi dedicati e tendono ad entrare prima che il mercato retail riconosca l'opportunità.",
+    "formula": "Institutional Ownership % = (Azioni detenute da istituzionali / Total shares outstanding) × 100\nMonitorato tramite filing 13F (aggiornati ogni trimestre)",
+    "example": "Aumento del numero di fondi istituzionali che detengono un titolo per 2-3 trimestri consecutivi prima di un breakout importante.",
+    "context": "Componente del pattern discovery (posizionamento istituzionale pre-breakout). Rilevato da filing 13F disponibili via SEC EDGAR.",
+    "source_label": "Investopedia — Institutional Ownership",
+    "source_url": "https://www.investopedia.com/terms/i/institutionalownership.asp",
+    "related": [
+      "dark_pool",
+      "13f_filing",
+      "can_slim",
+      "volume_anomaly"
+    ]
+  },
+  {
+    "id": "13f_filing",
+    "label": "13F Filing",
+    "short": "Report trimestrale obbligatorio che rivela le posizioni dei grandi fondi.",
+    "full": "Il modulo 13F è un filing obbligatorio SEC che tutti i gestori istituzionali con assets > $100M devono presentare ogni trimestre. Rivela le posizioni long (acquisti) detenute. È una delle poche finestre pubbliche sulle scelte di hedge fund e fondi di investimento importanti. I filing vengono pubblicati entro 45 giorni dalla fine del trimestre.",
+    "formula": "Non applicabile.",
+    "example": "Appaloosa Management (David Tepper) ha dichiarato una nuova posizione in SNDK nel Q1 2026 tramite 13F filing: segnale di interesse istituzionale.",
+    "context": "Usato nel pattern discovery per rilevare accumulo istituzionale pre-breakout. Disponibile via SEC EDGAR.",
+    "source_label": "SEC — Form 13F",
+    "source_url": "https://www.sec.gov/divisions/investment/13ffaq.htm",
+    "related": [
+      "institutional_ownership",
+      "dark_pool"
+    ]
+  },
+  {
+    "id": "dark_pool",
+    "label": "Dark Pool",
+    "short": "Piattaforme di trading privato dove grandi investitori operano fuori dai mercati pubblici.",
+    "full": "I dark pool sono sistemi di trading privati usati da investitori istituzionali per eseguire grandi ordini senza impattare il prezzo di mercato. Rappresentano circa il 30-40% del volume totale USA. Un'attività elevata in dark pool su un titolo può indicare accumulo istituzionale silenzioso prima di un movimento.",
+    "formula": "Dark Pool Volume % = Volume dark pool / Volume totale giornaliero",
+    "example": "Attività dark pool anomala su un titolo tech settimane prima di un annuncio di acquisizione o earnings surprise.",
+    "context": "Segnale avanzato nel pattern discovery. Non sempre disponibile via API gratuite; può richiedere provider a pagamento (Quandl, Bloomberg).",
+    "source_label": "Investopedia — Dark Pool",
+    "source_url": "https://www.investopedia.com/terms/d/dark-pool.asp",
+    "related": [
+      "institutional_ownership",
+      "volume_anomaly",
+      "13f_filing"
+    ]
+  },
+  {
+    "id": "breakout",
+    "label": "Breakout",
+    "short": "Superamento di un livello di prezzo chiave (resistenza) con volume elevato.",
+    "full": "Un breakout avviene quando il prezzo di un titolo supera con decisione un livello di resistenza precedentemente non violato (massimo storico, consolidamento laterale, livello tecnico chiave). Per essere valido, deve essere accompagnato da volume superiore alla media. È il momento in cui molti pattern tecnici 'si attivano'.",
+    "formula": "Breakout = Prezzo > Resistenza × 1.03 (chiusura sopra del 3%) + Volume > Media 50gg",
+    "example": "SNDK: breakout del massimo pre-spin-off a volume 4x la media → ingresso valido secondo Stage Analysis (inizio Stage 2).",
+    "context": "Evento target del pattern discovery: tutti i segnali cercati sono quelli che precedono il breakout, non quelli che lo accompagnano.",
+    "source_label": "Investopedia — Breakout",
+    "source_url": "https://www.investopedia.com/terms/b/breakout.asp",
+    "related": [
+      "volume_anomaly",
+      "stage_analysis",
+      "momentum",
+      "relative_strength"
+    ]
+  },
+  {
+    "id": "ebit",
+    "label": "EBIT (Earnings Before Interest and Taxes)",
+    "short": "Utile operativo prima di interessi e tasse.",
+    "full": "L'EBIT misura la redditività operativa di un'azienda eliminando l'effetto della struttura del capitale (debito) e delle aliquote fiscali. Permette confronti omogenei tra aziende con diversa leva finanziaria. Usato nel rapporto EBIT/EV (Enterprise Value) per identificare aziende sottovalutate rispetto ai loro utili operativi.",
+    "formula": "EBIT = Ricavi - Costi operativi - Ammortamenti\nEBIT Margin = EBIT / Ricavi × 100",
+    "example": "Una società con EBIT/EV del 15% genera più utile operativo per euro investito rispetto a una con EBIT/EV del 5% — segnale valore nella Magic Formula.",
+    "context": "Componente della Magic Formula di Greenblatt (pattern standard pre-caricato): ranking per EBIT/EV alto + ROIC alto.",
+    "source_label": "Investopedia — EBIT",
+    "source_url": "https://www.investopedia.com/terms/e/ebit.asp",
+    "related": [
+      "roic",
+      "magic_formula",
+      "ev_ebitda",
+      "free_cash_flow"
+    ]
+  },
+  {
+    "id": "roic",
+    "label": "ROIC (Return on Invested Capital)",
+    "short": "Quanto rendimento genera l'azienda per ogni euro di capitale investito.",
+    "full": "Il ROIC misura l'efficienza con cui un'azienda usa il capitale investito (equity + debito) per generare profitti. Un ROIC elevato e sostenibile indica un vantaggio competitivo (moat). È il secondo pilastro della Magic Formula di Greenblatt: aziende con ROIC alto + valutazione bassa sono candidati value con catalyst.",
+    "formula": "ROIC = NOPAT / Invested Capital\ndove NOPAT = EBIT × (1 - aliquota fiscale)\nInvested Capital = Equity + Debito netto",
+    "example": "Un ROIC del 25%+ sostenuto per 3+ anni indica un business con vantaggio competitivo solido (es. NVIDIA con ROIC > 40%).",
+    "context": "Secondo criterio della Magic Formula (pattern standard). Combinato con EBIT/EV alto identifica aziende di qualità a prezzo ragionevole.",
+    "source_label": "Investopedia — ROIC",
+    "source_url": "https://www.investopedia.com/terms/r/returnoninvestmentcapital.asp",
+    "related": [
+      "ebit",
+      "magic_formula",
+      "free_cash_flow"
+    ]
+  },
+  {
+    "id": "ev_ebitda",
+    "label": "EV/EBITDA",
+    "short": "Rapporto tra valore d'impresa e utile operativo ante ammortamenti.",
+    "full": "EV/EBITDA è uno dei multipli di valutazione più usati. L'Enterprise Value (EV) rappresenta il costo teorico di acquisizione dell'intera azienda (market cap + debito - cassa). Diviso per EBITDA dà una misura di quante volte l'utile operativo è contenuto nel prezzo. Più basso è il multiplo, più potenzialmente sottovalutata è l'azienda.",
+    "formula": "EV = Market Cap + Debito totale - Cassa\nEV/EBITDA = EV / EBITDA\nReferenza settore tech: 15-25x è nella norma, < 10x potenzialmente sottovalutato",
+    "example": "Azienda con EV/EBITDA di 8x in un settore dove la media è 20x: potenzialmente sottovalutata se i fondamentali sono solidi.",
+    "context": "Usato nei pattern standard (Magic Formula, value con catalyst) per identificare titoli con valutazione relativa bassa nel settore.",
+    "source_label": "Investopedia — EV/EBITDA",
+    "source_url": "https://www.investopedia.com/terms/e/ebitda-ev-multiple.asp",
+    "related": [
+      "ebit",
+      "roic",
+      "magic_formula",
+      "peg_ratio"
+    ]
+  },
+  {
+    "id": "peg_ratio",
+    "label": "PEG Ratio",
+    "short": "P/E corretto per la crescita degli utili. Misura valore relativo per aziende in crescita.",
+    "full": "Il PEG Ratio corregge il classico P/E dividendolo per il tasso di crescita atteso degli utili. Un P/E alto può essere giustificato da una crescita alta: il PEG mette in relazione i due. PEG < 1 è considerato potenzialmente sottovalutato per un'azienda in crescita. Inventato/popolarizzato da Peter Lynch.",
+    "formula": "PEG = (P/E) / EPS Growth Rate annuo atteso\nEs: P/E 30 con crescita EPS 40% → PEG = 0.75 (potenzialmente sottovalutato)",
+    "example": "SNDK post-spin-off: P/E apparentemente alto ma EPS growth +400% → PEG molto basso, giustificando la valutazione.",
+    "context": "Usato nello scanner per identificare titoli con crescita non ancora prezzata dal mercato.",
+    "source_label": "Investopedia — PEG Ratio",
+    "source_url": "https://www.investopedia.com/terms/p/pegratio.asp",
+    "related": [
+      "eps",
+      "revenue_acceleration",
+      "can_slim"
+    ]
+  },
+  {
+    "id": "free_cash_flow",
+    "label": "Free Cash Flow (FCF)",
+    "short": "Cassa generata dall'azienda dopo spese operative e investimenti.",
+    "full": "Il Free Cash Flow è la liquidità effettivamente disponibile dopo che l'azienda ha pagato le spese operative e gli investimenti in capitale (capex). È considerato più difficile da 'manipolare' contabilmente rispetto all'utile netto. FCF positivo e crescente è segnale di un business sano che può autofinanziarsi, acquisire, o restituire valore agli azionisti.",
+    "formula": "FCF = Cash Flow Operativo - Capital Expenditure (Capex)\nFCF Yield = FCF / Market Cap × 100",
+    "example": "Un'azienda con FCF yield del 8% significa che per ogni $100 investiti, genera $8 di cassa libera — confrontabile con un bond ad alto rendimento.",
+    "context": "Indicatore di qualità nel pattern Momentum Quality e nella Magic Formula. FCF negativo ma in miglioramento può essere accettabile per aziende in forte crescita.",
+    "source_label": "Investopedia — Free Cash Flow",
+    "source_url": "https://www.investopedia.com/terms/f/freecashflow.asp",
+    "related": [
+      "ebit",
+      "roic",
+      "magic_formula"
+    ]
+  },
+  {
+    "id": "alpha",
+    "label": "Alpha",
+    "short": "Rendimento di un investimento superiore al benchmark di riferimento.",
+    "full": "L'alpha misura la performance di un titolo o portafoglio al netto del rendimento atteso dato il suo livello di rischio (beta). Un alpha positivo significa che il titolo ha sovraperformato il mercato non solo in termini assoluti ma anche aggiustato per il rischio. Nello scanner, un titolo con alto alpha puro mostra forza indipendente dal mercato.",
+    "formula": "Alpha = Rendimento effettivo - [Risk-free rate + Beta × (Rendimento mercato - Risk-free rate)]\n(Modello CAPM)",
+    "example": "SNDK con alpha +250% negli ultimi 12 mesi: ha sovraperformato il mercato in misura non spiegabile solo dal suo beta.",
+    "context": "Usato nel pattern Momentum Quality: i titoli con alpha alto e crescente sono preferiti rispetto a titoli che salgono solo perché sale il mercato.",
+    "source_label": "Investopedia — Alpha",
+    "source_url": "https://www.investopedia.com/terms/a/alpha.asp",
+    "related": [
+      "beta",
+      "momentum",
+      "relative_strength"
+    ]
+  },
+  {
+    "id": "beta",
+    "label": "Beta",
+    "short": "Misura della volatilità di un titolo rispetto al mercato generale.",
+    "full": "Il beta misura quanto un titolo si muove rispetto al mercato. Beta = 1 significa che si muove in linea con il mercato. Beta > 1 significa più volatile (amplifica i movimenti). Beta < 1 significa meno volatile. Beta negativo significa che tende a muoversi in direzione opposta al mercato.",
+    "formula": "Beta = Covarianza(rendimento titolo, rendimento mercato) / Varianza(rendimento mercato)\nBeta > 1.5: titolo ad alta volatilità",
+    "example": "SNDK beta ~2.5: quando il mercato scende del 2%, SNDK tende a scendere del 5%. Ma quando il mercato sale del 2%, SNDK tende a salire del 5%.",
+    "context": "Usato per calibrare il rischio dei candidati nello scanner. Titoli con beta alto e segnali positivi = alto rendimento potenziale ma alta volatilità.",
+    "source_label": "Investopedia — Beta",
+    "source_url": "https://www.investopedia.com/terms/b/beta.asp",
+    "related": [
+      "alpha",
+      "momentum",
+      "risk_on_off"
+    ]
+  },
+  {
+    "id": "risk_on_off",
+    "label": "Risk-on / Risk-off",
+    "short": "Stato del mercato in cui gli investitori cercano rischio (on) o sicurezza (off).",
+    "full": "Risk-on è la fase in cui gli investitori sono disposti ad assumere rischi, acquistando azioni growth, small cap, emergenti. Risk-off è la fase opposta: fuga verso asset sicuri (oro, obbligazioni, dollaro). I titoli tech e semiconduttori sono tipicamente risk-on: performano meglio quando il sentiment di mercato è positivo.",
+    "formula": "Non calcolabile direttamente. Proxy: VIX < 20 = risk-on, VIX > 30 = risk-off. Spread HY bonds, performance oro/azionario.",
+    "example": "Aprile 2025: accordo dazi USA-Cina → mercato passa da risk-off a risk-on → rally generalizzato su tech e semiconduttori.",
+    "context": "Contesto macro che il pattern discovery considera: i breakout su titoli tech avvengono più facilmente in fasi risk-on prolungate.",
+    "source_label": "Investopedia — Risk-On Risk-Off",
+    "source_url": "https://www.investopedia.com/terms/r/risk-on-risk-off.asp",
+    "related": [
+      "beta",
+      "sector_rotation",
+      "supercycle"
+    ]
+  },
+  {
+    "id": "sector_rotation",
+    "label": "Sector Rotation",
+    "short": "Spostamento di capitali da un settore all'altro nel ciclo economico.",
+    "full": "La sector rotation è il movimento sistematico di capitali tra settori azionari diversi in base alla fase del ciclo economico o ai cambiamenti di sentiment. Identificare quale settore sta ricevendo afflussi istituzionali prima degli altri è un vantaggio competitivo. Il settore semiconduttori/storage/AI ha ricevuto rotazione massiccia nel 2024-2026 per via del ciclo AI.",
+    "formula": "Misurato tramite relative performance degli ETF settoriali (SMH, SOXX, XLK, XLF, ecc.) nel tempo.",
+    "example": "2024-2025: rotazione massiccia da consumer discretionary e real estate verso AI infrastructure e semiconduttori.",
+    "context": "Contesto macro nel pattern discovery. Il momentum relativo dello scanner misura implicietamente la sector rotation in corso.",
+    "source_label": "Investopedia — Sector Rotation",
+    "source_url": "https://www.investopedia.com/terms/s/sectorrotation.asp",
+    "related": [
+      "momentum",
+      "relative_strength",
+      "risk_on_off",
+      "supercycle"
+    ]
+  },
+  {
+    "id": "supercycle",
+    "label": "Superciclo",
+    "short": "Periodo prolungato di domanda strutturalmente alta per un settore o commodity.",
+    "full": "Un superciclo è una fase pluriennale di domanda eccezionalmente alta che supera l'offerta disponibile, spingendo prezzi e margini molto al di sopra della media storica. Nel settore memoria/storage, il superciclo AI 2024-2026 è stato guidato dalla domanda massiccia di NAND e DRAM per datacenter AI, GPU memory, e infrastruttura cloud.",
+    "formula": "Non calcolabile direttamente. Proxy: ASP (Average Selling Price) del prodotto in crescita YoY, margini settoriali ai massimi storici, capex hyperscaler in aumento.",
+    "example": "NAND supercycle 2024-2026: domanda AI + supply tight (pochissimi produttori: Samsung, Kioxia/SNDK, SK Hynix, Micron) → prezzi +200%, margini record.",
+    "context": "Fattore macro chiave nel pattern discovery: SNDK è esplosa in un contesto di superciclo. Identificare il prossimo superciclo è parte dell'analisi del contesto settoriale.",
+    "source_label": "Investopedia — Commodity Supercycle",
+    "source_url": "https://www.investopedia.com/terms/s/supercycle.asp",
+    "related": [
+      "sector_rotation",
+      "catalyst",
+      "revenue_acceleration"
+    ]
+  },
+  {
+    "id": "can_slim",
+    "label": "CAN SLIM",
+    "short": "Sistema di selezione titoli di William O'Neil basato su 7 criteri fondamentali e tecnici.",
+    "full": "CAN SLIM è un framework sviluppato da William O'Neil (fondatore di Investor's Business Daily) che combina analisi fondamentale e tecnica. Identifica aziende leader in settori in crescita, con accelerazione degli utili, in fase di breakout tecnico. Storicamente uno dei sistemi più documentati per identificare i big winners prima del loro movimento principale.",
+    "formula": "C - Current earnings: EPS trimestrale YoY > 25%\nA - Annual earnings: crescita annuale EPS sostenuta 3+ anni\nN - New product/management/high: catalyst recente + nuovo massimo 52 settimane\nS - Supply/demand: volume elevato su breakout, float non eccessivo\nL - Leader: RS Rating > 80 (top 20% performance)\nI - Institutional: aumento ownership istituzionale\nM - Market: trend generale di mercato positivo (non comprare in bear market)",
+    "example": "SNDK fine 2024: C ✓ (EPS +400%), A ✓, N ✓ (spin-off + AI catalyst), S ✓ (volume anomalo), L ✓ (RS > 95), I ✓ (nuovi 13F), M ✓ (bull market AI). Score: 7/7.",
+    "context": "Pattern standard pre-caricato nel sistema. Applicabile a qualsiasi titolo della watchlist. Fonte: 'How to Make Money in Stocks' (O'Neil, 1988).",
+    "source_label": "Investopedia — CAN SLIM",
+    "source_url": "https://www.investopedia.com/terms/c/canslim.asp",
+    "related": [
+      "relative_strength",
+      "earnings_beat",
+      "institutional_ownership",
+      "breakout",
+      "momentum",
+      "chart_pattern_cup_and_handle"
+    ]
+  },
+  {
+    "id": "stage_analysis",
+    "label": "Stage Analysis (Analisi degli Stadi)",
+    "short": "Framework di Stan Weinstein che identifica 4 fasi del ciclo di un titolo.",
+    "full": "La Stage Analysis, sviluppata da Stan Weinstein nel libro 'Secrets for Profiting in Bull and Bear Markets' (1988), divide il ciclo di vita di ogni titolo in 4 stadi identificabili graficamente. L'idea centrale: comprare solo in Stage 2 (markup), evitare gli altri. Semplice ma storicamente efficace.",
+    "formula": "Stage 1 — Base: prezzo laterale dopo downtrend, MA30w piatta, volume basso\nStage 2 — Markup: prezzo > MA30w, trend rialzista, volume crescente → INGRESSO\nStage 3 — Distribuzione: prezzo topping, MA30w si appiattisce, volume erratico → USCITA\nStage 4 — Declino: prezzo < MA30w, trend ribassista → EVITARE",
+    "example": "SNDK post-spin-off (marzo 2025): consolidamento (Stage 1) → breakout con volume 4x (inizio Stage 2) → segnale d'ingresso Weinstein.",
+    "context": "Pattern standard pre-caricato. Lo scanner identifica titoli in transizione Stage 1→2 come candidati ad alto potenziale.",
+    "source_label": "Investopedia — Stan Weinstein Stage Analysis",
+    "source_url": "https://www.investopedia.com/articles/trading/12/weinstein-stage-analysis.asp",
+    "related": [
+      "breakout",
+      "momentum",
+      "volume_anomaly",
+      "moving_average"
+    ]
+  },
+  {
+    "id": "magic_formula",
+    "label": "Magic Formula (Greenblatt)",
+    "short": "Sistema di Joel Greenblatt per trovare aziende di qualità a prezzo basso.",
+    "full": "La Magic Formula, pubblicata da Joel Greenblatt in 'The Little Book That Beats the Market' (2005), combina due criteri: alta qualità del business (ROIC elevato) e bassa valutazione relativa (EBIT/EV elevato). Classifica tutte le aziende dell'universo su entrambi i criteri e somma i ranking. Storicamente ha prodotto rendimenti superiori al mercato nel lungo periodo.",
+    "formula": "1. Calcola EBIT/EV per ogni titolo → ranking da alto a basso (rank_value)\n2. Calcola ROIC per ogni titolo → ranking da alto a basso (rank_quality)\n3. Magic Formula Score = rank_value + rank_quality\n4. Compra le 20-30 aziende con score più basso (migliore combinazione valore+qualità)",
+    "example": "Un'azienda tech con ROIC 35% (rank quality: top 5%) e EBIT/EV 12% (rank value: top 15%) → Magic Formula Score eccellente.",
+    "context": "Pattern standard pre-caricato, particolarmente utile per identificare value con catalyst: aziende di qualità temporaneamente sottovalutate prima di un re-rating.",
+    "source_label": "Investopedia — Magic Formula Investing",
+    "source_url": "https://www.investopedia.com/terms/m/magic-formula-investing.asp",
+    "related": [
+      "ebit",
+      "roic",
+      "ev_ebitda",
+      "free_cash_flow"
+    ]
+  },
+  {
+    "id": "momentum_quality",
+    "label": "Momentum Quality",
+    "short": "Pattern che combina forte momentum di prezzo con accelerazione dei fondamentali.",
+    "full": "Il pattern Momentum Quality è ispirato all'approccio di investitori come Stanley Druckenmiller e fondi quant come AQR. Non basta il momentum di prezzo da solo (può essere speculazione): serve che sia accompagnato da accelerazione dei fondamentali (EPS + revenue). Quando i due si combinano, il movimento ha basi solide e tende a durare.",
+    "formula": "Condizioni:\n1. RS 6m e 12m nel top 20% dell'universo\n2. EPS growth acceleration (crescita accelera QoQ)\n3. Revenue growth acceleration (crescita accelera QoQ)\n4. Volume trend crescente ultimi 3 mesi\n5. Bassa correlazione con mercato (alpha puro)\nTutte e 5 = segnale forte",
+    "example": "SNDK: momentum top 1% + EPS +400% + revenue +251% + volume crescente + alpha altissimo → tutti i criteri Momentum Quality soddisfatti.",
+    "context": "Pattern standard pre-caricato. È il pattern più direttamente ispirato al caso SNDK e ai big winners recenti.",
+    "source_label": "AQR — Quality Momentum",
+    "source_url": "https://www.aqr.com/Insights/Research/Journal-Article/Quality-Minus-Junk",
+    "related": [
+      "momentum",
+      "relative_strength",
+      "eps",
+      "revenue_acceleration",
+      "alpha"
+    ]
+  },
+  {
+    "id": "moving_average",
+    "label": "Moving Average (Media Mobile)",
+    "short": "Media del prezzo di chiusura degli ultimi N giorni, aggiornata ogni giorno.",
+    "full": "La media mobile smussa le fluttuazioni di prezzo per rivelare il trend sottostante. Le più usate sono la MA50 (50 giorni), MA200 (200 giorni) per analisi daily, e MA30 settimane per lo Stage Analysis di Weinstein. Il prezzo sopra la media mobile indica trend positivo; sotto indica trend negativo.",
+    "formula": "SMA(N) = somma dei prezzi di chiusura degli ultimi N giorni / N\nEMA(N) = media mobile esponenziale (pesa di più i giorni recenti)",
+    "example": "Titolo che rimbalza dalla MA50 con volume alto → possibile segnale di continuazione del trend rialzista.",
+    "context": "Usato nello Stage Analysis (MA30 settimane) e come filtro di trend nel pattern discovery.",
+    "source_label": "Investopedia — Moving Average",
+    "source_url": "https://www.investopedia.com/terms/m/movingaverage.asp",
+    "related": [
+      "stage_analysis",
+      "breakout",
+      "momentum"
+    ]
+  },
+  {
+    "id": "rsi",
+    "label": "RSI (Relative Strength Index)",
+    "short": "Oscillatore tecnico che misura velocità e ampiezza dei movimenti di prezzo (0-100).",
+    "full": "L'RSI misura la forza relativa dei movimenti al rialzo vs al ribasso in un dato periodo (default 14 giorni). Valori > 70 indicano ipercomprato (possibile correzione), valori < 30 indicano ipervenduto (possibile rimbalzo). In trend forti, l'RSI può rimanere a lungo in zona ipercomprata senza correzioni significative.",
+    "formula": "RSI = 100 - (100 / (1 + RS))\ndove RS = Media guadagni N periodi / Media perdite N periodi",
+    "example": "SNDK durante il rally 2025: RSI spesso tra 70-85 per settimane. In un superciclo, RSI > 70 non è automaticamente segnale di vendita.",
+    "context": "Indicatore tecnico complementare nello scanner. Non usato direttamente nel composite score ma disponibile nella scheda dettaglio titolo.",
+    "source_label": "Investopedia — RSI",
+    "source_url": "https://www.investopedia.com/terms/r/rsi.asp",
+    "related": [
+      "macd",
+      "momentum",
+      "breakout"
+    ],
+    "type": "indicator",
+    "params": {
+      "period": {
+        "type": "number",
+        "default": 14,
+        "min": 2,
+        "max": 50,
+        "label": "Periodo"
+      }
+    }
+  },
+  {
+    "id": "macd",
+    "label": "MACD (Moving Average Convergence Divergence)",
+    "short": "Indicatore di momentum che mostra la relazione tra due medie mobili.",
+    "full": "Il MACD è uno degli indicatori tecnici più usati. Calcola la differenza tra EMA12 e EMA26 (linea MACD), poi la confronta con una media a 9 periodi della linea stessa (signal line). Il crossover della linea MACD sopra la signal line è tradizionalmente un segnale di acquisto. L'istogramma mostra la differenza tra le due.",
+    "formula": "MACD Line = EMA(12) - EMA(26)\nSignal Line = EMA(9) della MACD Line\nHistogram = MACD Line - Signal Line",
+    "example": "MACD crossover bullish su SNDK a volume alto in concomitanza con breakout → conferma tecnica multipla.",
+    "context": "Indicatore complementare nella scheda dettaglio titolo. Non componente principale del composite score.",
+    "source_label": "Investopedia — MACD",
+    "source_url": "https://www.investopedia.com/terms/m/macd.asp",
+    "related": [
+      "rsi",
+      "momentum",
+      "moving_average",
+      "breakout"
+    ],
+    "type": "indicator",
+    "params": {
+      "fast": {
+        "type": "number",
+        "default": 12,
+        "min": 2,
+        "max": 50,
+        "label": "EMA veloce"
+      },
+      "slow": {
+        "type": "number",
+        "default": 26,
+        "min": 5,
+        "max": 100,
+        "label": "EMA lenta"
+      },
+      "signal": {
+        "type": "number",
+        "default": 9,
+        "min": 2,
+        "max": 30,
+        "label": "Signal"
+      }
+    }
+  },
+  {
+    "id": "composite_score",
+    "label": "Composite Score",
+    "short": "Punteggio aggregato 0-100 che sintetizza tutti i segnali di un titolo.",
+    "full": "Il Composite Score è il punteggio finale assegnato dal sistema a ogni titolo, ottenuto combinando tutti i segnali attivi con pesi configurabili. Non è una previsione garantita ma una sintesi quantitativa delle condizioni favorevoli presenti. Ogni componente contribuisce in modo trasparente e il breakdown è sempre visibile.",
+    "formula": "Composite Score = Σ (valore_segnale_i × peso_i) / Σ pesi_i\nnormalizzato a scala 0-100",
+    "example": "MRVL: momentum +45% (score 70), volume ratio 2.3x (score 80), nessun catalyst recente (score 0), no short squeeze (score 0) → Composite Score 45/100.",
+    "context": "Output principale dello scanner. Sempre accompagnato da breakdown dei segnali e contro-segnali per trasparenza totale.",
+    "source_label": "Investopedia — Quantitative Analysis",
+    "source_url": "https://www.investopedia.com/terms/q/quantitative-analysis.asp",
+    "related": [
+      "momentum",
+      "volume_anomaly",
+      "short_interest",
+      "catalyst",
+      "can_slim"
+    ]
+  },
+  {
+    "id": "hit_rate",
+    "label": "Hit Rate",
+    "short": "Percentuale di volte in cui un pattern o segnale ha prodotto il risultato atteso.",
+    "full": "Nell'analisi quantitativa e nel backtesting, il hit rate è la frequenza con cui un segnale o pattern ha storicamente prodotto il risultato atteso (es. rialzo > 50% entro 9 mesi). Un hit rate del 60% su 50 casi storici è statisticamente significativo. Va sempre valutato insieme al rapporto rendimento/perdita media dei casi.",
+    "formula": "Hit Rate = (Casi in cui il segnale ha prodotto il risultato) / (Casi totali in cui il segnale era presente) × 100",
+    "example": "Pattern CAN SLIM 7/7 su universo storico S&P500 (2000-2025): hit rate +50% entro 12 mesi = 58%, con rendimento medio +180% sui vincenti.",
+    "context": "Output del backtesting di ogni pattern. Mostrato con sample size, distribuzione rendimenti e tasso falsi positivi per contesto statistico completo.",
+    "source_label": "Investopedia — Win Rate",
+    "source_url": "https://www.investopedia.com/terms/w/win-loss-ratio.asp",
+    "related": [
+      "backtesting",
+      "composite_score",
+      "can_slim",
+      "momentum_quality"
+    ]
+  },
+  {
+    "id": "backtesting",
+    "label": "Backtesting",
+    "short": "Applicazione di una strategia a dati storici per valutarne le performance passate.",
+    "full": "Il backtesting consiste nell'applicare una strategia o un set di segnali a dati storici per vedere come avrebbe performato nel passato. È uno strumento fondamentale per valutare la robustezza di un pattern prima di applicarlo con capitale reale. Attenzione al survivorship bias e all'overfitting: un pattern che funziona perfettamente sul passato non garantisce risultati futuri.",
+    "formula": "Metrica chiave: CAGR, Sharpe Ratio, Max Drawdown, Hit Rate, Average Win/Loss ratio",
+    "example": "Pattern SNDK applicato storicamente: identificati 23 casi simili su universo Russell 3000 negli ultimi 10 anni. Hit rate +100% entro 9 mesi: 52%. Max drawdown medio prima del breakout: -18%.",
+    "context": "Fase 5 del Pattern Discovery. Applicato anche ai pattern standard pre-caricati su universo S&P500/Russell2000.",
+    "source_label": "Investopedia — Backtesting",
+    "source_url": "https://www.investopedia.com/terms/b/backtesting.asp",
+    "related": [
+      "hit_rate",
+      "composite_score",
+      "can_slim",
+      "stage_analysis",
+      "magic_formula"
+    ]
+  },
+  {
+    "id": "sma_crossover",
+    "label": "SMA Crossover",
+    "short": "Strategia che genera segnali di acquisto/vendita quando due medie mobili si incrociano.",
+    "full": "L'SMA Crossover è una strategia trend-following che usa due medie mobili semplici con periodi diversi (es. SMA20 e SMA50). Quando la media veloce (periodo breve) supera quella lenta (periodo lungo) dal basso verso l'alto, si genera un segnale di acquisto — il mercato sta accelerando al rialzo. Quando la media veloce scende sotto quella lenta, segnale di vendita. È una delle strategie algoritmiche più studiate: semplice, trasparente, e adatta come punto di partenza per il backtesting.",
+    "formula": "Segnale BUY:  SMA(n_veloce) > SMA(n_lento)  [crossover rialzista]\nSegnale SELL: SMA(n_veloce) < SMA(n_lento)  [crossover ribassista]\nEsempio classico: SMA20 / SMA50 oppure SMA50 / SMA200 (Golden Cross)",
+    "example": "SMA20 incrocia SMA50 dal basso il 15 marzo: segnale BUY. Quattordici giorni dopo SMA20 reincroca dall'alto: segnale SELL. Il backtest misura il P&L di tutte queste operazioni nel periodo selezionato.",
+    "context": "Una delle due strategie pre-caricate in tradash nella sezione Strategie. I parametri configurabili sono i periodi delle due medie. Punto di partenza ideale per il Walk-Forward Analysis.",
+    "source_label": "Investopedia — Moving Average Crossover",
+    "source_url": "https://www.investopedia.com/terms/g/goldencross.asp",
+    "related": [
+      "moving_average",
+      "trend_following",
+      "backtesting",
+      "macd"
+    ]
+  },
+  {
+    "id": "mean_reversion",
+    "label": "Mean Reversion (Ritorno alla Media)",
+    "short": "Strategia basata sull'idea che i prezzi tendano a tornare verso il loro valore medio storico.",
+    "full": "La mean reversion è il principio per cui un titolo che si allontana significativamente dalla sua media storica tende a tornare verso di essa. Al contrario delle strategie trend-following, scommette sul ritorno alla normalità: compra quando il prezzo è anomalamente basso (ipervenduto), vende quando è anomalamente alto (ipercomprato). In tradash è implementata tramite RSI come misura di allontanamento dalla media.",
+    "formula": "Logica generale:\nSe prezzo (o oscillatore) < soglia inferiore → BUY (atteso ritorno verso la media)\nSe prezzo (o oscillatore) > soglia superiore → SELL (atteso ritorno verso la media)\nFunziona meglio su mercati laterali; può generare perdite in trend forti.",
+    "example": "RSI scende sotto 30 su un titolo che lateralizza da mesi: segnale di ipervenduto, la strategia entra long aspettandosi il rimbalzo verso RSI 50-60.",
+    "context": "Principio alla base della strategia RSI Mean Reversion in tradash. Opposta concettualmente all'SMA Crossover (trend-following): le due strategie si comportano diversamente a seconda del regime di mercato.",
+    "source_label": "Investopedia — Mean Reversion",
+    "source_url": "https://www.investopedia.com/terms/m/meanreversion.asp",
+    "related": [
+      "rsi",
+      "overbought_oversold",
+      "trend_following",
+      "backtesting"
+    ]
+  },
+  {
+    "id": "trend_following",
+    "label": "Trend Following (Seguire il Trend)",
+    "short": "Approccio che compra ciò che sta salendo e vende ciò che sta scendendo, senza prevedere le inversioni.",
+    "full": "Il trend following è una filosofia di trading che non cerca di prevedere dove andrà il mercato, ma si limita a rilevare un trend in corso e seguirlo finché dura. L'assunzione di base è che i trend tendano a persistere più di quanto il mercato si aspetti. È l'approccio opposto alla mean reversion: non importa se un titolo è 'caro' o 'economico', importa solo la direzione del movimento. L'SMA Crossover è una delle implementazioni più semplici di trend following.",
+    "formula": "Principio: entra in direzione del trend quando confermato da un indicatore (es. crossover, breakout), esci quando il trend si inverte.\nFunziona meglio in mercati trending; genera falsi segnali (whipsaw) in mercati laterali.",
+    "example": "Il rally SNDK 2025: un sistema trend-following entra al primo crossover rialzista e rimane in posizione per tutti i +3000%, senza tentare di vendere ai massimi intermedi.",
+    "context": "Principio alla base della strategia SMA Crossover in tradash. Contrapposto alla mean reversion: i due approcci hanno rendimenti complementari a seconda del regime di mercato (trending vs laterale).",
+    "source_label": "Investopedia — Trend Following",
+    "source_url": "https://www.investopedia.com/terms/t/trendtrading.asp",
+    "related": [
+      "sma_crossover",
+      "mean_reversion",
+      "momentum",
+      "breakout"
+    ]
+  },
+  {
+    "id": "overbought_oversold",
+    "label": "Ipercomprato / Ipervenduto (Overbought / Oversold)",
+    "short": "Condizione in cui un titolo ha salito (o sceso) troppo velocemente rispetto alla norma storica.",
+    "full": "Un titolo è considerato ipercomprato quando il suo prezzo è salito così velocemente da risultare statisticamente anomalo rispetto al comportamento recente — segnale che potrebbe essere attesa una correzione o un rallentamento. Ipervenduto è la condizione opposta. Questi livelli sono misurati da oscillatori come RSI o Stochastic e sono il presupposto operativo delle strategie mean reversion. Attenzione: in trend forti, un titolo può rimanere ipercomprato per settimane senza correggersi.",
+    "formula": "RSI > 70 → ipercomprato (soglia configurabile, default 70)\nRSI < 30 → ipervenduto (soglia configurabile, default 30)\nAltre misure: Bollinger Bands (prezzo > banda superiore = ipercomprato)",
+    "example": "RSI di un titolo tocca 28: condizione di ipervenduto. La strategia RSI Mean Reversion in tradash genera un segnale BUY, aspettandosi un rimbalzo. Se RSI risale oltre 70, segnale SELL.",
+    "context": "Parametri configurabili nella strategia RSI Mean Reversion di tradash: soglia oversold (default 30) e overbought (default 70). Badge visibili nel configuratore della strategia.",
+    "source_label": "Investopedia — Overbought / Oversold",
+    "source_url": "https://www.investopedia.com/terms/o/overbought.asp",
+    "related": [
+      "rsi",
+      "mean_reversion",
+      "macd",
+      "momentum"
+    ]
+  },
+  {
+    "id": "pattern_fingerprint",
+    "label": "Fingerprint del Pattern",
+    "short": "Mappa dei segnali caratteristici che descrivono il comportamento pre-breakout di un titolo di riferimento.",
+    "full": "Il fingerprint è l'output della Fase 2 del Pattern Discovery: una descrizione strutturata e leggibile dei segnali che caratterizzavano il titolo di riferimento nei mesi precedenti la sua esplosione. Non è un modello statistico opaco — è una lista esplicita di condizioni, ciascuna con la sua finestra temporale, il valore osservato e il peso suggerito. L'obiettivo è rendere il pattern comprensibile e modificabile dall'utente, non una black box.",
+    "formula": "Struttura fingerprint:\n[\n  { segnale: 'volume_anomaly', finestra: '3-6 mesi prima', valore_osservato: '2.8x media', affidabilità: 80% },\n  { segnale: 'revenue_acceleration', finestra: '2-4 mesi prima', valore_osservato: '+120% QoQ', affidabilità: 60% },\n  ...\n]",
+    "example": "Fingerprint SNDK_pattern_12m: volume anomaly 3-6 mesi prima (affidabilità 80%), revenue acceleration 2-4 mesi prima (60%), catalyst spin-off presente (100%), short squeeze potential 1-2 mesi prima (40%).",
+    "context": "Visualizzato come card nella Fase 2 del Pattern Discovery (sezione 'Fingerprint segnali'). Ogni segnale mostra etichetta, barra di affidabilità e badge 'chiave' se determinante.",
+    "source_label": "Investopedia — Quantitative Analysis",
+    "source_url": "https://www.investopedia.com/terms/q/quantitative-analysis.asp",
+    "related": [
+      "pattern_discovery",
+      "signal_reliability",
+      "backtesting",
+      "composite_score"
+    ]
+  },
+  {
+    "id": "signal_reliability",
+    "label": "Affidabilità del Segnale",
+    "short": "Percentuale di casi storici in cui questo segnale era presente prima del breakout del titolo di riferimento.",
+    "full": "L'affidabilità di un segnale nel fingerprint indica quanto spesso quel segnale era presente nella finestra pre-breakout, calcolata sui casi storici analizzati. Un'affidabilità dell'80% su volume anomaly significa che in 4 casi su 5 in cui un titolo simile è esploso, il volume anomalo era presente 3-6 mesi prima. Non misura la probabilità che il breakout avvenga, ma quanto quel segnale è caratteristico del pattern. Segnali ad alta affidabilità ricevono peso maggiore nel composite score.",
+    "formula": "Affidabilità (%) = (Casi in cui il segnale era presente nella finestra pre-breakout) / (Casi totali analizzati) × 100\n\nSe il pattern è basato su un solo ticker di riferimento, l'affidabilità è calcolata su occorrenze storiche dello stesso titolo o su titoli analoghi trovati nel backtesting.",
+    "example": "Pattern SNDK_pattern_12m su 5 casi storici simili trovati nel backtesting:\n- volume_anomaly: presente in 4/5 casi → affidabilità 80%\n- catalyst_flag: presente in 5/5 casi → affidabilità 100%\n- short_squeeze_potential: presente in 2/5 casi → affidabilità 40%",
+    "context": "Visualizzato come barra di progresso per ogni segnale nel fingerprint (Fase 2 Pattern Discovery). Influenza direttamente i pesi suggeriti automaticamente nel composite score.",
+    "source_label": "Investopedia — Statistical Significance",
+    "source_url": "https://www.investopedia.com/terms/s/statistical-significance.asp",
+    "related": [
+      "pattern_fingerprint",
+      "hit_rate",
+      "composite_score",
+      "backtesting"
+    ]
+  },
+  {
+    "id": "ema",
+    "label": "EMA (Exponential Moving Average)",
+    "short": "Media mobile che dà più peso ai prezzi recenti.",
+    "full": "L'EMA è una media mobile che reagisce più velocemente ai cambiamenti di prezzo rispetto alla SMA perché assegna un peso esponenzialmente maggiore ai periodi più recenti. Usata come base per indicatori di trend, incroci e filtri di volatilità.",
+    "formula": "EMA_t = Price_t × k + EMA_(t-1) × (1 - k)\ndove k = 2 / (n + 1)",
+    "source_label": "Investopedia — EMA",
+    "source_url": "https://www.investopedia.com/terms/e/ema.asp",
+    "related": [
+      "sma",
+      "macd",
+      "supertrend"
+    ],
+    "type": "indicator",
+    "params": {
+      "period": {
+        "type": "number",
+        "default": 20,
+        "min": 2,
+        "max": 200,
+        "label": "Periodo"
+      }
+    }
+  },
+  {
+    "id": "sma",
+    "label": "SMA (Simple Moving Average)",
+    "short": "Media aritmetica dei prezzi di chiusura su un periodo definito.",
+    "full": "La SMA è la media semplice dei prezzi degli ultimi N periodi. È la base per molti indicatori di trend, supporti e resistenze dinamiche. Più lenta dell'EMA nel reagire ai cambiamenti di prezzo.",
+    "formula": "SMA = (P₁ + P₂ + … + Pₙ) / n",
+    "source_label": "Investopedia — SMA",
+    "source_url": "https://www.investopedia.com/terms/s/sma.asp",
+    "related": [
+      "ema",
+      "moving_average",
+      "sma_crossover"
+    ],
+    "type": "indicator",
+    "params": {
+      "period": {
+        "type": "number",
+        "default": 200,
+        "min": 2,
+        "max": 500,
+        "label": "Periodo"
+      }
+    }
+  },
+  {
+    "id": "bollinger",
+    "label": "Bollinger Bands",
+    "short": "Bande di volatilità basate su SMA e deviazione standard.",
+    "full": "Le Bollinger Bands consistono in una banda centrale (SMA) e due bande esterne calcolate come SMA ± k × deviazione standard. Quando le bande si restringono (squeeze) indicano bassa volatilità e spesso precedono un movimento esplosivo. Un prezzo fuori dalla banda indica condizione estrema.",
+    "formula": "Upper = SMA + k × σ\nLower = SMA - k × σ\n(default: SMA20, k=2)",
+    "source_label": "Investopedia — Bollinger Bands",
+    "source_url": "https://www.investopedia.com/terms/b/bollingerbands.asp",
+    "related": [
+      "keltner",
+      "atr",
+      "zscore"
+    ],
+    "type": "indicator",
+    "params": {
+      "period": {
+        "type": "number",
+        "default": 20,
+        "min": 5,
+        "max": 50,
+        "label": "Periodo"
+      },
+      "stddev": {
+        "type": "number",
+        "default": 2,
+        "min": 0.5,
+        "max": 4,
+        "label": "Dev. std"
+      }
+    }
+  },
+  {
+    "id": "vwap",
+    "label": "VWAP (Volume Weighted Average Price)",
+    "short": "Prezzo medio ponderato per il volume, riferimento chiave nell'intraday.",
+    "full": "Il VWAP rappresenta il prezzo medio della sessione ponderato per il volume scambiato. È un benchmark fondamentale per trader istituzionali e algoritmi: operare sopra il VWAP indica forza, sotto debolezza. Rilevante soprattutto per analisi intraday.",
+    "formula": "VWAP = Σ(Price_i × Volume_i) / Σ(Volume_i)",
+    "source_label": "Investopedia — VWAP",
+    "source_url": "https://www.investopedia.com/terms/v/vwap.asp",
+    "related": [
+      "volume_anomaly",
+      "momentum"
+    ]
+  },
+  {
+    "id": "adx",
+    "label": "ADX (Average Directional Index)",
+    "short": "Misura la forza del trend in corso, indipendentemente dalla sua direzione.",
+    "full": "L'ADX indica quanto un trend è robusto. Valori sopra 25 indicano un trend forte, sotto 20 un mercato laterale senza direzionalità chiara. Non dice la direzione del trend, solo la sua intensità. Basato sui componenti +DI e -DI.",
+    "formula": "ADX = EMA del DX\nDX = |+DI - -DI| / (+DI + -DI) × 100",
+    "source_label": "Investopedia — ADX",
+    "source_url": "https://www.investopedia.com/terms/a/adx.asp",
+    "related": [
+      "trend_following",
+      "supertrend",
+      "momentum"
+    ]
+  },
+  {
+    "id": "obv",
+    "label": "OBV (On Balance Volume)",
+    "short": "Indicatore di volume cumulato che segue la direzione del prezzo.",
+    "full": "L'OBV somma il volume nei giorni in cui il prezzo sale e lo sottrae nei giorni in cui scende. Serve a rilevare divergenze: se il prezzo sale ma l'OBV scende, la salita non è supportata dal volume — segnale di debolezza. Utile per identificare accumulo o distribuzione istituzionale.",
+    "formula": "OBV_t = OBV_(t-1) + Volume_t  (se Close_t > Close_(t-1))\nOBV_t = OBV_(t-1) - Volume_t  (se Close_t < Close_(t-1))",
+    "source_label": "Investopedia — OBV",
+    "source_url": "https://www.investopedia.com/terms/o/onbalancevolume.asp",
+    "related": [
+      "volume_anomaly",
+      "momentum",
+      "institutional_ownership"
+    ]
+  },
+  {
+    "id": "cci",
+    "label": "CCI (Commodity Channel Index)",
+    "short": "Oscillatore che misura le deviazioni del prezzo dalla sua media tipica.",
+    "full": "Il CCI identifica condizioni di ipercomprato e ipervenduto e potenziali inversioni di trend. Valori sopra +100 indicano forza e possibile ipercomprato, valori sotto -100 debolezza e possibile ipervenduto. Nonostante il nome, è usato su qualsiasi mercato.",
+    "formula": "TP = (High + Low + Close) / 3\nCCI = (TP - SMA(TP)) / (0.015 × MeanDeviation(TP))",
+    "source_label": "Investopedia — CCI",
+    "source_url": "https://www.investopedia.com/terms/c/commoditychannelindex.asp",
+    "related": [
+      "rsi",
+      "stochastic",
+      "overbought_oversold"
+    ]
+  },
+  {
+    "id": "stochastic",
+    "label": "Stochastic Oscillator",
+    "short": "Oscillatore che confronta il prezzo di chiusura con il range alto-basso recente.",
+    "full": "Lo Stocastico misura dove si trova il prezzo di chiusura rispetto al range degli ultimi N periodi. Include le linee %K (veloce) e %D (media di %K). Valori sopra 80 indicano ipercomprato, sotto 20 ipervenduto. I crossover tra %K e %D generano segnali di ingresso/uscita.",
+    "formula": "%K = (Close - Low_n) / (High_n - Low_n) × 100\n%D = SMA(3) di %K",
+    "source_label": "Investopedia — Stochastic Oscillator",
+    "source_url": "https://www.investopedia.com/terms/s/stochasticoscillator.asp",
+    "related": [
+      "rsi",
+      "cci",
+      "overbought_oversold",
+      "momentum"
+    ]
+  },
+  {
+    "id": "atr",
+    "label": "ATR (Average True Range)",
+    "short": "Misura la volatilità media del prezzo in un dato periodo.",
+    "full": "L'ATR indica quanto un titolo si muove in media, calcolando il True Range (distanza massima tra massimo, minimo e chiusura precedente) su N periodi. Non indica la direzione, solo l'ampiezza del movimento. Usato per dimensionare gli stop-loss e come componente di indicatori come SuperTrend e Keltner Channels.",
+    "formula": "True Range = max(High - Low, |High - Close_prev|, |Low - Close_prev|)\nATR(n) = EMA(True Range, n)",
+    "source_label": "Investopedia — ATR",
+    "source_url": "https://www.investopedia.com/terms/a/atr.asp",
+    "related": [
+      "supertrend",
+      "keltner",
+      "atr_bands"
+    ]
+  },
+  {
+    "id": "atr_bands",
+    "label": "ATR Bands",
+    "short": "Bande dinamiche basate su ATR, utili per trailing stop e gestione del rischio.",
+    "full": "Le ATR Bands sono bande di prezzo calcolate sommando e sottraendo un multiplo dell'ATR al prezzo corrente. A differenza delle Bollinger Bands (basate su deviazione standard), usano l'ATR come misura di volatilità. Ottime per trailing stop dinamici che si adattano alla volatilità del mercato.",
+    "formula": "Upper = Close + k × ATR\nLower = Close - k × ATR",
+    "source_label": "Investopedia — ATR",
+    "source_url": "https://www.investopedia.com/terms/a/atr.asp",
+    "related": [
+      "atr",
+      "supertrend",
+      "bollinger"
+    ]
+  },
+  {
+    "id": "keltner",
+    "label": "Keltner Channels",
+    "short": "Canali di volatilità basati su EMA e ATR, più stabili delle Bollinger Bands.",
+    "full": "I Keltner Channels usano l'EMA come linea centrale e l'ATR per determinare l'ampiezza delle bande. Sono più stabili delle Bollinger Bands (che usano la deviazione standard) e filtrano meglio il rumore. Ottimi per identificare breakout puliti: un prezzo che esce stabilmente dalle bande indica una rottura di volatilità significativa.",
+    "formula": "Middle = EMA(n)\nUpper = EMA(n) + k × ATR\nLower = EMA(n) - k × ATR",
+    "source_label": "Investopedia — Keltner Channel",
+    "source_url": "https://www.investopedia.com/terms/k/keltnerchannel.asp",
+    "related": [
+      "bollinger",
+      "atr",
+      "ema"
+    ]
+  },
+  {
+    "id": "supertrend",
+    "label": "SuperTrend",
+    "short": "Indicatore trend-following basato su ATR che segnala buy e sell invertendo colore.",
+    "full": "Il SuperTrend è uno degli indicatori trend-following più usati. Cambia colore (verde/rosso) in base alla direzione del trend attuale e fornisce livelli di stop-loss dinamici basati sull'ATR. Quando il prezzo chiude sopra la linea SuperTrend il segnale è bullish, quando chiude sotto è bearish.",
+    "formula": "Basic Upper = (High + Low)/2 + factor × ATR\nBasic Lower = (High + Low)/2 - factor × ATR\n(default: period=10, factor=3)",
+    "source_label": "Investopedia — Trend Indicators",
+    "source_url": "https://www.investopedia.com/terms/t/trend.asp",
+    "related": [
+      "atr",
+      "trend_following",
+      "adx"
+    ]
+  },
+  {
+    "id": "ichimoku",
+    "label": "Ichimoku Cloud",
+    "short": "Sistema tecnico completo che integra trend, momentum, supporti e resistenze in un'unica vista.",
+    "full": "Ichimoku Kinko Hyo è un sistema di analisi tecnica completo sviluppato in Giappone. Include 5 componenti: Tenkan-sen (conversione 9p), Kijun-sen (baseline 26p), Senkou Span A e B (formano la 'cloud'), Chikou Span (lagging). La cloud (Kumo) identifica supporti/resistenze e la direzione del trend: prezzo sopra la cloud = bullish, sotto = bearish.",
+    "formula": "Tenkan = (Max_9 + Min_9) / 2\nKijun = (Max_26 + Min_26) / 2\nSenkou A = (Tenkan + Kijun) / 2\nSenkou B = (Max_52 + Min_52) / 2",
+    "source_label": "Investopedia — Ichimoku Cloud",
+    "source_url": "https://www.investopedia.com/terms/i/ichimoku-cloud.asp",
+    "related": [
+      "trend_following",
+      "moving_average",
+      "momentum"
+    ]
+  },
+  {
+    "id": "roc",
+    "label": "ROC (Rate of Change)",
+    "short": "Percentuale di variazione del prezzo rispetto a N periodi fa.",
+    "full": "Il ROC è un indicatore di momentum puro che misura la velocità del movimento del prezzo come variazione percentuale tra il prezzo attuale e quello di N periodi fa. Valori positivi indicano momentum positivo, negativi indicano momentum negativo. Semplice ma efficace per rilevare accelerazioni e decelerazioni del trend.",
+    "formula": "ROC = (Close_t - Close_(t-n)) / Close_(t-n) × 100",
+    "source_label": "Investopedia — Rate of Change",
+    "source_url": "https://www.investopedia.com/terms/r/rateofchange.asp",
+    "related": [
+      "momentum",
+      "rsi",
+      "macd"
+    ]
+  },
+  {
+    "id": "zscore",
+    "label": "Z-Score",
+    "short": "Misura di quante deviazioni standard il prezzo si discosta dalla sua media.",
+    "full": "Lo Z-Score normalizza il prezzo rispetto alla sua media e deviazione standard storica. Un valore di +2 significa che il prezzo è 2 deviazioni standard sopra la media — statisticamente raro. Molto usato nelle strategie mean reversion: Z-Score estremi indicano condizioni anomale con alta probabilità di ritorno alla media.",
+    "formula": "Z = (Price - SMA(n)) / StdDev(n)",
+    "source_label": "Investopedia — Z-Score",
+    "source_url": "https://www.investopedia.com/terms/z/zscore.asp",
+    "related": [
+      "mean_reversion",
+      "bollinger",
+      "overbought_oversold"
+    ]
+  },
+  {
+    "id": "rolling_beta",
+    "label": "Rolling Beta",
+    "short": "Sensibilità dinamica del titolo al mercato, calcolata su finestra mobile.",
+    "full": "Il Rolling Beta calcola il beta su una finestra temporale mobile (es. 60 giorni), aggiornandolo di periodo in periodo. A differenza del beta statico, cattura come cambia nel tempo la correlazione di un titolo con il benchmark. Utile per identificare se un titolo sta diventando più o meno sensibile alle oscillazioni di mercato.",
+    "formula": "Beta(t) = Cov(R_asset, R_market) / Var(R_market)\ncalcolato su finestra scorrevole di n periodi",
+    "source_label": "Investopedia — Beta",
+    "source_url": "https://www.investopedia.com/terms/b/beta.asp",
+    "related": [
+      "beta",
+      "alpha"
+    ]
+  },
+  {
+    "id": "pattern_discovery",
+    "label": "Pattern Discovery",
+    "short": "Processo di analisi retroattiva di un titolo di successo per estrarne i segnali precursori e cercare candidati simili.",
+    "full": "Il Pattern Discovery è il processo in tre tempi che caratterizza il modulo omonimo di tradash: prima si analizza un titolo che ha avuto una crescita esplosiva guardando indietro ai mesi precedenti il breakout (retroanalisi), poi si estrae un fingerprint dei segnali che erano presenti in quella fase (estrazione pattern), infine si applica quel fingerprint alla watchlist per trovare titoli che oggi si trovano in una condizione analoga (scan). L'ipotesi di fondo è che certi pattern di segnali — volume in accumulo, accelerazione dei fondamentali, catalyst recente, posizionamento istituzionale — tendano a precedere i grandi movimenti con una certa regolarità. Il sistema non prevede il futuro: quantifica la somiglianza tra la situazione attuale di un titolo e quella pre-esplosione del caso di riferimento.",
+    "formula": "Flusso:\n1. Retroanalisi → segnali nella finestra [T-18m, T-breakout]\n2. Fingerprint → { segnale, finestra temporale, valore, affidabilità }\n3. Scan watchlist → pattern match score 0-100 per ogni titolo\n4. Contro-segnali → segnali attesi ma assenti\n5. Backtesting → hit rate su casi storici analoghi",
+    "example": "Input: SNDK, finestra 12 mesi. Il sistema analizza il periodo marzo 2024 – marzo 2025, identifica i segnali precursori (volume anomaly, spin-off catalyst, revenue acceleration, short squeeze potential), costruisce il fingerprint e lo applica alla watchlist. Output: MU score 68/100 ('3/5 segnali matched, manca catalyst e short squeeze'), MRVL score 54/100, STX score 41/100.",
+    "context": "Modulo principale della sezione Strategie di tradash, tab 'Pattern Discovery'. Il risultato dello scan può essere inviato direttamente al layer LLM Analysis per una valutazione qualitativa, o passato al motore di backtesting per validazione storica.",
+    "source_label": "Investopedia — Quantitative Analysis",
+    "source_url": "https://www.investopedia.com/terms/q/quantitative-analysis.asp",
+    "related": [
+      "pattern_fingerprint",
+      "signal_reliability",
+      "composite_score",
+      "hit_rate",
+      "backtesting",
+      "catalyst",
+      "volume_anomaly"
+    ]
+  },
+  {
+    "id": "rolling_return",
+    "label": "Rolling Return (Ritorno Rolling)",
+    "short": "Variazione percentuale del prezzo di chiusura tra oggi e N giorni di trading fa.",
+    "full": "Il rolling return misura la performance di un titolo su una finestra temporale scorrevole: si calcola dividendo il prezzo attuale per il prezzo di N barre fa e sottraendo 1. Nell'Explosive Growth Scanner vengono calcolate 6 finestre: 10 (bisettimanale), 21 (mensile), 63 (trimestrale), 126 (semestrale), 252 (annuale) e 504 (biennale) giorni di contrattazione.",
+    "formula": "Rolling Return(N) = (Close_oggi / Close_(N giorni fa)) - 1\nFinestre: 10d, 21d, 63d, 126d, 252d, 504d",
+    "example": "NVDA rolling return 63d = +42%: il titolo ha guadagnato il 42% negli ultimi 63 giorni di borsa (circa un trimestre). Rolling return 504d = +210%: +210% negli ultimi due anni.",
+    "context": "Componente base dell'Explosive Growth Scanner. Calcolato per ogni finestra e usato sia nel composite score che nelle 4 classifiche (short, medium, long, extra_long).",
+    "source_label": "Investopedia — Rate of Return",
+    "source_url": "https://www.investopedia.com/terms/r/rateofreturn.asp",
+    "related": [
+      "explosive_growth_score",
+      "momentum",
+      "explosive_growth_event"
+    ]
+  },
+  {
+    "id": "explosive_growth_score",
+    "label": "Explosive Growth Score",
+    "short": "Punteggio composito [0-200] che misura la forza e la qualità della crescita esplosiva multi-finestra.",
+    "full": "L'Explosive Growth Score sintetizza la performance di un titolo su 6 finestre temporali pesando ogni ritorno rolling per l'importanza della finestra e per la qualità degli eventi di crescita rilevati. Non è normalizzato a 100 perché un titolo eccezionale su tutte le finestre può superarlo. Il moltiplicatore qualità penalizza le crescite caotiche e premia i rally puliti con alta coerenza direzionale.",
+    "formula": "Score = Σ (rolling_return_i × weight_i × quality_i × 100)\nclampato a [0, 200]\nPesi finestre: 10d=0.10, 21d=0.20, 63d=0.25, 126d=0.20, 252d=0.15, 504d=0.10\nQuality = [0, 1], basato su Sharpe-like ratio dell'evento più recente",
+    "example": "NVDA: rolling 63d=+42% (weight 0.25, quality 0.8) → contributo 8.4. Tutti i 6 contributi sommati = 134/200.",
+    "context": "Output principale dell'Explosive Growth Scanner. Usato per ordinare i risultati dello scan. Non confrontabile con il Composite Score del normale scanner (scale diverse).",
+    "source_label": "Investopedia — Quantitative Analysis",
+    "source_url": "https://www.investopedia.com/terms/q/quantitative-analysis.asp",
+    "related": [
+      "rolling_return",
+      "explosive_growth_event",
+      "clean_rally",
+      "composite_score"
+    ]
+  },
+  {
+    "id": "explosive_growth_event",
+    "label": "Explosive Growth Event",
+    "short": "Segmento di prezzo con crescita ≥+20% dal minimo locale, durata 10-252 barre.",
+    "full": "Un Explosive Growth Event è un periodo contiguo di barre in cui il titolo guadagna almeno il 20% dal minimo locale precedente. L'algoritmo scansiona in avanti usando una finestra di 10 barre per ancorare il minimo locale, poi cerca il primo bar in cui la crescita cumulata supera la soglia. La durata è limitata a 10-252 barre per escludere micro-rimbalzi e trend ultra-lunghi non classificabili. Ogni evento viene classificato in uno dei 5 tipi basandosi su volatilità, volume relativo e durata.",
+    "formula": "Soglia crescita: (Close_e / Close_minimo_locale - 1) ≥ 0.20\nDurata: 10 ≤ barre ≤ 252\nVolatilità normalizzata: std(log-ritorni daily) × √252\nVolume relativo: media volume evento / media volume 252 barre precedenti",
+    "example": "SMCI, gennaio-giugno 2024: crescita +280% dal minimo locale in 108 barre, vol_norm=0.65, rel_vol=2.4 → classificato come high_volume_explosion.",
+    "context": "Rilevato dall'Explosive Growth Scanner per ogni ticker. Attributi mostrati nella tabella risultati: date, growth%, duration, volatilità, volume relativo, classificazione.",
+    "source_label": "Investopedia — Bull Market",
+    "source_url": "https://www.investopedia.com/terms/b/bullmarket.asp",
+    "related": [
+      "explosive_growth_score",
+      "clean_rally",
+      "chaotic_rally",
+      "high_volume_explosion",
+      "structural_revaluation",
+      "long_term_momentum_explosion"
+    ]
+  },
+  {
+    "id": "clean_rally",
+    "label": "Clean Rally",
+    "short": "Evento di crescita esplosiva con bassa volatilità e volume normale — il tipo più 'sano'.",
+    "full": "Il Clean Rally è la classificazione assegnata a un Explosive Growth Event che combina forte crescita (>20%), bassa volatilità annualizzata (<30%) e volume relativo contenuto (<1.5x la media). Indica un movimento direzionale ordinato, tipicamente sostenuto da fondamentali o da accumulo istituzionale graduale, senza eccessi speculativi o reazioni emotive. Storicamente associato ai rally più duraturi.",
+    "formula": "Condizioni: growth > 20% AND vol_norm < 0.30 AND rel_vol < 1.5\nValutato dopo aver escluso long_term, structural e high_volume",
+    "example": "MSFT, ottobre 2023 – luglio 2024: +85% in 9 mesi, vol_norm=0.22, rel_vol=1.1 → clean_rally.",
+    "context": "Uno dei 5 tipi di Explosive Growth Event nell'Explosive Growth Scanner. Badge verde nella tabella risultati.",
+    "source_label": "Investopedia — Bull Market",
+    "source_url": "https://www.investopedia.com/terms/b/bullmarket.asp",
+    "related": [
+      "explosive_growth_event",
+      "chaotic_rally",
+      "structural_revaluation"
+    ]
+  },
+  {
+    "id": "chaotic_rally",
+    "label": "Chaotic Rally",
+    "short": "Crescita esplosiva ad alta volatilità — movimenti violenti, spesso speculativi o da short squeeze.",
+    "full": "Il Chaotic Rally è un Explosive Growth Event caratterizzato da alta volatilità annualizzata (≥40%). La crescita c'è, ma il percorso è irregolare, con swing violenti e reversal frequenti. Tipico di titoli speculativi, meme stock, o situazioni di short squeeze dove la spinta è emotiva più che fondamentale. Il moltiplicatore qualità nel composite score è penalizzato per questo tipo di evento.",
+    "formula": "Condizioni: vol_norm ≥ 0.40\n(valutato dopo long_term e structural, prima di high_volume)",
+    "example": "GME, gennaio 2021: +1500% in poche settimane, vol_norm=1.8 → chaotic_rally. Caratteristico dei meme stock.",
+    "context": "Uno dei 5 tipi di Explosive Growth Event. Badge rosso nella tabella risultati. Alta volatilità significa quality_multiplier basso nello score.",
+    "source_label": "Investopedia — Volatility",
+    "source_url": "https://www.investopedia.com/terms/v/volatility.asp",
+    "related": [
+      "explosive_growth_event",
+      "clean_rally",
+      "high_volume_explosion",
+      "short_squeeze"
+    ]
+  },
+  {
+    "id": "high_volume_explosion",
+    "label": "High Volume Explosion",
+    "short": "Crescita esplosiva accompagnata da volume anomalo ≥2x la media storica.",
+    "full": "L'High Volume Explosion è un Explosive Growth Event in cui il volume medio durante l'evento è almeno il doppio della media del anno precedente. Il volume eccezionale indica partecipazione istituzionale massiccia o forte interesse retail. Può essere combinato con volatilità alta (overlap con chaotic_rally) o contenuta (in quel caso tende a essere più affidabile come segnale di continuazione).",
+    "formula": "Condizioni: rel_vol ≥ 2.0\n(valutato dopo long_term e structural; ha precedenza su chaotic_rally e clean_rally)",
+    "example": "NVDA, maggio 2023 (dopo earnings ChatGPT-wave): +25% in 5 giorni, rel_vol=4.2 → high_volume_explosion.",
+    "context": "Uno dei 5 tipi di Explosive Growth Event. Badge viola nella tabella risultati. Il volume anomalo è il segnale più affidabile di interesse istituzionale.",
+    "source_label": "Investopedia — Volume",
+    "source_url": "https://www.investopedia.com/terms/v/volume.asp",
+    "related": [
+      "explosive_growth_event",
+      "volume_anomaly",
+      "clean_rally",
+      "chaotic_rally"
+    ]
+  },
+  {
+    "id": "structural_revaluation",
+    "label": "Structural Revaluation (Rivalutazione Strutturale)",
+    "short": "Rally lento e ordinato (≥63 barre, vol<35%) — rivalutazione graduale del fair value.",
+    "full": "La Structural Revaluation è un Explosive Growth Event di lunga durata (almeno 63 barre, circa 3 mesi) con volatilità contenuta (<35%). Non è un'esplosione improvvisa ma una rivalutazione progressiva del prezzo verso un nuovo livello di fair value, tipica di titoli che attraversano un cambio strutturale nei fondamentali (es. nuova linea di prodotti, cambio di management, ristrutturazione). Il movimento è ordinato e sostenuto nel tempo.",
+    "formula": "Condizioni: duration ≥ 63 barre AND vol_norm < 0.35\n(valutato dopo long_term; ha precedenza su high_volume, chaotic e clean)",
+    "example": "META, novembre 2022 – luglio 2023: +200% in 180 barre, vol_norm=0.29 → structural_revaluation. Rivalutazione dopo l'anno della ristrutturazione.",
+    "context": "Uno dei 5 tipi di Explosive Growth Event. Badge blu nella tabella risultati. Quality_multiplier tipicamente alto per la bassa volatilità.",
+    "source_label": "Investopedia — Fundamental Analysis",
+    "source_url": "https://www.investopedia.com/terms/f/fundamentalanalysis.asp",
+    "related": [
+      "explosive_growth_event",
+      "clean_rally",
+      "long_term_momentum_explosion"
+    ]
+  },
+  {
+    "id": "long_term_momentum_explosion",
+    "label": "Long-Term Momentum Explosion",
+    "short": "Crescita ≥50% sostenuta per ≥126 barre — il tipo di evento più raro e potente.",
+    "full": "Il Long-Term Momentum Explosion è l'evento più potente nel modello: richiede sia una durata lunga (almeno 126 barre, circa 6 mesi) sia una crescita totale superiore al 50%. Rappresenta i grandi trend multi-mese che definiscono le 'super stock' di ogni ciclo di mercato. L'algoritmo lo valuta per primo perché è il più specifico: un titolo che soddisfa questi criteri ha avuto una trasformazione strutturale nel suo momentum, non solo un rally temporaneo.",
+    "formula": "Condizioni: duration ≥ 126 barre AND growth > 50%\n(valutato per primo, ha la precedenza su tutti gli altri tipi)",
+    "example": "NVDA, gennaio 2023 – dicembre 2023: +240% in 246 barre → long_term_momentum_explosion. Uno dei maggiori casi storici recenti.",
+    "context": "Uno dei 5 tipi di Explosive Growth Event. Badge ambra/gold nella tabella risultati. Il tipo più raro, indicativo delle grandi opportunità di ciclo.",
+    "source_label": "Investopedia — Momentum Investing",
+    "source_url": "https://www.investopedia.com/terms/m/momentum_investing.asp",
+    "related": [
+      "explosive_growth_event",
+      "structural_revaluation",
+      "explosive_growth_score",
+      "momentum"
+    ]
+  },
+  {
+    "id": "sandisk_case_study",
+    "label": "SanDisk Case Study — Explosive Growth da Spin-off",
+    "short": "Caso di studio reale: come SNDK ha moltiplicato il valore dopo la separazione da Western Digital, e quali segnali precursori erano leggibili prima del breakout.",
+    "full": "SanDisk (SNDK) è stata separata da Western Digital nel febbraio 2025, diventando una società indipendente pure-play NAND/flash storage. Il caso è diventato un riferimento per il pattern 'Spinoff Rerating': valore bloccato in un conglomerato (WDC vendeva sia HDD che NAND), liberato dalla separazione, amplificato da tailwind settoriali (superciclo AI + shortage NAND) e confermato da accelerazione fondamentale (EPS +400% YoY, revenue +251% YoY). Il mercato inizialmente ha ignorato SNDK — tipico delle prime settimane post-spin-off per vendite forzate e bassa copertura analitica — poi ha dovuto reprezzare sia gli utili in accelerazione sia il multiplo (da hardware ciclico a pure-play tech-storage). Il risultato è stato un movimento di oltre +3000% nei 12 mesi successivi alla quotazione.",
+    "formula": "7 condizioni del pattern SNDK (Spinoff Rerating Checklist):\n\n1. EVENTO SOCIETARIO — spin-off, carve-out o separazione < 18 mesi\n2. SOTTOVALUTAZIONE INIZIALE — multiplo compresso vs pure-play comparable, < 5 analisti attivi, vendite forzate documentabili\n3. FUNDAMENTAL INFLECTION — 2+ trimestri consecutivi EPS acceleration + revenue acceleration; almeno 1 earnings beat materiale (>10% vs consensus)\n4. SETTORE IN SHORTAGE — pricing power strutturale, offerta rigida (anni per espandere capacità), domanda in accelerazione strutturale\n5. CAMBIO NARRATIVA — keyword AI/data center/shortage nelle press release e negli earnings call; analisti che cambiano i comparable\n6. ESPANSIONE MULTIPLO — P/E o EV/Sales si avvicina ai comparable pure-play (non più a quelli da conglomerato/hardware)\n7. CONFERMA TECNICA — RS rank > 85, breakout con volume > 1.5x media, prezzo > MA200 in uptrend",
+    "example": "Sequenza causale SNDK 2025:\nFase A — feb 2025: separazione WDC → SNDK quota come entità indipendente\nFase B — prime settimane: vendite forzate da fondi indicizzati, bassa copertura, narrativa legacy ancora dominante\nFase C — Q1/Q2 FY2026: EPS $23.41 vs consensus $14.66 (+60% beat), revenue +251% YoY, margini al record\nFase D — tailwind: superciclo NAND da domanda AI, shortage strutturale, hyperscaler espandono storage\nFase E — cambio narrativa: da 'storage ciclico' a 'beneficiario infrastrutturale AI'\nFase F — conferma: RS rank top 1%, breakout a volumi 4x, nuovi massimi storici\nRisultato: +3000%+ in 12 mesi dalla quotazione",
+    "context": "Caso di studio alla base del pattern standard 'Spinoff Rerating' nel sistema Pattern Discovery (Mod 2B). La checklist a 7 condizioni è il template per trovare situazioni analoghe: spin-off recenti con fundamental inflection + settore in shortage + cambio narrativa. Le fonti dati suggerite per monitoraggio automatico: SEC EDGAR Form 10 (corporate events), FMP free tier (EPS/revenue per trimestre), Finnhub (earnings surprise), Google News RSS + GDELT (keyword extraction per cambio narrativa).",
+    "source_label": "SEC EDGAR — SNDK Form 10",
+    "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=SNDK&type=10-12&dateb=&owner=include&count=10",
+    "related": [
+      "spinoff",
+      "catalyst",
+      "eps",
+      "revenue_acceleration",
+      "earnings_beat",
+      "supercycle",
+      "sector_rotation",
+      "momentum_quality",
+      "breakout",
+      "institutional_ownership",
+      "pattern_discovery"
+    ]
+  },
+  {
+    "id": "sp500",
+    "label": "S&P 500",
+    "short": "Indice delle 500 maggiori aziende quotate negli USA per capitalizzazione.",
+    "full": "L'S&P 500 (Standard & Poor's 500) è un indice ponderato per capitalizzazione di mercato che include circa 503 titoli azionari delle principali aziende quotate sul NYSE e NASDAQ. Copre circa l'80% della capitalizzazione totale del mercato azionario statunitense ed è considerato il benchmark principale per l'economia USA. Le componenti sono selezionate dal comitato S&P Dow Jones Indices in base a criteri di capitalizzazione (≥14.5B$), liquidità, domicilio USA e redditività.",
+    "formula": "Peso titolo = Capitalizzazione flottante titolo / Capitalizzazione flottante totale indice",
+    "example": "Apple (AAPL) ha il peso maggiore nell'S&P 500: circa 7% dell'indice. Un movimento di AAPL del 1% sposta l'indice di circa 0.07%.",
+    "context": "Usato come universo di scan per Pattern Classici e come benchmark per la Relative Strength. ETF di riferimento: SPY (SPDR S&P 500 ETF). Nel sistema Tradash: sp500.json, 503 ticker.",
+    "source_label": "S&P Dow Jones Indices",
+    "source_url": "https://www.spglobal.com/spdji/en/indices/equity/sp-500/",
+    "related": [
+      "nasdaq100",
+      "sp400",
+      "sp600",
+      "russell2000",
+      "relative_strength",
+      "market_cap"
+    ]
+  },
+  {
+    "id": "nasdaq100",
+    "label": "NASDAQ 100",
+    "short": "Le 100 maggiori aziende non finanziarie quotate sul NASDAQ.",
+    "full": "Il NASDAQ 100 (NDX) include le 100 maggiori aziende non finanziarie quotate sul mercato NASDAQ, selezionate per capitalizzazione di mercato. È fortemente concentrato nel settore tecnologico (oltre il 50% dell'indice) e include i principali titoli growth come Apple, Microsoft, NVIDIA, Alphabet e Amazon. È ricalcolato trimestralmente e ponderato per capitalizzazione flottante con cap al 24% per singolo titolo.",
+    "formula": "Peso = Capitalizzazione flottante / Capitalizzazione flottante totale (max 24% per titolo)",
+    "example": "NVIDIA (NVDA) nel 2024 ha raggiunto un peso del 10%+ nel NASDAQ 100 dopo il rally legato alla domanda AI.",
+    "context": "ETF di riferimento: QQQ (Invesco QQQ Trust). Universo privilegiato per scan di titoli growth/tech ad alta capitalizzazione. Nel sistema Tradash: nasdaq100.json, 101 ticker.",
+    "source_label": "Nasdaq — NDX Index",
+    "source_url": "https://indexes.nasdaq.com/index_information.aspx?Indexsymbol=NDX",
+    "related": [
+      "sp500",
+      "sp400",
+      "relative_strength",
+      "market_cap",
+      "nasdaq_exchange"
+    ]
+  },
+  {
+    "id": "russell2000",
+    "label": "Russell 2000",
+    "short": "Le 2000 aziende a piccola capitalizzazione del mercato azionario USA.",
+    "full": "Il Russell 2000 è un indice delle 2000 aziende a minore capitalizzazione comprese nel Russell 3000 (le 3000 maggiori aziende USA per capitalizzazione). Rappresenta il segmento small-cap del mercato e include aziende con capitalizzazione tipicamente tra 300M$ e 2B$. È spesso usato come indicatore della salute dell'economia domestica USA, poiché queste aziende operano prevalentemente nel mercato locale.",
+    "formula": "Componenti: posizioni 1001-3000 del Russell 3000 per market cap",
+    "example": "Storicamente il Russell 2000 sovraperforma l'S&P 500 nelle fasi di ripresa economica (risk-on), ma sottoperforma durante le recessioni a causa della maggiore sensibilità ai tassi e al credito.",
+    "context": "ETF di riferimento: IWM (iShares Russell 2000 ETF). Ribilanciamento annuale ogni giugno. Nel sistema Tradash: coperto da sp600.json (small cap di qualità con criteri di redditività).",
+    "source_label": "FTSE Russell — Russell 2000",
+    "source_url": "https://www.ftserussell.com/index/spotlight/russell-2000",
+    "related": [
+      "sp500",
+      "sp400",
+      "sp600",
+      "market_cap"
+    ]
+  },
+  {
+    "id": "market_cap",
+    "label": "Market Cap (Capitalizzazione di Mercato)",
+    "short": "Valore totale di mercato di tutte le azioni in circolazione di un'azienda.",
+    "full": "La capitalizzazione di mercato rappresenta il valore totale di un'azienda secondo il mercato azionario. Si calcola moltiplicando il prezzo corrente dell'azione per il numero totale di azioni in circolazione. Classificazione standard: Mega Cap (>200B$), Large Cap (10-200B$), Mid Cap (2-10B$), Small Cap (300M-2B$), Micro Cap (<300M$).",
+    "formula": "Market Cap = Prezzo azione × Numero azioni in circolazione",
+    "example": "Apple (AAPL): prezzo ~195$ × 15.3 miliardi di azioni = ~2.98T$ (Mega Cap). Azienda con 50$ × 20M azioni = 1B$ (Mid Cap).",
+    "context": "Usato nella pagina Universi per classificare i ticker in fasce dimensionali (Mega/Large/Mid/Small/Micro). Nello scanner per filtrare per capitalizzazione. Dati da yfinance, cachati in ticker_metadata.",
+    "source_label": "Investopedia — Market Capitalization",
+    "source_url": "https://www.investopedia.com/terms/m/marketcapitalization.asp",
+    "related": [
+      "sp500",
+      "nasdaq100",
+      "russell2000",
+      "sp400",
+      "sp600",
+      "float"
+    ]
+  },
+  {
+    "id": "nyse",
+    "label": "NYSE (New York Stock Exchange)",
+    "short": "La più grande borsa valori del mondo per capitalizzazione totale.",
+    "full": "Il New York Stock Exchange (NYSE), fondato nel 1792, è la principale borsa valori mondiale per capitalizzazione aggregata (oltre 25T$). Ospita circa 2.300-2.500 titoli azionari, prevalentemente blue chip industriali e finanziari. Usa un sistema con Market Maker designati (DMM) che facilitano la liquidità sul floor di Wall Street, a differenza del NASDAQ che è interamente elettronico.",
+    "formula": "Indici principali: Dow Jones Industrial Average (30 titoli), NYSE Composite (~2300 titoli)",
+    "example": "JPMorgan Chase, Berkshire Hathaway, ExxonMobil e Johnson & Johnson sono tra le maggiori aziende quotate sul NYSE.",
+    "context": "Nel sistema Tradash, nyse_all.json contiene ~2.465 ticker quotati sul NYSE, scaricati dal server pubblico NASDAQ Trader (nasdaqtraded.txt). I ticker NYSE hanno tipicamente 1-3 lettere.",
+    "source_label": "NYSE — About",
+    "source_url": "https://www.nyse.com/",
+    "related": [
+      "nasdaq_exchange",
+      "market_cap",
+      "sp500"
+    ]
+  },
+  {
+    "id": "nasdaq_exchange",
+    "label": "NASDAQ (Borsa)",
+    "short": "Seconda borsa USA per capitalizzazione, interamente elettronica, forte presenza tech/growth.",
+    "full": "Il NASDAQ (National Association of Securities Dealers Automated Quotations), fondato nel 1971, è la seconda borsa mondiale per capitalizzazione e la prima interamente elettronica. Ospita oltre 4.000 titoli con forte concentrazione nei settori tecnologico, biotech e growth. I titoli NASDAQ sono identificati da ticker di 4-5 lettere.",
+    "formula": "Indici principali: NASDAQ Composite (~4000 titoli), NASDAQ 100 (top 100 non-financial)",
+    "example": "AAPL (Apple), NVDA (NVIDIA), MSFT (Microsoft) sono tra i maggiori titoli del NASDAQ per capitalizzazione.",
+    "context": "Nel sistema Tradash, nasdaq_all.json contiene ~4.253 ticker quotati sul NASDAQ, scaricati dal server pubblico NASDAQ Trader. Il file usa_all.json (7013 ticker) copre NYSE + NASDAQ + AMEX.",
+    "source_label": "NASDAQ — About",
+    "source_url": "https://www.nasdaq.com/",
+    "related": [
+      "nyse",
+      "nasdaq100",
+      "market_cap"
+    ]
+  },
+  {
+    "id": "sp400",
+    "label": "S&P 400 Mid Cap",
+    "short": "Le 400 principali aziende mid-cap USA (tipicamente 2-10B$ di capitalizzazione).",
+    "full": "L'S&P MidCap 400 include 400 aziende USA con capitalizzazione tipicamente tra 2 e 10 miliardi di dollari, selezionate per liquidità, domicilio USA e redditività (almeno 1 trimestre di utile positivo). Rappresenta il segmento mid-cap del mercato. Storicamente il mid-cap ha registrato rendimenti a lungo termine superiori alla large-cap con volatilità intermedia.",
+    "formula": "Criteri: market cap ~3.6B-13.1B$ (range aggiornato periodicamente), liquidità adeguata, ≥1 trimestre di utile positivo",
+    "example": "Aziende tipiche dell'S&P 400: Hasbro, Vail Resorts, Jack Henry & Associates — cresciute oltre il segmento small-cap ma non ancora nella fascia large-cap.",
+    "context": "ETF di riferimento: IJH (iShares Core S&P Mid-Cap ETF). Incluso nel virtual universe usa_allcap del sistema Tradash. Nel sistema: sp400.json, 400 ticker.",
+    "source_label": "S&P Dow Jones — S&P 400",
+    "source_url": "https://www.spglobal.com/spdji/en/indices/equity/sp-400/",
+    "related": [
+      "sp500",
+      "sp600",
+      "russell2000",
+      "market_cap"
+    ]
+  },
+  {
+    "id": "sp600",
+    "label": "S&P 600 Small Cap",
+    "short": "Le 600 principali aziende small-cap USA con requisiti di qualità (4 trimestri di utile positivo).",
+    "full": "L'S&P SmallCap 600 include 600 aziende USA a piccola capitalizzazione (tipicamente 300M-2.4B$) che soddisfano criteri di qualità più stringenti rispetto al Russell 2000: almeno 4 trimestri consecutivi con utile positivo (GAAP). Questa selezione esclude le aziende in perdita, rendendo l'S&P 600 il proxy dello small-cap 'pulito' con meno rumore da titoli speculativi.",
+    "formula": "Criteri: market cap ~850M-4.6B$, liquidità adeguata, 4 trimestri di utile GAAP positivo cumulato",
+    "example": "La differenza chiave con Russell 2000: l'S&P 600 esclude le biotech pre-revenue e le aziende in perdita, producendo un universo più stabile con minori rischi di delisting.",
+    "context": "ETF di riferimento: IJR (iShares Core S&P Small-Cap ETF). Incluso nel virtual universe usa_allcap del sistema Tradash. Nel sistema: sp600.json, 603 ticker.",
+    "source_label": "S&P Dow Jones — S&P 600",
+    "source_url": "https://www.spglobal.com/spdji/en/indices/equity/sp-600/",
+    "related": [
+      "sp500",
+      "sp400",
+      "russell2000",
+      "market_cap"
+    ]
+  },
+  {
+    "id": "dax",
+    "label": "DAX 40",
+    "short": "Indice delle 40 maggiori aziende quotate sulla borsa tedesca (Xetra/Francoforte).",
+    "full": "Il DAX (Deutscher Aktienindex) è il principale indice azionario tedesco, composto dalle 40 aziende a maggiore capitalizzazione e liquidità quotate sul mercato Xetra della Deutsche Börse. Dal settembre 2021 è stato espanso da 30 a 40 componenti. È un indice a performance totale (total return), che include i dividendi reinvestiti. I ticker su piattaforme internazionali hanno il suffisso .DE (es. BMW.DE, SAP.DE).",
+    "formula": "Peso = Capitalizzazione flottante / Capitalizzazione flottante totale (max 10% per titolo)",
+    "example": "SAP.DE (software ERP), Siemens.DE (industriale), Allianz.DE (assicurazioni) sono tra i maggiori componenti del DAX per capitalizzazione.",
+    "context": "ETF di riferimento: EWG (iShares MSCI Germany ETF). Nel sistema Tradash: germany.json, 40 ticker con suffisso .DE.",
+    "source_label": "Deutsche Börse — DAX",
+    "source_url": "https://www.dax-indices.com/",
+    "related": [
+      "cac40",
+      "ftse_mib",
+      "market_cap",
+      "sp500"
+    ]
+  },
+  {
+    "id": "cac40",
+    "label": "CAC 40",
+    "short": "Indice delle 40 maggiori aziende quotate sulla borsa di Parigi (Euronext).",
+    "full": "Il CAC 40 (Cotation Assistée en Continu) è il principale indice azionario francese, composto dalle 40 aziende a maggiore capitalizzazione flottante quotate su Euronext Paris. Include i principali gruppi industriali e del lusso europei. I ticker internazionali hanno il suffisso .PA (es. LVMH.PA, TTE.PA, BNP.PA). Ricalcolato ogni trimestre, ponderato per capitalizzazione flottante con cap al 15% per singolo componente.",
+    "formula": "Peso = Capitalizzazione flottante / Capitalizzazione flottante totale (max 15%)",
+    "example": "LVMH.PA (Louis Vuitton Moët Hennessy) è il maggiore componente del CAC 40 con peso ~12%, seguito da TotalEnergies (TTE.PA) e Hermès (RMS.PA).",
+    "context": "ETF di riferimento: EWQ (iShares MSCI France ETF). Nel sistema Tradash: france.json, 40 ticker con suffisso .PA.",
+    "source_label": "Euronext — CAC 40",
+    "source_url": "https://live.euronext.com/en/product/indices/FR0003500008-XPAR",
+    "related": [
+      "dax",
+      "ftse_mib",
+      "market_cap",
+      "sp500"
+    ]
+  },
+  {
+    "id": "ftse_mib",
+    "label": "FTSE MIB",
+    "short": "Indice delle 40 maggiori aziende quotate alla Borsa di Milano (Euronext Milan).",
+    "full": "Il FTSE MIB (Milan Ibis Benchmark) è il principale indice azionario italiano, composto dalle 40 aziende a maggiore liquidità e capitalizzazione quotate su Euronext Milan. Ponderato per capitalizzazione flottante con cap al 15% per singolo titolo. I settori dominanti sono finanziari, energia, utility e industriali. I ticker internazionali hanno il suffisso .MI (es. ENI.MI, ENEL.MI, ISP.MI).",
+    "formula": "Peso = Capitalizzazione flottante / Capitalizzazione flottante totale (max 15%)",
+    "example": "ENI.MI (energia), Enel.MI (utility), Intesa Sanpaolo (ISP.MI, bancario) e Ferrari (RACE.MI) sono i principali componenti per capitalizzazione.",
+    "context": "ETF di riferimento: EWI (iShares MSCI Italy ETF). Nel sistema Tradash: italy.json, 40 ticker con suffisso .MI.",
+    "source_label": "Borsa Italiana — FTSE MIB",
+    "source_url": "https://www.borsaitaliana.it/borsa/indici/indici-di-borsa/scheda.html?indexCode=FTSEMIB",
+    "related": [
+      "dax",
+      "cac40",
+      "market_cap"
+    ]
+  },
+  {
+    "id": "universi_tradash",
+    "label": "Universi di Mercato — Tradash",
+    "short": "Riepilogo di tutti gli universi di ticker disponibili nel sistema per lo scanner e i pattern classici.",
+    "full": "Tradash organizza i ticker in universi di tre tipi: virtuali (calcolati al volo unendo più file), statici (file JSON pre-caricati), e playlist (universi personalizzati dall'utente). Gli universi USA coprono NYSE, NASDAQ e AMEX tramite il server pubblico NASDAQ Trader; quelli europei si basano sugli indici ufficiali delle rispettive borse.\n\n━ UNIVERSI USA VIRTUALI ━\nusa_market — NYSE + NASDAQ + AMEX, ~7.013 ticker totali. Universo più ampio per scan esaustivi. Fonte: NASDAQ Trader (nasdaqtraded.txt).\nusa_allcap — SP500 + NASDAQ100 + SP400 + SP600, ~1.607 ticker. Curato, rappresenta le aziende con requisiti di qualità (redditività). Ottimo per pattern fondamentali.\nusa_largecap — SP500 + NASDAQ100, ~604 ticker. Solo large cap; scan veloci su titoli ad alta liquidità.\n\n━ UNIVERSI USA STATICI ━\nsp500 — 503 ticker (S&P 500). us_all_cap\nnasdaq100 — 101 ticker (NASDAQ 100). Concentrato tech/growth.\nsp400 — 400 ticker (S&P 400 Mid Cap, 2-10B$).\nsp600 — 603 ticker (S&P 600 Small Cap con 4 trimestri di utile positivo).\nnasdaq_all — ~4.253 ticker (tutti i titoli NASDAQ). Per scan tech-heavy.\nnyse_all — ~2.465 ticker (tutti i titoli NYSE). Per scan industriali/finanziari.\n\n━ UNIVERSI EUROPEI STATICI ━\ngermany (DAX 40) — 40 ticker, suffisso .DE. Borsa: Xetra/Francoforte.\nfrance (CAC 40) — 40 ticker, suffisso .PA. Borsa: Euronext Paris.\nitaly (FTSE MIB) — 40 ticker, suffisso .MI. Borsa: Euronext Milan.\nspain (IBEX 35) — 35 ticker, suffisso .MC. Borsa: BME Madrid.\neurope — mix indici europei principali (DAX+CAC40+FTSE100+EURO STOXX 50).\ngermany_all — tutti i titoli Boerse Frankfurt (export manuale CSV, aggiornamento periodico).\n\n━ PLAYLIST UTENTE ━\nCreabili dall'Universe Builder nella sezione Scanner. Identificate dal prefisso playlist_<id>. Permettono scan su insiemi personalizzati di ticker.",
+    "formula": "Virtual universe = UNION(source_json_1, source_json_2, ...)\nPlaylist = DB table scanner_playlists WHERE id = playlist_<n>\nMetadati per ticker: ticker_metadata (market_cap, sector, name) con TTL 7 giorni — da yfinance",
+    "example": "Scan 'Find the Next SanDisk' su usa_allcap (~1607 ticker) con mode=strict: Stage1 filtra ai soli spinoff_registry (~20-40 ticker in 18 mesi), Stage2 al tecnico (~15), Stage3 ai fondamentali (~10). Tempo: ~2 minuti.\nScan stesso pattern su usa_market (~7013 ticker) con mode=broad: ~5-10 minuti.",
+    "context": "Selezionabile dallo scanner (sezione Universo di ricerca) e dai Pattern Classici. I virtual universe sono definiti in api/scanner.py (_VIRTUAL_UNIVERSES). I file JSON statici sono in backend/data/universes/. Aggiornabili con backend/scripts/update_universes.py.",
+    "source_label": "NASDAQ Trader — nasdaqtraded.txt",
+    "source_url": "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqtraded.txt",
+    "related": [
+      "sp500",
+      "nasdaq100",
+      "russell2000",
+      "sp400",
+      "sp600",
+      "nyse",
+      "nasdaq_exchange",
+      "dax",
+      "cac40",
+      "ftse_mib",
+      "market_cap"
+    ]
+  },
+  {
+    "id": "split_adjustment",
+    "label": "Split Adjustment (rettifica per frazionamento)",
+    "short": "I prezzi storici prima di uno split vengono riscalati per rendere la serie continua: appaiono più bassi di quanto realmente si scambiava.",
+    "full": "Quando un titolo fa uno split (es. AAPL 4-for-1, effettivo 31 ago 2020) il numero di azioni si moltiplica e il prezzo per azione si divide, senza cambiare il valore dell'investimento. Per evitare un falso crollo nella serie storica, i provider (yfinance, TradingView, broker) moltiplicano retroattivamente TUTTI i prezzi precedenti all'ex-date per il fattore di split (0,25 nel caso 4:1) e i volumi per il reciproco. La serie diventa continua e i rendimenti restano corretti, ma i numeri storici 'adjusted' sono sintetici: non sono i prezzi a cui si è davvero scambiato sul mercato. L'aggiustamento è cumulativo su tutti gli split successivi (per questo i prezzi AAPL degli anni '90 oggi appaiono a pochi centesimi). Da non confondere con l'aggiustamento per dividendi: in yfinance la colonna Close è rettificata solo per gli split, mentre Adj Close lo è anche per i dividendi.",
+    "formula": "Prezzo_adjusted(pre-split) = Prezzo_raw × (1 / ratio)\nEs. AAPL 28 ago 2020: $499,23 × 0,25 = $124,81  →  31 ago 2020: $129,04 (+3,4%, non −74%)",
+    "example": "AAPL split 4:1 (31 ago 2020). Serie GREZZA: ven 28 ago close ~$499,23 → lun 31 ago ~$129,04 = −74% finto. Serie ADJUSTED: ~$124,81 → ~$129,04 = +3,4%, una giornata normale. Il prezzo realmente scambiato il 28 ago era $499; $124,81 è una ricostruzione a posteriori.",
+    "context": "Rilevante per gli scanner: i ritorni vanno calcolati su serie split-adjusted per non premiare o penalizzare falsi salti. Distinzione chiave: lo SPLIT si AGGIUSTA (fattore esatto, security identica); un IDENTITY BREAK (es. NINE: bancarotta + vecchia equity cancellata + nuova equity sotto lo stesso ticker) NON si aggiusta — non esiste un fattore che renda continua una serie di due società economicamente diverse — e va invece invalidato dal Corporate Event Guardrail.",
+    "source_label": "Investopedia — Stock Split",
+    "source_url": "https://www.investopedia.com/terms/s/stocksplit.asp",
+    "related": [
+      "momentum"
+    ]
+  },
+  {
+    "id": "earnings-revenue-history",
+    "label": "Earnings & Revenue History",
+    "short": "Grafico storico trimestrale di fatturato, utili e cash flow.",
+    "full": "La traiettoria finanziaria dell'azienda nel tempo: mostra se il fatturato cresce, quando l'azienda ha smesso di perdere soldi e se la crescita del revenue si traduce in profitti reali. Visivamente e' un'area chart con Revenue (area dominante) sovrapposta a Earnings, Free Cash Flow, Cash from Operations e Operating Expenses (tratteggiata); una zero-line evidenzia i periodi in perdita. La divergenza crescente tra Revenue ed Earnings rivela la leva operativa: se i costi crescono piu' lentamente del fatturato i margini si espandono. La risoluzione e' trimestrale (una barra per trimestre fiscale, etichette tipo Q2'26): l'annuale si fermava all'ultimo esercizio CHIUSO, in ritardo rispetto ai trimestri gia' mostrati altrove nella pagina. Soglie del profit margin: Eccellente > 20%, Buono 10-20%, Migliorabile 0-10%, In perdita < 0%. Metrica storica: non entra nello Health Score.",
+    "formula": "Profit margin = Net Income ÷ Revenue",
+    "example": "Revenue flat ma earnings in crescita = azienda che diventa piu' efficiente (margini in espansione).",
+    "context": "Sottocapitolo Health 4.1. Storico trimestrale dalla fonte Defeatbeta (bilanci trimestrali, nessun troncamento: tutti i trimestri disponibili).",
+    "source_label": "Tradash — sezione Health",
+    "source_url": "",
+    "related": [
+      "free_cash_flow",
+      "fcf-vs-earnings"
+    ]
+  },
+  {
+    "id": "debt-to-equity-history",
+    "label": "Debt to Equity — Storia e Analisi",
+    "short": "Evoluzione trimestrale del rapporto Debt/Equity con il cash.",
+    "full": "Come e' cambiata la struttura finanziaria nel tempo: rapporto tra quanto l'azienda deve ai creditori (Debt) e quanto appartiene agli azionisti (Equity), trimestre per trimestre, con il Cash sovrapposto. Lo snapshot non basta: conta il trend. Un D/E del 68% che arriva da equity negativa e' molto piu' rassicurante di un 68% in deterioramento; il crossing point (quando l'Equity supera il Debt) e' un evento strutturale importante. Soglie D/E: Eccellente < 50%, Sano 50-100%, Attenzione 100-200%, Rischioso > 200%. Componente DE = 25% dello Health Score.",
+    "formula": "D/E = Debito Totale ÷ Equity (per ogni trimestre)",
+    "example": "Equity da negativa a > Debt: la struttura finanziaria si ribalta, D/E scende sotto 100%.",
+    "context": "Sottocapitolo Health 4.2. Serie trimestrale Defeatbeta; eventi 'Momenti chiave' derivati dalla serie.",
+    "source_label": "Tradash — sezione Health",
+    "source_url": "",
+    "related": [
+      "net-debt-position",
+      "health-score"
+    ]
+  },
+  {
+    "id": "interest-coverage-ratio",
+    "label": "Interest Coverage Ratio",
+    "short": "Quante volte l'azienda paga gli interessi sul debito con i profitti operativi.",
+    "full": "La capacita' di far fronte ai pagamenti degli interessi sul debito usando i profitti dell'operativita'. E' il termometro piu' diretto del rischio di insolvenza nel breve termine: un'azienda con coverage basso puo' finire in default anche con un bilancio apparentemente solido. Sotto 2x e' zona pericolo; sopra 10x l'azienda puo' permettersi molto piu' debito o usare la cassa per crescere. Soglie: Eccellente > 10x, Sano 5-10x, Attenzione 2-5x, Pericolo < 2x. Peso 35% dello Health Score (il maggiore: piu' predittivo del rischio default).",
+    "formula": "Interest Coverage = EBIT ÷ Interessi Passivi (TTM)",
+    "example": "Coverage 36x: gli interessi sono un costo irrilevante rispetto ai profitti operativi.",
+    "context": "Metrica del sottocapitolo Health 4.3 (Solidita' & Rischio Fallimento).",
+    "source_label": "Tradash — sezione Health",
+    "source_url": "",
+    "related": [
+      "health-score",
+      "ebit"
+    ]
+  },
+  {
+    "id": "asset-coverage-ratio",
+    "label": "Asset Coverage Ratio",
+    "short": "Quante volte gli asset totali coprono le passivita' totali.",
+    "full": "Se l'azienda venisse liquidata oggi, indica quanto rimarrebbe dopo aver pagato tutti i creditori. Un ratio > 1 significa che gli asset valgono piu' dei debiti (valore netto positivo); < 1 indica insolvenza tecnica. Complementare al D/E: mentre il D/E confronta debito vs equity, l'asset coverage confronta tutto il patrimonio con tutte le passivita', utile per stimare il recovery value in scenari di stress. Soglie: Eccellente > 1.5x, Sano 1.2-1.5x, Attenzione 1.0-1.2x, Pericolo < 1.0x. Peso 25% dello Health Score.",
+    "formula": "Asset Coverage = Total Assets ÷ Total Liabilities",
+    "example": "1.46x: gli asset coprono 1.46 volte le passivita' totali.",
+    "context": "Metrica del sottocapitolo Health 4.3 (Solidita' & Rischio Fallimento).",
+    "source_label": "Tradash — sezione Health",
+    "source_url": "",
+    "related": [
+      "health-score"
+    ]
+  },
+  {
+    "id": "net-debt-position",
+    "label": "Net Debt Position",
+    "short": "Debito residuo dopo aver sottratto tutta la liquidita' disponibile.",
+    "full": "Il debito 'reale' al netto della liquidita' immediatamente disponibile. Se il net debt e' negativo (net cash) l'azienda potrebbe estinguere tutto il debito domani e avere ancora cassa in eccesso: e' la misura piu' conservativa della posizione debitoria. Il debito lordo da solo e' fuorviante: $3B di debito con $2.5B di cash (net debt $500M) e' molto diverso da $3B con $100M di cash. Soglie: Net Cash (< 0) Eccellente, 0-50% equity Sano, 50-100% equity Attenzione, > 100% equity Rischioso. Peso 15% dello Health Score.",
+    "formula": "Net Debt = Debito Totale − Cash & Equivalenti",
+    "example": "Net debt negativo = net cash: il segnale piu' rassicurante sulla posizione debitoria.",
+    "context": "Metrica del sottocapitolo Health 4.3 e barra nel sottocapitolo 4.2.",
+    "source_label": "Tradash — sezione Health",
+    "source_url": "",
+    "related": [
+      "debt-to-equity-history",
+      "health-score"
+    ]
+  },
+  {
+    "id": "fcf-vs-earnings",
+    "label": "Free Cash Flow vs Earnings (Waterfall)",
+    "short": "Bridge che mostra come gli utili contabili si trasformano in cassa reale.",
+    "full": "La qualita' degli utili dichiarati: verifica se i profitti contabili si traducono in cassa reale o sono gonfiati da accrual accounting. Il waterfall decompone passo per passo, per il trimestre fiscale selezionato, il percorso da Earnings a FCF: Earnings (partenza), + Depreciation & Amortization (non-cash), + Stock Based Compensation (non-cash), ± Net Working Capital, + Others (capex/tasse/voci varie, plug residuo), = Free Cash Flow. FCF > Earnings = utili di alta qualita'; FCF < Earnings = possibile accounting aggressivo. Il Net Working Capital positivo indica clienti che pagano prima dei fornitori (pricing power). Soglie FCF Conversion: Eccellente > 120%, Buono 80-120%, Attenzione 50-80%, Critico < 50%. Metrica qualitativa: non entra nello score.",
+    "formula": "FCF = Earnings + D&A + SBC ± Net Working Capital + Others",
+    "example": "Conversione 150%: ogni $1 di earnings diventa $1.50 di cassa reale.",
+    "context": "Sottocapitolo Health 4.4. Decomposizione per trimestre fiscale dalla fonte Defeatbeta (ultimi 8 trimestri, ~2 anni).",
+    "source_label": "Tradash — sezione Health",
+    "source_url": "",
+    "related": [
+      "free_cash_flow",
+      "earnings-revenue-history"
+    ]
+  },
+  {
+    "id": "health-score",
+    "label": "Solidita' Finanziaria",
+    "short": "I quattro rapporti di bilancio che descrivono la solidita' finanziaria.",
+    "full": "Quattro rapporti strutturali letti direttamente dai bilanci: Interest Coverage (EBIT TTM sugli oneri finanziari TTM), Debt/Equity (debito totale sul patrimonio netto), Asset Coverage (totale attivo sul totale passivo) e Net Debt/EBITDA (debito netto sull'EBITDA TTM). Sono dati, non un giudizio: descrivono quanto margine ha l'azienda rispetto ai propri impegni, ma non producono un voto complessivo. Fino alla ristrutturazione del framework analitico questo blocco esponeva anche un Health Score 0-100 con etichetta OTTIMA/BUONA/MODERATA/DEBOLE/CRITICA: era un secondo verdetto sulla stessa azienda, parallelo e non riconciliato con quello della sezione Fondamentale, ed e' stato rimosso. Il giudizio sulla qualita' fondamentale sta ora in un posto solo.",
+    "formula": "Interest Coverage = EBIT TTM / Oneri finanziari TTM; Debt/Equity = Debito totale / Patrimonio netto; Asset Coverage = Attivo / Passivo; Net Debt/EBITDA = Debito netto / EBITDA TTM",
+    "example": "Interest Coverage 10.0x: l'EBITt di un anno copre dieci volte gli interessi passivi dello stesso periodo.",
+    "context": "Sottocapitolo Health 4.3. Calcolato dal backend (health_service, formule canoniche di fundamentals_service) dai bilanci Defeatbeta.",
+    "source_label": "Tradash — sezione Health",
+    "source_url": "",
+    "related": [
+      "interest-coverage-ratio",
+      "asset-coverage-ratio",
+      "net-debt-position",
+      "debt-to-equity-history"
+    ]
+  },
+  {
+    "id": "mature_profitable",
+    "label": "Matura & redditizia",
+    "short": "Azienda con utili e reddito operativo positivi e stabili — il bucket fondamentale piu' solido.",
+    "full": "Bucket del Fundamental Quality Score (FQS) che raccoglie le aziende gia' mature e redditizie: producono utile netto e reddito operativo positivi in modo continuativo. E' il profilo piu' affidabile per una valutazione classica, perche' gli utili esistono e sono ragionevolmente stabili. Il fair value viene stimato a multipli di redditivita' (P/E, EV/EBITDA).",
+    "formula": "Utile netto TTM > 0 AND reddito operativo (EBIT) TTM > 0 AND >= 3 trimestri positivi sugli ultimi 4.\nFair value: multipli P/E ed EV/EBITDA. Confidenza classificazione 0.8.",
+    "example": "Apple (AAPL), Microsoft (MSFT), Johnson & Johnson: utili stabili da anni -> bucket 'Matura & redditizia'.",
+    "context": "Uno dei 4 bucket fondamentali FQS mostrati come badge verde nella card Fundamental Quality (pagina ticker) e nell'arricchimento FQS dello scanner. Determina il metodo di calcolo del fair value.",
+    "source_label": "Investopedia — Fundamental Analysis",
+    "source_url": "https://www.investopedia.com/terms/f/fundamentalanalysis.asp",
+    "related": [
+      "cyclical",
+      "speculative_preprofit",
+      "asset_proxy",
+      "fair_value"
+    ]
+  },
+  {
+    "id": "cyclical",
+    "label": "Ciclica",
+    "short": "Azienda di un settore ciclico con margini instabili — utili legati al ciclo economico o alle materie prime.",
+    "full": "Bucket del Fundamental Quality Score (FQS) per le aziende il cui risultato dipende fortemente dal ciclo economico o dai prezzi delle materie prime (energia, acciaio, miniere, auto, compagnie aeree, apparecchiature per semiconduttori). Gli utili di un singolo anno sono poco rappresentativi: il fair value va stimato su un EBITDA 'mid-cycle' (medio di ciclo), non sull'utile corrente.",
+    "formula": "Industry ciclica (parole chiave: oil & gas, steel, mining, auto, airlines, chemicals, semiconductor equipment, ...) AND deviazione standard del margine lordo trimestrale > 4 punti percentuali.\nFair value: multipli su EBITDA mid-cycle. Confidenza 0.7.",
+    "example": "ExxonMobil (XOM), Ford (F), una societa' mineraria: margini che oscillano col ciclo -> bucket 'Ciclica'.",
+    "context": "Uno dei 4 bucket fondamentali FQS (badge giallo). Se l'industry e' ciclica ma il margine resta stabile, il titolo viene riclassificato come 'Matura & redditizia'.",
+    "source_label": "Investopedia — Cyclical Stock",
+    "source_url": "https://www.investopedia.com/terms/c/cyclicalstock.asp",
+    "related": [
+      "mature_profitable",
+      "speculative_preprofit",
+      "asset_proxy",
+      "fair_value"
+    ]
+  },
+  {
+    "id": "speculative_preprofit",
+    "label": "Speculativa (pre-profit)",
+    "short": "Azienda non ancora redditizia — valutata sui ricavi, profilo rischio/rendimento elevato.",
+    "full": "Bucket del Fundamental Quality Score (FQS) che raccoglie cio' che non rientra negli altri profili: aziende che non hanno ancora utili stabili (spesso in perdita). E' il ramo di fallback della cascata di classificazione. Non avendo utili, il fair value si stima su multipli di ricavo (EV/Sales), con incertezza e rischio piu' alti.",
+    "formula": "Nessuna delle condizioni precedenti soddisfatta (non matura, non ciclica, non asset proxy).\nFair value: multipli su ricavi (EV/Sales). Confidenza 0.6.",
+    "example": "Molte biotech pre-revenue e societa' growth/tech ancora in perdita rientrano in 'Speculativa (pre-profit)'.",
+    "context": "Uno dei 4 bucket fondamentali FQS (badge arancione). Indica che la valutazione poggia su attese di crescita future piu' che su utili attuali.",
+    "source_label": "Investopedia — Speculation",
+    "source_url": "https://www.investopedia.com/terms/s/speculation.asp",
+    "related": [
+      "mature_profitable",
+      "cyclical",
+      "asset_proxy",
+      "fair_value"
+    ]
+  },
+  {
+    "id": "asset_proxy",
+    "label": "Asset proxy",
+    "short": "Societa' il cui valore deriva soprattutto da partecipazioni e investimenti a lungo termine (tipo holding).",
+    "full": "Bucket del Fundamental Quality Score (FQS) per le societa' che funzionano da 'contenitore' di asset: una quota rilevante della capitalizzazione e' rappresentata da investimenti e partecipazioni a lungo termine (holding, alcune finanziarie). Per queste il conto economico operativo conta meno del valore degli asset sottostanti, quindi il trigger e' debole e richiede conferma manuale.",
+    "formula": "Investimenti e partecipazioni a lungo termine > 40% della market cap.\nTrigger debole: confidenza 0.4 -> richiede revisione manuale del fair value.",
+    "example": "Una holding di partecipazioni il cui bilancio e' dominato da investimenti a lungo termine -> bucket 'Asset proxy'.",
+    "context": "Uno dei 4 bucket fondamentali FQS (badge neutro). E' il primo livello della cascata di classificazione; per la sua bassa confidenza segnala che il fair value automatico va verificato a mano.",
+    "source_label": "Investopedia — Holding Company",
+    "source_url": "https://www.investopedia.com/terms/h/holdingcompany.asp",
+    "related": [
+      "mature_profitable",
+      "cyclical",
+      "speculative_preprofit",
+      "fair_value"
+    ]
+  },
+  {
+    "id": "event_discovery",
+    "label": "Event & Pattern Discovery",
+    "short": "Modulo che rileva automaticamente gli eventi di svolta di un titolo e ne studia le finestre temporali.",
+    "full": "Event & Pattern Discovery analizza la storia di un titolo, individua automaticamente gli eventi di svolta (breakout, inizio trend, accelerazioni, consolidamenti, distribuzione...) e, per ogni evento, definisce finestre temporali relative al 'giorno 0'. Da queste estrae un fingerprint (segnali attivi con lead/lag) e, su più titoli, un DNA comune. È indipendente dal vecchio Pattern Discovery.",
+    "context": "Ogni ticker può avere più eventi: l'utente ne ancora uno e le sue finestre diventano il contesto del fingerprint.",
+    "related": [
+      "event_day_zero",
+      "pattern_fingerprint",
+      "event_common_dna",
+      "breakout"
+    ]
+  },
+  {
+    "id": "event_day_zero",
+    "label": "Giorno 0 (event date)",
+    "short": "La data dell'evento rilevato: tutte le finestre e i lead/lag sono relativi a essa.",
+    "full": "Il 'giorno 0' è la data della barra in cui è scattato l'evento (event_date). Per gli eventi puntuali è il singolo giorno del segnale; per il consolidamento (fascia) è la fine del range. Le 8 finestre temporali vanno da −180 a +180 giorni attorno al giorno 0, e il lead/lag di ogni segnale del fingerprint è misurato rispetto a esso.",
+    "context": "Cambiando l'evento ancorato cambia il giorno 0 e quindi finestre e fingerprint.",
+    "related": [
+      "event_discovery",
+      "lead_lag",
+      "window_breakout"
+    ]
+  },
+  {
+    "id": "inflection_date_fundamental",
+    "label": "Inflection date (fondamentale)",
+    "short": "Data del trimestre in cui è avvenuta la svolta fondamentale recente del titolo.",
+    "full": "L'inflection_date è il report_date (fine trimestre) dell'ultimo trimestre in cui si è verificata una svolta fondamentale: passaggio da perdita a utile, inizio di espansione del gross margin o accelerazione dei ricavi. È distinta dal giorno 0 (che riguarda il prezzo) ed è per-ticker.",
+    "context": "Ancora l'evento fundamental_inflection e determina da quando 'accendere' i segnali fondamentali.",
+    "related": [
+      "fundamental_inflection",
+      "event_day_zero",
+      "revenue_acceleration"
+    ]
+  },
+  {
+    "id": "lead_lag",
+    "label": "Lead / Lag",
+    "short": "Giorni tra la prima attivazione di un segnale e il giorno 0; negativo = precursore.",
+    "full": "Nel fingerprint, il lead/lag di un segnale è la differenza in giorni tra la sua prima attivazione nella finestra e il giorno 0 dell'evento. Un valore negativo (lead) indica un precursore, comparso prima dell'evento; un valore positivo (lag) indica un segnale di conferma o di maturità, comparso dopo.",
+    "context": "Il Common DNA aggrega i lead mediani per capire quanto un segnale anticipa mediamente il breakout.",
+    "related": [
+      "pattern_fingerprint",
+      "event_common_dna",
+      "event_day_zero"
+    ]
+  },
+  {
+    "id": "event_common_dna",
+    "label": "Common DNA (Event Discovery)",
+    "short": "Aggregazione multi-ticker dei fingerprint: segnali ricorrenti con affidabilità e lead mediano.",
+    "full": "Il Common DNA aggrega i fingerprint di più titoli allineati al proprio giorno 0. Per ogni segnale ricorrente calcola reliability (% di ticker in cui compare), lead mediano, IQR del lead, ruolo e finestra dominante, raggruppandoli nelle fasi temporali (precursori → setup → trigger → conferma → maturità).",
+    "context": "Un DNA salvato diventa un pattern riutilizzabile nello screener Live (Similarity Search).",
+    "related": [
+      "pattern_fingerprint",
+      "lead_lag",
+      "signal_reliability"
+    ]
+  },
+  {
+    "id": "major_breakout",
+    "label": "Major breakout",
+    "short": "Breakout con chiusura sopra la MA200 e MA50 in salita: rottura 'piena', trend di fondo favorevole.",
+    "full": "Rottura del massimo degli ultimi N giorni con contesto forte: la chiusura è sopra la media a 200 giorni e la media a 50 giorni è in salita. È il breakout più affidabile perché avviene dentro un trend di fondo già rialzista.",
+    "context": "Priorità massima tra i breakout (major > gap > base > early).",
+    "related": [
+      "breakout",
+      "base_breakout",
+      "early_breakout",
+      "gap_breakout",
+      "moving_average"
+    ]
+  },
+  {
+    "id": "base_breakout",
+    "label": "Base breakout",
+    "short": "Breakout sopra la MA200 ma con MA50 non ancora in salita: uscita da una base.",
+    "full": "Rottura del massimo recente con chiusura sopra la MA200, ma con la MA50 non ancora inclinata verso l'alto. Segnala l'uscita da una fase di base/accumulazione, con momentum meno maturo del major breakout.",
+    "related": [
+      "breakout",
+      "major_breakout",
+      "consolidation"
+    ]
+  },
+  {
+    "id": "early_breakout",
+    "label": "Early breakout",
+    "short": "Breakout con prezzo ancora sotto la MA200: rottura precoce, prima della conferma del trend lungo.",
+    "full": "Rottura del massimo recente mentre la chiusura è ancora sotto la media a 200 giorni. È un segnale precoce: il titolo prova a invertire prima che il trend di lungo periodo confermi, quindi più rischioso ma potenzialmente anticipatore.",
+    "related": [
+      "breakout",
+      "major_breakout",
+      "reclaim_ma200"
+    ]
+  },
+  {
+    "id": "gap_breakout",
+    "label": "Gap breakout",
+    "short": "Breakout in cui la barra apre in gap up ≥ 3% rispetto alla chiusura precedente.",
+    "full": "Rottura del massimo recente accompagnata da un gap di apertura di almeno il 3% rispetto alla chiusura del giorno prima. Il gap indica spesso un catalizzatore (earnings, notizia) e una rottura violenta.",
+    "related": [
+      "breakout",
+      "major_breakout",
+      "catalyst",
+      "earnings_beat"
+    ]
+  },
+  {
+    "id": "failed_breakout",
+    "label": "Failed breakout",
+    "short": "Breakout che entro pochi giorni ricade sotto il livello rotto: segnale di rischio.",
+    "full": "Un breakout è 'fallito' quando, entro ~15 barre, il prezzo richiude sotto il livello di resistenza appena superato. Indica assenza di domanda reale e spesso una trappola per i compratori.",
+    "context": "Classificato come evento di rischio; genera un warning di qualità.",
+    "related": [
+      "breakout",
+      "distribution",
+      "climax"
+    ]
+  },
+  {
+    "id": "trend_start",
+    "label": "Inizio trend (trend start)",
+    "short": "La pendenza della MA50 gira da piatta/negativa a positiva, con prezzo che conferma sopra la MA50.",
+    "full": "Segnala il passaggio da una fase laterale/debole a una direzionale: la media a 50 giorni comincia a salire e la chiusura è sopra di essa. È un evento di preparazione, tipicamente precursore di breakout successivi.",
+    "related": [
+      "moving_average",
+      "major_breakout",
+      "relative_strength_inflection"
+    ]
+  },
+  {
+    "id": "relative_strength_inflection",
+    "label": "Svolta forza relativa",
+    "short": "La forza relativa a 1 mese vs benchmark passa da negativa a positiva.",
+    "full": "Evento in cui il titolo smette di sottoperformare il benchmark (es. SPY) e inizia a sovraperformarlo sull'orizzonte di 1 mese. È spesso un precursore: la leadership relativa anticipa i movimenti di prezzo.",
+    "related": [
+      "relative_strength",
+      "trend_start",
+      "momentum"
+    ]
+  },
+  {
+    "id": "fundamental_inflection",
+    "label": "Svolta fondamentale",
+    "short": "Svolta nei fondamentali: da perdita a utile, inizio espansione gross margin o accelerazione ricavi.",
+    "full": "Evento datato al trimestre della svolta fondamentale più recente (inflection_date): passaggio da perdita a utile, avvio di espansione del margine lordo o accelerazione dei ricavi. Attivo solo con l'opzione Fondamentali; best-effort e su titoli US.",
+    "related": [
+      "inflection_date_fundamental",
+      "revenue_acceleration",
+      "earnings_beat",
+      "free_cash_flow"
+    ]
+  },
+  {
+    "id": "reclaim_ma200",
+    "label": "Reclaim MA200",
+    "short": "La chiusura risale sopra la media a 200 giorni dopo esserne stata sotto.",
+    "full": "Evento in cui il prezzo recupera la media mobile a 200 giorni dopo un periodo passato al di sotto. È un segnale di miglioramento del quadro di lungo periodo, spesso anticipatore di un cambio di fase.",
+    "related": [
+      "moving_average",
+      "golden_cross_event",
+      "early_breakout"
+    ]
+  },
+  {
+    "id": "golden_cross_event",
+    "label": "Golden cross",
+    "short": "La media a 50 giorni incrocia al rialzo la media a 200 giorni.",
+    "full": "Il golden cross avviene quando la MA50 supera dal basso la MA200. È un classico segnale di trend rialzista di medio-lungo periodo; nel modulo è trattato come evento di svolta ancorabile.",
+    "related": [
+      "moving_average",
+      "reclaim_ma200",
+      "trend_following"
+    ]
+  },
+  {
+    "id": "acceleration",
+    "label": "Accelerazione (momentum)",
+    "short": "Forte accelerazione del momentum (ROC20 elevato) dentro un trend già attivo.",
+    "full": "Evento in cui il rate of change a 20 giorni supera una soglia elevata mentre il prezzo è già sopra la MA50. Rappresenta una fase di espansione rapida del movimento, tipicamente dopo un breakout.",
+    "related": [
+      "momentum",
+      "roc",
+      "major_breakout"
+    ]
+  },
+  {
+    "id": "consolidation",
+    "label": "Consolidamento (fascia)",
+    "short": "Fase laterale: il range high/low resta compresso (< 15%) per almeno 20 barre.",
+    "full": "A differenza degli altri eventi (puntuali), il consolidamento è una FASCIA: un periodo in cui il prezzo resta in un range stretto per settimane. Sul grafico è disegnato come banda, non come linea. Spesso precede un breakout (accumulo di energia).",
+    "context": "Il giorno 0 del consolidamento è la fine della fascia; start/end coprono l'intero range.",
+    "related": [
+      "volatility_compression",
+      "base_breakout",
+      "bollinger"
+    ]
+  },
+  {
+    "id": "volatility_compression",
+    "label": "Compressione di volatilità",
+    "short": "Squeeze: la volatilità si comprime (bande di Bollinger strette) prima di un movimento.",
+    "full": "Fase di contrazione della volatilità, tipicamente misurata come restringimento delle bande di Bollinger. Una volatilità molto bassa tende a precedere un'espansione (breakout): è un segnale precursore.",
+    "related": [
+      "bollinger",
+      "consolidation",
+      "atr"
+    ]
+  },
+  {
+    "id": "distribution",
+    "label": "Distribuzione (distribution days)",
+    "short": "Cluster di giornate in calo su volume alto: possibile vendita istituzionale (rischio).",
+    "full": "Un 'distribution day' è una giornata di ribasso su volume superiore alla media. Un cluster di questi giorni in una finestra ravvicinata segnala pressione di vendita istituzionale ed è un evento di rischio, spesso in cima ai movimenti.",
+    "context": "Genera un warning di qualità; non è filtrato dalla soglia Min event score.",
+    "related": [
+      "volume_anomaly",
+      "climax",
+      "failed_breakout"
+    ]
+  },
+  {
+    "id": "climax",
+    "label": "Climax",
+    "short": "Climax di volume con prezzo molto esteso dalla MA50: possibile esaurimento.",
+    "full": "Evento in cui un volume eccezionale coincide con un prezzo molto lontano dalla media a 50 giorni. Segnala un possibile esaurimento del movimento (blow-off top) e quindi rischio di inversione.",
+    "related": [
+      "volume_anomaly",
+      "distribution",
+      "overbought_oversold"
+    ]
+  },
+  {
+    "id": "window_preparation_far",
+    "label": "Finestra: Preparation Far (−180 / −121)",
+    "short": "Fase di prima accumulazione lontana, da 180 a 121 giorni prima del giorno 0.",
+    "full": "La più lontana delle finestre pre-evento (giorni relativi −180…−121). Cattura i primissimi segnali di preparazione, molto anticipati rispetto al breakout.",
+    "related": [
+      "event_day_zero",
+      "window_accumulation",
+      "lead_lag"
+    ]
+  },
+  {
+    "id": "window_accumulation",
+    "label": "Finestra: Accumulation (−120 / −61)",
+    "short": "Fase di accumulazione, da 120 a 61 giorni prima del giorno 0.",
+    "full": "Finestra di accumulazione (giorni relativi −120…−61): il periodo in cui gli operatori costruiscono posizioni prima del movimento direzionale.",
+    "related": [
+      "event_day_zero",
+      "window_preparation_far",
+      "window_setup_compression"
+    ]
+  },
+  {
+    "id": "window_setup_compression",
+    "label": "Finestra: Setup / Compression (−60 / −21)",
+    "short": "Fase di setup e compressione, da 60 a 21 giorni prima del giorno 0.",
+    "full": "Finestra di setup (giorni relativi −60…−21): spesso coincide con la compressione di volatilità che precede il breakout.",
+    "related": [
+      "event_day_zero",
+      "volatility_compression",
+      "window_pre_breakout"
+    ]
+  },
+  {
+    "id": "window_pre_breakout",
+    "label": "Finestra: Pre-Breakout (−20 / −1)",
+    "short": "Immediata vigilia, da 20 a 1 giorno prima del giorno 0.",
+    "full": "Finestra immediatamente precedente all'evento (giorni relativi −20…−1): i segnali qui attivi sono i trigger più prossimi al breakout.",
+    "related": [
+      "event_day_zero",
+      "window_breakout",
+      "lead_lag"
+    ]
+  },
+  {
+    "id": "window_breakout",
+    "label": "Finestra: Breakout (0 / +10)",
+    "short": "L'evento e i giorni immediatamente successivi, da 0 a +10.",
+    "full": "Finestra centrale (giorni relativi 0…+10): contiene il giorno 0 dell'evento e la sua immediata conferma.",
+    "related": [
+      "event_day_zero",
+      "breakout",
+      "window_initial_momentum"
+    ]
+  },
+  {
+    "id": "window_initial_momentum",
+    "label": "Finestra: Initial Momentum (+11 / +30)",
+    "short": "Primo slancio dopo l'evento, da +11 a +30 giorni.",
+    "full": "Finestra del primo slancio (giorni relativi +11…+30): misura la reazione iniziale del prezzo dopo l'evento.",
+    "related": [
+      "event_day_zero",
+      "acceleration",
+      "window_follow_through"
+    ]
+  },
+  {
+    "id": "window_follow_through",
+    "label": "Finestra: Follow-Through (+31 / +90)",
+    "short": "Conferma del movimento, da +31 a +90 giorni dopo l'evento.",
+    "full": "Finestra di conferma (giorni relativi +31…+90): valuta se il movimento post-evento prosegue o si esaurisce.",
+    "related": [
+      "event_day_zero",
+      "window_mature_trend",
+      "trend_following"
+    ]
+  },
+  {
+    "id": "window_mature_trend",
+    "label": "Finestra: Mature Trend (+91 / +180)",
+    "short": "Trend maturo, da +91 a +180 giorni dopo l'evento.",
+    "full": "La finestra post-evento più lontana (giorni relativi +91…+180): descrive la fase di trend maturo e l'eventuale inizio di distribuzione/esaurimento.",
+    "related": [
+      "event_day_zero",
+      "distribution",
+      "climax"
+    ]
+  },
+  {
+    "id": "good_drawdown_monitor",
+    "label": "Good Drawdown Monitor",
+    "short": "Distingue il calo di un'azienda di qualità (opportunità) da quello di un'azienda debole (trappola).",
+    "full": "Il Good Drawdown Monitor valuta un titolo in ribasso combinando due strati: la qualità fondamentale (FQS, statica) e uno strato dinamico sul prezzo (geometria del drawdown, forza relativa, beta, forma del calo, rally precedente). Serve a capire se il calo è un buon punto d'ingresso su un'azienda solida o il segnale di un deterioramento. Richiede una valutazione FQS non-Bad a monte.",
+    "context": "Stadio 2 della pipeline drawdown: il Drawdown Detector trova i titoli in calo oggi, il monitor analizza il perché.",
+    "related": [
+      "drawdown_shape",
+      "gd_final_score",
+      "gd_dynamic_score",
+      "pct_sector_explained",
+      "research_agent"
+    ]
+  },
+  {
+    "id": "drawdown_shape",
+    "label": "Forma del drawdown",
+    "short": "Come si è sviluppato il calo nel tempo: accelerato, strutturale, recente, uniforme o nessuno.",
+    "full": "La forma classifica l'andamento del ribasso confrontando l'ampiezza del drawdown su più orizzonti (1M/3M/6M/12M): ACCELERATO = si approfondisce lungo gli orizzonti (12M≥6M≥3M), declino persistente/in peggioramento (penalità); STRUTTURALE = prezzo a ridosso del minimo 12M con calo profondo, ancora sui minimi (penalità forte); RECENTE = calo concentrato nell'ultimo mese, flessione fresca (bonus, più probabile buona occasione); UNIFORME = discesa graduale e distribuita; NESSUNO = |DD 12M| < 5%, calo non rilevante.",
+    "context": "Mostrata come badge 'DD <forma>' nel Good Drawdown Monitor; incide sul dynamic score.",
+    "related": [
+      "good_drawdown_monitor",
+      "gd_dynamic_score"
+    ]
+  },
+  {
+    "id": "gd_final_score",
+    "label": "Final score (Good Drawdown)",
+    "short": "Score composito 0-100 = qualità FQS (55%) + dynamic score (45%), pesato per la confidence.",
+    "full": "Il final score combina lo strato statico (quality_score dell'FQS) e quello dinamico: raw = quality×0.55 + dynamic_score×0.45, poi moltiplicato per la confidence della valutazione FQS. Bande di classificazione: ≥70 'prime', ≥55 'constructive', ≥40 'neutral', <40 'weak'.",
+    "formula": "final_score = (quality_FQS × 0.55 + dynamic_score × 0.45) × confidence_FQS",
+    "related": [
+      "good_drawdown_monitor",
+      "gd_dynamic_score"
+    ]
+  },
+  {
+    "id": "gd_dynamic_score",
+    "label": "Dynamic score (Good Drawdown)",
+    "short": "Componente tecnica del monitor: geometria del drawdown, forza relativa, beta, forma, rally precedente.",
+    "full": "Il dynamic score misura la parte 'di prezzo' del giudizio, indipendente dai fondamentali: profondità e geometria del drawdown sui vari orizzonti, forza relativa vs benchmark, beta, forma del calo (bonus/penalità) e l'entità del rally precedente. Confluisce nel final score con peso 0.45.",
+    "related": [
+      "good_drawdown_monitor",
+      "gd_final_score",
+      "drawdown_shape",
+      "relative_strength",
+      "beta"
+    ]
+  },
+  {
+    "id": "pct_sector_explained",
+    "label": "% spiegato dal settore",
+    "short": "Quota del calo dovuta al settore (sistemica) vs specifica dell'azienda (idiosincratica).",
+    "full": "Misura quanta parte del drawdown del titolo è spiegata dal movimento del suo settore (calo sistemico, macro/settoriale) rispetto alla componente idiosincratica, specifica dell'azienda. Un valore alto indica che tutto il settore è in calo (meno un problema del singolo titolo); un valore basso indica un calo idiosincratico, da indagare sull'azienda.",
+    "related": [
+      "good_drawdown_monitor",
+      "beta"
+    ]
+  },
+  {
+    "id": "rebuild_static_universes",
+    "label": "Aggiorna Mid/Small Cap (universi statici)",
+    "short": "Rigenera gli universi Mid Cap USA e Small Cap USA classificando il Russell 2000 per capitalizzazione aggiornata.",
+    "full": "Operazione di manutenzione: prende i simboli del Russell 2000, aggiorna il market cap di ognuno (yfinance, con cache metadata e TTL) e li ripartisce in Mid Cap USA (2-10 mld) e Small Cap USA (300 mln-2 mld), riscrivendo i file midcap_usa.json / smallcap_usa.json. Serve perche' le capitalizzazioni cambiano nel tempo: senza rigenerarli, quelle due liste invecchiano. E' un'azione rara, non necessaria durante un normale scan.",
+    "context": "Disponibile nella pagina Universi (solo modalita' Universi).",
+    "related": [
+      "float",
+      "supercycle"
+    ]
+  },
+  {
+    "id": "stato_latente",
+    "label": "Stato latente",
+    "short": "Uno degli 11 stati comportamentali di un titolo (es. Ignizione momentum, Distribuzione), stimato come probabilità 0-1.",
+    "full": "Gli stati latenti interpretano prezzo/volume come evidenze di condizioni comportamentali (Compressione volatilità, Accumulo istituzionale, Ignizione momentum, Conferma trend, Pullback sano, Distribuzione, Esaurimento/Climax, Leadership forza relativa, Svolta fondamentale) più 2 di CONTESTO (Vento di mercato, Leadership di settore). Ognuno è una formula pesata TRASPARENTE (non black-box) che ritorna probabilità, confidence ed evidenze. Gli stati coesistono (non sommano a 1).",
+    "related": [
+      "onset",
+      "pathway",
+      "entropia_stato"
+    ]
+  },
+  {
+    "id": "onset",
+    "label": "Accensione (onset)",
+    "short": "Il giorno in cui uno stato passa da spento ad acceso (probabilità ≥ 0.5).",
+    "full": "L'onset è l'evento in cui uno stato supera la soglia di attivazione. Match dei pathway e grafo delle transizioni lavorano sugli ONSET, non sui giorni-attivi: così uno stato persistente (es. Vento di mercato in un mercato toro) conta UNA volta invece che per tutta la durata, evitando che gonfi le statistiche.",
+    "related": [
+      "stato_latente",
+      "pathway",
+      "transition_graph"
+    ]
+  },
+  {
+    "id": "pathway",
+    "label": "Pathway",
+    "short": "Una sequenza ordinata di stati che rappresenta un'ipotesi 'biologica' di come si sviluppa un movimento.",
+    "full": "Es. Classic Breakout = Compressione → Ignizione → Conferma trend. Un episodio 'segue' un pathway se gli onset degli stati compaiono NELL'ORDINE dato (sottosequenza, con stati intermedi ammessi entro un gap massimo). I pathway iniziali sono IPOTESI definite a priori (HypothesisPathway), validate contro i dati; in futuro potranno emergere pathway 'scoperte' automaticamente.",
+    "related": [
+      "stato_latente",
+      "onset",
+      "precisione_pathway",
+      "lift_passo"
+    ]
+  },
+  {
+    "id": "episodio_mercato",
+    "label": "Episodio di mercato",
+    "short": "Una finestra storica etichettata come vincente (rally esploso) o perdente (breakout fallito/climax poi crollo).",
+    "full": "Gli episodi sono il dataset storico su cui si validano i pathway. I POSITIVI sono rally esplosivi (+X% da un minimo); i NEGATIVI sono setup falliti ancorati a failed-breakout/climax e confermati da un drawdown forward oltre soglia. Per ogni episodio si salva la label forward (ritorni, drawdown, ritorno relativo a SPY) e la sequenza giornaliera di stati.",
+    "related": [
+      "pathway",
+      "precisione_pathway",
+      "base_rate"
+    ]
+  },
+  {
+    "id": "precisione_pathway",
+    "label": "Precisione (caso-controllo)",
+    "short": "Tra gli episodi che matchano un pathway, la frazione che sono vincitori (positivi).",
+    "full": "Metrica primaria di validazione. È un disegno CASO-CONTROLLO: invece di misurare un rendimento forward (fragile), si confronta quanto un pathway compare tra i vincitori vs i perdenti. precisione > base rate ⇒ il pathway è arricchito tra i vincitori. Es. Trend Continuation ~0.91 con base 0.62.",
+    "related": [
+      "base_rate",
+      "enrichment",
+      "episodio_mercato"
+    ]
+  },
+  {
+    "id": "base_rate",
+    "label": "Base rate",
+    "short": "La frazione di episodi vincitori nell'intero dataset — il riferimento della precisione.",
+    "full": "Se il 62% degli episodi sono vincitori, una precisione del 62% significa 'nessuna discriminazione'. Solo una precisione SOPRA la base rate indica un pathway informativo. La differenza è l'enrichment.",
+    "related": [
+      "precisione_pathway",
+      "enrichment"
+    ]
+  },
+  {
+    "id": "enrichment",
+    "label": "Enrichment",
+    "short": "Precisione meno base rate: quanto un pathway è arricchito tra i vincitori.",
+    "full": "enrichment = precisione − base_rate. Positivo = il pathway seleziona vincitori meglio del caso; negativo = seleziona perdenti (es. Failed Breakout, correttamente sotto la base rate).",
+    "formula": "enrichment = precisione − base_rate",
+    "related": [
+      "precisione_pathway",
+      "base_rate",
+      "lift_passo"
+    ]
+  },
+  {
+    "id": "lift_passo",
+    "label": "Lift per passo",
+    "short": "Di quanto ogni stato della sequenza aumenta la precisione rispetto al passo precedente.",
+    "full": "Scompone il contributo di ogni anello del pathway. Un passo con lift ≈ 0 è DEBOLE (non discrimina): è così che il sistema smaschera quantitativamente le parti non informative di un'ipotesi (es. lo stato di contesto Vento di mercato, quasi sempre acceso, dà lift ~0). Un passo con lift alto è il vero discriminatore.",
+    "related": [
+      "pathway",
+      "precisione_pathway",
+      "enrichment"
+    ]
+  },
+  {
+    "id": "transition_graph",
+    "label": "Grafo delle transizioni",
+    "short": "Rete di precedenze: quanto spesso l'accensione di uno stato è seguita da quella di un altro.",
+    "full": "Arco A→B = frazione di onset di A seguiti da un onset di B entro una finestra, con quota di vincitori. È la versione a coppie della stessa primitiva (precedenza di accensione) usata dai pathway: mostra la struttura a stati del mercato senza fissare un'ipotesi.",
+    "related": [
+      "onset",
+      "pathway"
+    ]
+  },
+  {
+    "id": "entropia_stato",
+    "label": "Entropia di stato",
+    "short": "Quanto è 'diffusa' la distribuzione degli stati in un dato giorno (0 = uno domina, 1 = molti equivalenti).",
+    "full": "Entropia normalizzata della distribuzione di probabilità degli stati intrinseci. Bassa entropia = c'è uno stato dominante chiaro; alta = il quadro è ambiguo. Aiuta a leggere quanto è netta la 'fase' del titolo in un giorno.",
+    "related": [
+      "stato_latente"
+    ]
+  },
+  {
+    "id": "expected_next",
+    "label": "Stato atteso successivo",
+    "short": "Dato un parziale osservato di stati, lo stato che le pathway prevedono come prossimo.",
+    "full": "Es. se un titolo ha mostrato Compressione → Ignizione, il pathway Classic Breakout prevede Conferma trend come stato successivo, con una probabilità dalla precedenza storica. Utile per passare dalla ricerca storica allo scanner live.",
+    "related": [
+      "pathway",
+      "transition_graph"
+    ]
+  },
+  {
+    "id": "regime_di_mercato",
+    "label": "Regime di mercato",
+    "short": "Il contesto di fondo dell'S&P 500: Rialzista, Neutrale o Ribassista.",
+    "full": "Descrive la struttura e la direzione del mercato azionario USA nel suo complesso (proxy S&P 500), indipendentemente dal singolo titolo. Un titolo forte in un regime Ribassista incontra un vento contrario; lo stesso titolo in un regime Rialzista ha il mercato a favore. È uno dei tre elementi del Contesto di mercato, calcolato come formula pesata trasparente (media dei soli indicatori disponibili, con affidabilità pari alla quota di segnale osservato).",
+    "formula": "Media pesata di: S&P 500 sopra la MA50; sopra la MA200; MA50 sopra MA200 (struttura, peso doppio); ritorno a 3 mesi; distanza dai massimi a 52 settimane. Score 0-1 → Rialzista ≥ 0.60, Ribassista ≤ 0.40, altrimenti Neutrale.",
+    "example": "S&P 500 sopra entrambe le medie, MA50 sopra MA200 e vicino ai massimi ⇒ score ~0.99 = Rialzista.",
+    "context": "Contesto di mercato (pannello nella pagina ticker)",
+    "related": [
+      "propensione_al_rischio",
+      "stress_sistemico"
+    ]
+  },
+  {
+    "id": "propensione_al_rischio",
+    "label": "Propensione al rischio",
+    "short": "Quanto il mercato è disposto a rischiare: Propensione, Neutrale o Avversione al rischio.",
+    "full": "Misura l'appetito per il rischio confrontando come si muovono classi di asset diverse (risk-on vs risk-off), non solo l'indice principale. Quando gli asset più rischiosi guidano (Nasdaq, small cap, obbligazioni high yield) e la volatilità è bassa, il mercato è 'risk-on'; quando il denaro fugge verso i titoli di Stato e la volatilità sale, è 'risk-off'. È un contesto trasversale al singolo titolo.",
+    "formula": "Media pesata di: Nasdaq 100 (QQQ) più forte dell'S&P 500 su 3 mesi; small cap (IWM) più forti dell'S&P 500; high yield (HYG) più forte dei Treasury (TLT) su 1 mese, peso doppio = spread di credito; VIX su percentile basso. Score 0-1 → Propensione ≥ 0.60, Avversione ≤ 0.40, altrimenti Neutrale.",
+    "example": "QQQ e IWM guidano, HYG batte TLT e VIX contenuto ⇒ score ~0.70 = Propensione al rischio.",
+    "context": "Contesto di mercato (pannello nella pagina ticker)",
+    "related": [
+      "regime_di_mercato",
+      "stress_sistemico"
+    ]
+  },
+  {
+    "id": "stress_sistemico",
+    "label": "Stress sistemico",
+    "short": "Probabilità di tensione sui mercati (Basso/Medio/Alto) con il suo trend.",
+    "full": "Stima la tensione complessiva del sistema finanziario: volatilità implicita elevata e in salita, cali rapidi dell'azionario e del credito. È espresso come probabilità 0-1 con un bucket (Basso/Medio/Alto) e un trend che confronta lo stress di oggi con quello di 5 sedute fa (in aumento / in calo / stabile). Stress alto è tipicamente il contesto in cui anche i titoli buoni vengono venduti.",
+    "formula": "Media pesata di: VIX su livello percentile elevato (peso doppio); VIX in salita nelle ultime 5 barre; drawdown recente (20 barre) dell'S&P 500; drawdown recente dell'high yield (HYG). Probabilità 0-1 → Alto ≥ 0.60, Basso ≤ 0.35, altrimenti Medio. Trend: variazione vs 5 barre fa oltre ±0.05.",
+    "example": "VIX percentile ~0.4, nessuna salita, drawdown minimi ⇒ prob ~0.18 = Basso, trend in calo.",
+    "context": "Contesto di mercato (pannello nella pagina ticker)",
+    "related": [
+      "regime_di_mercato",
+      "propensione_al_rischio"
+    ]
+  },
+  {
+    "id": "tipo_evento",
+    "label": "Tipo di evento",
+    "short": "Uno dei ~15 eventi di svolta che il detector riconosce (breakout, inizio trend, accelerazione, climax, distribuzione…), ognuno con i propri indicatori di prezzo/volume.",
+    "full": "Event & Pattern Discovery legge la storia di un titolo e marca automaticamente gli eventi di svolta. Ogni tipo ha una firma tecnica precisa: gli eventi RIALZISTI segnalano l'avvio o l'accelerazione di un movimento, quelli RIBASSISTI (climax, distribuzione, breakout fallito) segnalano esaurimento o cedimento. Sono i mattoni da cui si costruiscono episodi, fingerprint e pathway.",
+    "formula": "Breakout (gap/major/base/early) = chiusura sopra il massimo dei giorni precedenti (roll_max) con volume relativo elevato (vol_ratio). Inizio trend / Golden cross = MA50 supera MA200. Reclaim MA200 = riconquista della MA200. Accelerazione = strappo di momentum (ROC). Climax = spike parabolico su volume estremo. Distribuzione = giornate di ribasso su volumi alti. Compressione volatilità = bande di Bollinger strette. Inflessione forza relativa = RS vs benchmark che gira al rialzo. Inflessione fondamentale = svolta nei fondamentali.",
+    "example": "Chiusura oltre il massimo a 60 giorni con volume 2× la media ⇒ evento 'major breakout'.",
+    "context": "Event & Pattern Discovery (DMSG)",
+    "related": [
+      "event_discovery",
+      "event_day_zero",
+      "golden_cross_event",
+      "stato_latente"
+    ]
+  },
+  {
+    "id": "fingerprint",
+    "label": "Fingerprint (impronta)",
+    "short": "L'impronta temporale di un evento: quali segnali si accendono e con quanto anticipo (lead/lag) rispetto al giorno 0.",
+    "full": "Per ogni evento il fingerprint registra i biomarcatori attivi e li classifica per ruolo temporale — precursore, setup, trigger, conferma, esaurimento — in base al loro anticipo o ritardo rispetto al giorno 0. È la 'radiografia' di un singolo episodio; aggregando i fingerprint di più titoli allineati al proprio giorno 0 si ottiene il Common DNA.",
+    "formula": "Per ogni segnale: lead/lag = distanza in barre dall'evento (negativo = precede, positivo = segue). Il ruolo deriva dalla posizione: molto in anticipo = precursore, attorno allo 0 = trigger, dopo = conferma/esaurimento.",
+    "context": "Event & Pattern Discovery (DMSG)",
+    "related": [
+      "event_common_dna",
+      "event_day_zero",
+      "onset",
+      "stato_latente"
+    ]
+  },
+  {
+    "id": "successo_composito",
+    "label": "Successo composito",
+    "short": "La definizione di 'episodio vincente': rendimento forward forte E migliore del mercato, insieme.",
+    "full": "Un episodio positivo conta come SUCCESSO solo se soddisfa due condizioni contemporaneamente: un buon rendimento forward assoluto e un rendimento migliore dell'indice. La seconda condizione neutralizza il 'sale tutto il mercato': un rally che si limita a seguire l'S&P 500 non è merito del titolo e non deve gonfiare le statistiche dei pathway.",
+    "formula": "successo = forward_return_63 > +15% AND relative_return_vs_spy > +5% (orizzonte primario 63 barre).",
+    "example": "Titolo +24% a 63 barre ma S&P 500 +23% ⇒ relativo +1% < 5% ⇒ NON è un successo composito.",
+    "context": "Event & Pattern Discovery (DMSG)",
+    "related": [
+      "episodio_mercato",
+      "precisione_pathway",
+      "rendimento_forward",
+      "regime_di_mercato"
+    ]
+  },
+  {
+    "id": "rendimento_forward",
+    "label": "Rendimento forward",
+    "short": "Le etichette di esito misurate DOPO il picco dell'episodio (21/63/126/252 barre) più massimo guadagno e drawdown.",
+    "full": "Per ogni episodio si registrano i rendimenti forward a 21/63/126/252 barre, il massimo guadagno e il massimo drawdown successivi e il rendimento relativo vs S&P 500. Sono calcolati solo quando l'episodio è 'maturo' (per non introdurre lookahead bias). Fanno da descrittori dell'esito: la metrica di validazione PRIMARIA resta però la precisione caso-controllo, perché il rendimento forward dal picco è fragile e selezionato-sull'esito.",
+    "formula": "forward_return_k = (close a +k barre / close al picco − 1). max_return e max_drawdown = estremi nella finestra forward. relative_return_vs_spy = forward del titolo − forward dell'S&P 500.",
+    "context": "Event & Pattern Discovery (DMSG)",
+    "related": [
+      "episodio_mercato",
+      "successo_composito",
+      "precisione_pathway"
+    ]
+  },
+  {
+    "id": "research_agent",
+    "label": "Research Agent",
+    "short": "Loop di tool-use Claude multi-turno che raccoglie dati veri e produce un report di ricerca strutturato (tesi, punti a favore/contro, rischi).",
+    "full": "Il Research Agent è il motore dietro la sezione \"Agent Analysis\" nella pagina Ticker. Non è un singolo LLM che risponde una volta: è un ciclo in cui il modello (Claude) decide autonomamente quali tool chiamare per raccogliere evidenza (dati fondamentali, sezioni di filing SEC, scan di mercato), valuta i risultati, ed eventualmente richiama altri tool, fino a produrre una sintesi finale tramite il tool submit_analysis (thesis, bull_case, bear_case, key_risks, confidence). I 5 metodi disponibili — good_drawdown, fundamental_quality, earnings_review, spin_off_analysis, qualitative_filing_analysis — NON sono sistemi separati: sono lo stesso loop generico (services/agent/loop.py) con 5 system prompt diversi (services/agent/methods.py) che cambiano solo l'angolazione dell'analisi, non il motore. Oggi il loop usa l'SDK Anthropic raw (non l'astrazione multi-provider usata altrove in Tradash) perché il tool-use di Claude è stateful: ogni risposta del modello è un oggetto strutturato (blocchi di testo e blocchi tool_use) che va rimesso in coda esattamente così com'è per continuare la conversazione — un'astrazione che appiattisce tutto a semplice testo perderebbe questa struttura. Il risultato è che oggi il Research Agent funziona solo con Claude; portarlo a girare anche su GPT o Gemini richiederebbe un adapter per-provider sul loop di conversazione (i tool possono restare gli stessi, cambia solo come ogni provider gestisce turni e risposte).",
+    "context": "Ogni chiamata all'LLM fatta dal Research Agent (una per ogni iterazione del loop, non solo il risultato finale) è tracciata nel sistema di Tracciamento Chiamate LLM. Le chiamate ai tool (i dati che l'agente va a pescare) sono invece loggate separatamente in tool_calls_log — un riassunto per tool chiamato, visibile nella sezione \"N tool call\" della card del report, senza il dettaglio di costo/token perché non sono chiamate a pagamento verso un provider LLM.",
+    "example": "Per il metodo good_drawdown su un titolo, l'agente può: (1) chiamare get_fundamental_quality per vedere se il bucket FQ è solido, (2) chiamare run_screener o uno scan drawdown per verificare la posizione tecnica, (3) sintetizzare i due segnali in una tesi con confidence esplicita — se i segnali sono deboli o contrastanti, la confidence dichiarata sarà bassa, mai una tesi fabbricata.",
+    "related": [
+      "llm_call_tracking",
+      "good_drawdown_monitor",
+      "spinoff",
+      "light_governance"
+    ]
+  },
+  {
+    "id": "llm_call_tracking",
+    "label": "Tracciamento Chiamate LLM",
+    "short": "Ogni chiamata a un LLM in Tradash — prompt, risposta, token, costo stimato — viene registrata in un unico posto centrale, mai persa.",
+    "full": "Tradash chiama un LLM (Claude, GPT o Gemini a seconda del punto) da 6 famiglie di punti diversi nel codice: (1) Mod4 \"AI Insights\" — la tab riutilizzabile su scanner/pattern/ticker che analizza un payload di dati già pronto, single-shot, multi-provider in parallelo (l'unico posto dove oggi puoi già confrontare Claude/GPT/Gemini sulla stessa domanda); (2) Discovery LLM — il pulsante \"Avvia Discovery LLM\" che propone nuove variabili da monitorare, single-shot, oggi solo Claude; (3) il Research Agent — loop multi-turno, una chiamata per iterazione; (4-6) tre giudizi automatici a bassa visibilità che girano senza un pulsante utente dedicato: i veti V7/V9 della Fundamental Quality (guidance cut, eventi idiosincratici), la classificazione qualitativa del business da filing SEC, e la valutazione di rilevanza di una variabile monitorata rispetto a un testo di filing. Tutte e 6 le famiglie scrivono nella stessa tabella llm_calls tramite un layer dedicato (services/llm_call_tracking.py + services/llm_pricing.py): provider, modello esatto, un titolo descrittivo generato automaticamente (mai vuoto — es. \"Agent good_drawdown — AAPL (iter 2)\" o \"Discovery LLM — semicon_materials\"), prompt di sistema e utente integrali (mai troncati), risposta integrale, token input/output separati (necessari perché il costo differisce tra i due), e un costo stimato in USD calcolato da una tabella prezzi per modello — se il modello non è in tabella il costo resta esplicitamente null, mai un numero inventato.",
+    "context": "Due modi per vederle: (1) pagina Chiamate LLM (sidebar, icona moneta) — archivio completo e filtrabile per contesto/data/testo, con dettaglio prompt+risposta e \"salva con nome\" per non perdere una chiamata interessante; (2) log live collassabile embeddato nelle pagine dove l'LLM viene effettivamente usato (Agent Analysis sul Ticker, pannello Discovery LLM) — mostra le chiamate in tempo reale mentre un'analisi è in corso, con link diretto all'archivio. Un job schedulato giornaliero elimina le chiamate non salvate più vecchie di 30 giorni; quelle salvate con nome restano per sempre.",
+    "related": [
+      "research_agent"
+    ]
+  },
+  {
+    "id": "fair_value",
+    "label": "Fair Value",
+    "short": "Stima di quanto vale un titolo: il DCF per scenario dell'Analisi Forward, affiancato dalla crescita implicita nel prezzo (reverse DCF).",
+    "full": "La valutazione canonica di Tradash e' il DCF per scenario prodotto dall'Analisi Forward: proiezioni pluriennali di ricavi, margini, EPS e free cash flow per gli scenari Bear/Base/Bull, scontate con un WACC esplicito e una crescita terminale dichiarata, con sensitivity e peso del valore terminale visibili. Il fair value e' sempre un RANGE per scenario, mai un valore esatto. Fino alla ristrutturazione del framework analitico esisteva un secondo fair value, calcolato per bucket con bande a multipli (P/E, EV/EBITDA, EV/Sales, sum-of-the-parts): quelle bande non sono mai state calibrate su dati storici, eppure erano cio' che veniva mostrato come valutazione principale. Sono state dismesse — un numero non calibrato presentato come fair value e' peggio di un campo vuoto, perche' l'assenza si riconosce mentre un numero sbagliato no. Resta, complementare e con una domanda diversa, il reverse DCF: invece di stimare quanto vale l'azienda, risolve il problema inverso — quale crescita il prezzo corrente sta gia' scontando, dato il costo del capitale. Richiede free cash flow positivo; se manca, il campo resta esplicitamente vuoto, mai un numero forzato.",
+    "formula": "Reverse DCF (modello a singolo stadio, Gordon growth): EV = FCF(1+g) / (WACC-g)  =>  g = (EV*WACC - FCF) / (EV + FCF)",
+    "example": "Un titolo con EV=$5.000mld, FCF TTM=$130mld e WACC 9,5% ha una crescita implicita g≈6,8% — il mercato si aspetta che il free cash flow cresca stabilmente a quel ritmo all'infinito. Se pensi che l'azienda non possa sostenere una crescita cosi' alta a lungo, il titolo potrebbe essere sopravvalutato rispetto alla tua view — e viceversa se pensi possa fare meglio.",
+    "context": "Il fair value canonico si trova nella card Analisi Forward della pagina Ticker; se per un ticker non e' mai stata eseguita, il fair value non esiste ed e' dichiarato come tale. Il reverse DCF (pulsante \"Piotroski / Altman / reverse-DCF\" nella card Qualita' fondamentale) va letto insieme a WACC/CAPM, da cui prende il tasso di sconto. Nessuno dei due e' persistito come giudizio: il primo e' uno snapshot versionato, il secondo e' calcolato al volo.",
+    "related": [
+      "wacc_capm",
+      "mature_profitable",
+      "cyclical",
+      "speculative_preprofit",
+      "asset_proxy"
+    ]
+  },
+  {
+    "id": "wacc_capm",
+    "label": "WACC (CAPM)",
+    "short": "Costo medio ponderato del capitale — il tasso di rendimento minimo che un'azienda deve generare per remunerare chi la finanzia (azionisti + creditori).",
+    "full": "Il WACC pesa il costo dell'equity (cosa si aspettano gli azionisti) e il costo del debito (cosa costano i prestiti, al netto del beneficio fiscale) per la struttura del capitale dell'azienda (quanto e' finanziata da equity vs debito). Tradash stima il costo dell'equity con il CAPM (Capital Asset Pricing Model): risk-free rate + beta × equity risk premium. Il beta misura quanto il titolo si muove rispetto al mercato (SPY) — beta 1.0 = si muove come il mercato, beta >1 = piu' volatile, beta <1 = meno volatile — stimato via regressione sui rendimenti settimanali degli ultimi 3 anni. Risk-free rate ed equity risk premium sono costanti configurabili in Settings (non un fetch in tempo reale — una stima deliberatamente semplice, non un motore di risk management). Se l'azienda non ha debito significativo, il WACC coincide col solo costo dell'equity.",
+    "formula": "cost_of_equity = risk_free_rate + beta × equity_risk_premium\nWACC = (E/(E+D)) × cost_of_equity + (D/(E+D)) × cost_of_debt × (1 − aliquota fiscale)",
+    "example": "Un titolo con beta 1.12, risk-free rate 4,5% ed equity risk premium 4,5% ha cost_of_equity ≈ 9,5%. Se l'azienda ha poco debito, il WACC finale sara' molto vicino a quel 9,5%.",
+    "context": "Usato come tasso di sconto nel reverse DCF (vedi Fair Value). Beta e WACC sono calcolati on-demand, non persistiti — un cambio di prezzo o di risk-free rate in Settings da un risultato diverso al prossimo calcolo.",
+    "related": [
+      "fair_value"
+    ]
+  },
+  {
+    "id": "piotroski_f_score",
+    "label": "Piotroski F-Score",
+    "short": "Punteggio da 0 a 9 che misura se i fondamentali di un'azienda stanno migliorando o peggiorando anno su anno — 9 criteri binari su profittabilita', leva/liquidita' ed efficienza operativa.",
+    "full": "Sviluppato da Joseph Piotroski per distinguere, tra i titoli value (multipli bassi), quelli con fondamentali realmente in miglioramento da quelli value-trap. Nove criteri, un punto ciascuno se soddisfatto (bilanci annuali, anno corrente vs precedente): Profittabilita' (4) — ROA positivo, cash flow operativo positivo, ROA migliorato, qualita' earnings (CFO/attivi > ROA, segno che gli utili sono sostenuti da cassa reale e non da soli accrual contabili). Leva/liquidita' (3) — leva finanziaria in calo, current ratio migliorato, nessuna diluizione azionaria. Efficienza operativa (2) — margine lordo migliorato, rotazione degli attivi migliorata. Ogni criterio non calcolabile per dati mancanti viene escluso dal punteggio (mai contato come fallito) — lo score e' sempre accompagnato dal numero di criteri realmente calcolabili (max_score), che puo' essere minore di 9.",
+    "example": "Punteggio 8-9: fondamentali in netto miglioramento su quasi tutti i fronti. Punteggio 0-2: fondamentali in deterioramento diffuso — un segnale di cautela anche se il titolo sembra a sconto sui multipli.",
+    "context": "Calcolato on-demand nella card Qualita' fondamentale, mai persistito e mai un ingresso del bucket classifier o dei veti — e' un secondo parere quantitativo indipendente, non parte del punteggio FQS ufficiale.",
+    "source_label": "Wikipedia — Piotroski F-score",
+    "source_url": "https://en.wikipedia.org/wiki/Piotroski_F-score",
+    "related": [
+      "altman_z_score"
+    ]
+  },
+  {
+    "id": "altman_z_score",
+    "label": "Altman Z-Score",
+    "short": "Punteggio che stima il rischio di insolvenza di un'azienda entro 1-2 anni, combinando liquidita', redditivita' cumulata, redditivita' operativa e leva a valore di mercato.",
+    "full": "Sviluppato da Edward Altman. Tradash usa la variante Z'' (non la Z classica manifatturiera): la Z'' esclude il rapporto Sales/Total Assets, che penalizzerebbe ingiustamente le aziende di servizi e non-manifatturiere — piu' adatta a un universo che copre tutti i settori, non solo l'industria. Combina quattro componenti: capitale circolante/attivi totali (liquidita' a breve), utili non distribuiti/attivi totali (redditivita' accumulata nel tempo — penalizza le aziende giovani o che hanno bruciato cassa), EBIT/attivi totali (redditivita' operativa corrente), capitalizzazione di mercato/passivita' totali (quanto la valutazione di mercato copre i debiti). Tre zone: sopra 2,6 zona sicura, tra 1,1 e 2,6 zona grigia (rischio moderato), sotto 1,1 rischio di insolvenza elevato. Nota: aziende a grandissima capitalizzazione rispetto alle passivita' (es. mega-cap tech) tendono a punteggi molto alti per costruzione della formula — non significa automaticamente \"piu' sicura\" di un'altra azienda gia' in zona sicura, la scala non e' lineare oltre quella soglia.",
+    "formula": "Z'' = 3,25 + 6,56×X1 + 3,26×X2 + 6,72×X3 + 1,05×X4\nX1 = capitale circolante / attivi totali\nX2 = utili non distribuiti / attivi totali\nX3 = EBIT / attivi totali\nX4 = capitalizzazione di mercato / passivita' totali",
+    "example": "Z''=23 (zona sicura, tipico di mega-cap con pochissimo debito rispetto alla capitalizzazione) vs Z''=0,8 (zona distress, rischio di insolvenza concreto entro 1-2 anni se la situazione non cambia).",
+    "context": "Calcolato on-demand nella card Qualita' fondamentale, mai persistito e mai un veto automatico — un segnale di rischio da leggere insieme al resto (bucket FQS, veti, Piotroski), non da solo.",
+    "source_label": "Credit Guru — Altman Z'' Score per non-manufacturers ed emerging markets",
+    "source_url": "https://www.creditguru.com/index.php/bankruptcy-and-insolvency/altman-z-score-insolvency-predictor-for-non-manufacturers-emerging-markets",
+    "related": [
+      "piotroski_f_score"
+    ]
+  },
+  {
+    "id": "support_resistance",
+    "label": "Supporto e Resistenza",
+    "short": "Livelli di prezzo dove il titolo ha invertito o rallentato piu' volte in passato — la base geometrica su cui si riconoscono i pattern grafici classici.",
+    "full": "Un livello di supporto e' un prezzo sotto il quale il titolo ha fatto fatica a scendere (la domanda tende a superare l'offerta li'); una resistenza e' un prezzo sopra il quale ha fatto fatica a salire (l'offerta tende a superare la domanda). Tradash li rileva cercando gli swing high/low (massimi/minimi locali su una finestra di barre) e raggruppando quelli vicini in prezzo (entro una tolleranza) in un unico livello — un livello \"conta\" solo se e' stato testato piu' di una volta: un massimo isolato mai piu' ritestato non e' un livello, e' rumore. Piu' tocchi ha un livello, piu' e' significativo. Un livello di resistenza superato con decisione (breakout) spesso diventa supporto in futuro, e viceversa.",
+    "context": "E' la base geometrica su cui si costruiscono i pattern grafici classici (vedi Classic Patterns): double/triple top usano resistenze ritestate, i triangoli combinano un lato piatto (livello) con uno inclinato, il rectangle e' l'oscillazione tra un supporto e una resistenza entrambi piatti.",
+    "related": [
+      "chart_pattern_double_extreme",
+      "chart_pattern_triangle",
+      "chart_pattern_rectangle"
+    ]
+  },
+  {
+    "id": "chart_pattern_double_extreme",
+    "label": "Double Top / Double Bottom",
+    "short": "Due massimi (o minimi) allo stesso livello con una valle (o picco) intermedia — segnale di inversione quando il prezzo rompe oltre quella valle/picco.",
+    "full": "Il Double Top e' un pattern ribassista: il prezzo sale a un massimo, ritraccia, risale a un secondo massimo molto vicino al primo (segno che il rialzo non trova nuova forza), poi rompe sotto il minimo intermedio (la \"neckline\") — la rottura conferma l'inversione. Il Double Bottom e' l'esatto speculare, rialzista: due minimi simili con un massimo intermedio, rottura sopra il massimo a confermare. Finche' la rottura della neckline non avviene, Tradash marca il pattern come \"in formazione\", non confermato — due massimi simili senza rottura sono solo un possibile pattern, non ancora un segnale.",
+    "context": "Rilevato da services/pattern/classic_patterns.py su una finestra di ~6 mesi di chiusure daily. Un Double Top puo' coesistere con altri pattern rilevati sulla stessa finestra (es. fa parte anche di un Triple Top se c'e' un terzo massimo).",
+    "related": [
+      "chart_pattern_triple_extreme",
+      "chart_pattern_head_and_shoulders",
+      "support_resistance"
+    ]
+  },
+  {
+    "id": "chart_pattern_triple_extreme",
+    "label": "Triple Top / Triple Bottom",
+    "short": "Come il Double Top/Bottom ma con tre massimi (o minimi) allo stesso livello invece di due — un rifiuto ancora piu' netto di quel prezzo.",
+    "full": "Variante piu' rara e piu' forte del Double Top/Bottom: tre tentativi di rompere un livello, tutti falliti, con due valli (o picchi) intermedie tra i tre estremi. La rottura della neckline (il piu' profondo dei due punti intermedi, per il Triple Top) conferma l'inversione. Tre tocchi sullo stesso livello sono un rifiuto di mercato piu' convincente di due, ma sono anche piu' rari da osservare in pratica.",
+    "context": "Rilevato dalla stessa logica geometrica del Double Top/Bottom, estesa a tre estremi. Un Triple Top rilevato implica quasi sempre che sia rilevato anche un Double Top sulla stessa finestra (i primi due dei tre massimi lo soddisfano gia' da soli) — non e' un errore, sono entrambi validi contemporaneamente.",
+    "related": [
+      "chart_pattern_double_extreme"
+    ]
+  },
+  {
+    "id": "chart_pattern_head_and_shoulders",
+    "label": "Head and Shoulders / Inverse Head and Shoulders",
+    "short": "Tre massimi (o minimi) dove quello centrale e' piu' estremo dei due laterali, simili tra loro — la \"testa\" tra due \"spalle\". Uno dei pattern di inversione piu' citati in analisi tecnica.",
+    "full": "Nell'Head and Shoulders (ribassista): spalla sinistra (un massimo), testa (un massimo piu' alto), spalla destra (un massimo simile alla sinistra) — la rottura sotto la \"neckline\" (la linea che unisce i due minimi tra le spalle e la testa) conferma l'inversione da rialzista a ribassista. L'Inverse Head and Shoulders e' lo speculare rialzista: spalla-testa-spalla fatte di minimi, testa piu' bassa delle spalle, rottura sopra la neckline conferma l'inversione da ribassista a rialzista.",
+    "context": "La neckline non e' necessariamente orizzontale: puo' essere inclinata (Tradash fitta una retta sui due punti intermedi). Come gli altri pattern di inversione, resta \"in formazione\" finche' la rottura della neckline non e' confermata dal prezzo di chiusura.",
+    "related": [
+      "chart_pattern_double_extreme",
+      "chart_pattern_rounding"
+    ]
+  },
+  {
+    "id": "chart_pattern_rounding",
+    "label": "Rounding Top / Rounding Bottom",
+    "short": "Un'inversione lenta e graduale a forma di U (bottom) o campana rovesciata (top), invece di un massimo/minimo netto — accumulazione o distribuzione distribuita nel tempo.",
+    "full": "A differenza dei pattern con picchi/valli netti (double top, head and shoulders), il Rounding Bottom e il Rounding Top sono inversioni GRADUALI: il prezzo cambia direzione lentamente, disegnando una curva ampia invece di un punto di svolta preciso. Tradash li rileva fittando una parabola (curva quadratica) sui prezzi della finestra e verificando sia la curvatura (positiva per il bottom, negativa per il top) sia la qualita' del fit (quanto bene la parabola approssima i prezzi reali — un fit scarso significa che la forma non e' davvero ad U/campana, e' rumore). Il Rounding Bottom e' la base su cui si costruisce il Cup and Handle.",
+    "context": "Richiede una finestra di osservazione piu' ampia degli altri pattern (l'inversione e' lenta per definizione) — su finestre corte difficilmente viene rilevato anche quando presente.",
+    "related": [
+      "chart_pattern_cup_and_handle",
+      "chart_pattern_head_and_shoulders"
+    ]
+  },
+  {
+    "id": "chart_pattern_wedge",
+    "label": "Rising Wedge / Falling Wedge",
+    "short": "Due trendline che convergono, entrambe inclinate nella stessa direzione (entrambe salgono o entrambe scendono) — il range si restringe mentre il prezzo continua a muoversi.",
+    "full": "Nel Rising Wedge entrambe le trendline (quella sui massimi e quella sui minimi) salgono, ma quella sui minimi sale piu' velocemente — il canale si restringe verso l'alto. E' tipicamente un pattern ribassista: la salita perde slancio (i massimi avanzano sempre piu' lentamente) anche se il prezzo sta ancora salendo. Il Falling Wedge e' lo speculare rialzista: entrambe le trendline scendono, quella sui massimi scende piu' velocemente di quella sui minimi, il canale si restringe verso il basso — tipicamente precede un'inversione al rialzo.",
+    "context": "Da non confondere con i triangoli: nel wedge le due trendline vanno nella STESSA direzione (entrambe su o entrambe giu'), nei triangoli vanno in direzioni diverse o una e' piatta.",
+    "related": [
+      "chart_pattern_triangle"
+    ]
+  },
+  {
+    "id": "chart_pattern_triangle",
+    "label": "Ascending / Descending / Symmetrical Triangle",
+    "short": "Due trendline convergenti: una piatta e una inclinata (ascending/descending) o entrambe inclinate in direzioni opposte (symmetrical) — pattern di continuazione, il breakout ne determina la direzione.",
+    "full": "L'Ascending Triangle ha una resistenza piatta (una serie di massimi allo stesso livello) e un supporto che sale (minimi crescenti) — tipicamente rialzista, la pressione d'acquisto crescente alla fine rompe la resistenza. Il Descending Triangle e' lo speculare: supporto piatto, resistenza che scende — tipicamente ribassista. Il Symmetrical Triangle ha entrambe le trendline inclinate in direzioni opposte (resistenza che scende, supporto che sale) — a differenza degli altri due non ha una direzione predefinita, la direzione la decide il breakout: quale lato del triangolo viene rotto per primo.",
+    "context": "Tutti e tre sono pattern di CONTINUAZIONE (il trend prevalente tende a proseguire dopo il breakout), a differenza dei pattern di inversione come double top o head and shoulders.",
+    "related": [
+      "chart_pattern_wedge",
+      "chart_pattern_flag",
+      "chart_pattern_pennant"
+    ]
+  },
+  {
+    "id": "chart_pattern_flag",
+    "label": "Bull Flag / Bear Flag",
+    "short": "Un movimento di prezzo ripido e deciso (l'asta) seguito da una breve consolidazione stretta e leggermente contraria (la bandierina) — il trend tipicamente riprende nella direzione dell'asta.",
+    "full": "Nel Bull Flag: un rialzo ripido (l'\"asta\", flagpole) seguito da una consolidazione stretta, leggermente discendente o laterale (la \"bandierina\") — il mercato prende fiato prima di riprendere a salire nella direzione originale. Il Bear Flag e' lo speculare: un ribasso ripido seguito da una consolidazione stretta leggermente ascendente. La consolidazione deve restare stretta rispetto all'ampiezza dell'asta — un range di consolidazione troppo ampio non e' piu' una bandierina, e' un pattern diverso (o nessun pattern).",
+    "context": "E' un pattern di continuazione a breve termine — piu' rapido da formarsi rispetto a triangoli o wedge. Se la consolidazione, invece di un canale, forma un piccolo triangolo convergente, il pattern e' un Pennant, non un Flag.",
+    "related": [
+      "chart_pattern_pennant",
+      "chart_pattern_triangle"
+    ]
+  },
+  {
+    "id": "chart_pattern_pennant",
+    "label": "Pennant",
+    "short": "Come un Flag, ma la consolidazione dopo l'asta forma un piccolo triangolo convergente invece di un canale parallelo.",
+    "full": "Stessa premessa del Bull/Bear Flag (un'asta di prezzo ripida seguita da una pausa), ma la geometria della pausa e' diversa: invece di un canale stretto e parallelo, il Pennant ha due trendline che convergono (una scende, una sale) formando un piccolo triangolo simmetrico. La direzione attesa dopo la pausa e' la stessa dell'asta che l'ha preceduta (rialzista se l'asta era un rialzo, ribassista se un ribasso) — a differenza del Symmetrical Triangle \"puro\", dove la direzione e' incerta finche' non arriva il breakout.",
+    "context": "Distinguere Pennant da Flag e' utile ma non cruciale: entrambi sono pattern di continuazione a breve termine con la stessa logica di fondo (pausa dopo un movimento deciso).",
+    "related": [
+      "chart_pattern_flag",
+      "chart_pattern_triangle"
+    ]
+  },
+  {
+    "id": "chart_pattern_rectangle",
+    "label": "Rectangle",
+    "short": "Il prezzo oscilla ripetutamente tra un supporto e una resistenza entrambi piatti — un range di trading vero e proprio, non ancora un trend.",
+    "full": "Due livelli orizzontali (un supporto e una resistenza, entrambi ritestati piu' volte) tra cui il prezzo rimbalza avanti e indietro. E' un pattern di continuazione neutro: non ha una direzione intrinseca, la rottura di uno dei due lati (sopra la resistenza o sotto il supporto) ne determina la direzione. Un range troppo stretto non conta come Rectangle — deve esserci una distanza minima significativa tra supporto e resistenza, altrimenti e' solo rumore attorno a un prezzo stabile.",
+    "context": "Costruito sugli stessi livelli di supporto/resistenza usati per gli altri pattern — un Rectangle e' essenzialmente due livelli paralleli entrambi \"forti\" (piu' tocchi).",
+    "related": [
+      "support_resistance",
+      "chart_pattern_triangle"
+    ]
+  },
+  {
+    "id": "chart_pattern_cup_and_handle",
+    "label": "Cup and Handle",
+    "short": "Un Rounding Bottom (la \"coppa\") seguito da un breve, contenuto ritracciamento vicino ai massimi precedenti (il \"manico\") prima della ripartenza — pattern di continuazione rialzista.",
+    "full": "La prima parte, la coppa, e' un Rounding Bottom: il prezzo scende, forma una base ad U ampia, risale fino a riavvicinarsi al livello di partenza (il \"rim\", il bordo della coppa). La seconda parte, il manico, e' un ritracciamento breve e contenuto (tipicamente non oltre il 10-15% dal rim) — mai cosi' profondo da riscendere fino al fondo della coppa, altrimenti il pattern non e' valido. La rottura sopra il rim della coppa conferma il pattern e apre a un proseguimento rialzista.",
+    "context": "Tra i pattern piu' citati per titoli momentum/growth in accumulazione (William O'Neil lo cita esplicitamente nella metodologia CAN SLIM, gia' presente in Tradash). Richiede una finestra piu' ampia degli altri pattern per la coppa, coerente col Rounding Bottom.",
+    "related": [
+      "chart_pattern_rounding",
+      "can_slim"
+    ]
+  },
+  {
+    "id": "light_governance",
+    "label": "Light Governance",
+    "short": "Segnali di governance leggeri e verificabili (insider ownership, transazioni insider) usati nel report qualitativo al posto di un'analisi completa da proxy statement.",
+    "full": "Light Governance è il nome dato ai segnali di governance realmente costruiti per la sezione management_governance del report qualitativo a 10 sezioni (Research Agent, fase 3 — vedi Research Agent), in alternativa a un'analisi completa da DEF 14A (proxy statement), che Tradash non ingerisce. Due segnali, entrambi da yfinance, zero rischio di invenzione perché sono dati strutturati non testo generato: (1) held_percent_insiders — quota % di azioni detenuta da insider, esposta dal tool get_ticker_metadata; (2) get_insider_transactions — transazioni insider recenti derivate da Form 4 (chi ha comprato/venduto, quando, quanto, diretto/indiretto) fino a 15 movimenti: un insider che compra di tasca propria è un segnale più concreto di un giudizio narrativo generico. Un terzo segnale è stato valutato ed esplicitamente scartato: un flag di struttura azionaria a classi multiple/voto sproporzionato (dual-class). Non esiste una fonte deterministica pulita — yfinance non lo espone, SEC XBRL companyfacts non riporta la ripartizione per classe in modo affidabile via API, l'unica fonte pulita sarebbe la cover page del 10-K, mai archiviata oggi (Tradash archivia solo le sezioni business/risk_factors/mda). Il rischio residuo di questa lacuna è basso — spesso la struttura emerge comunque dal testo dei filing già letti — e in parte mitigato da held_percent_insiders. Costruire un parser dedicato per la cover page resta un'opzione futura, da fare solo se un caso live concreto dimostra che l'assenza pesa davvero su una tesi (stesso principio con cui sono nati i promemoria per-campo di industry_outlook/citations nel loop dell'agente). Per tutto ciò che i due tool non coprono (composizione board, compenso dirigenti, storico voti assembleari, dual-class), il prompt della fase 3 impone una regola esplicita: riportare SOLO se emerge testualmente dai filing già letti, mai da conoscenza generale del modello — perché management_governance è testo libero, mai passato dalla verifica citazioni (quella copre solo il campo citations della fase 4).",
+    "context": "Sibling gap-closure al Peer Registry (che risolve invece get_peer_filing_context per la sezione competitors/industry_outlook della fase 2): stessa sessione di lavoro, stesso principio — mai un dato inventato, un gap va colmato con una fonte reale o dichiarato esplicitamente assente con il marcatore \"informazione non disponibile nei documenti letti\", mai lasciato a inferenza generica del modello.",
+    "example": "Per AAPL, get_insider_transactions ha restituito vendite ravvicinate di Ben Borders (Officer) e Arthur Levinson (Director) nel Q2 2026 insieme a held_percent_insiders=1.63% — dati concreti che il modello può citare in management_governance invece di scrivere un giudizio generico su \"allineamento del management\".",
+    "related": [
+      "research_agent",
+      "institutional_ownership",
+      "13f_filing"
+    ]
+  },
+  {
+    "id": "barile",
+    "label": "Barile (petrolio)",
+    "short": "Unità di misura del petrolio: 1 barile ≈ 159 litri (42 galloni USA).",
+    "full": "Il barile è l'unità standard con cui si quota il petrolio greggio (WTI, Brent). Un barile equivale a circa 158,99 litri, ovvero 42 galloni statunitensi. I prezzi dei future petroliferi sono espressi in dollari per barile.",
+    "formula": "",
+    "example": "Se il WTI (CL=F) quota 78 USD, significa 78 dollari per barile (~159 litri).",
+    "context": "Usato nella pagina Indici & Materie prime per petrolio WTI e Brent.",
+    "source_label": "Investopedia — Barrel of Oil",
+    "source_url": "https://www.investopedia.com/terms/b/barrelofoil.asp",
+    "related": [
+      "gallone"
+    ]
+  },
+  {
+    "id": "oncia_troy",
+    "label": "Oncia troy",
+    "short": "Unità di misura dei metalli preziosi: 1 oncia troy ≈ 31,10 grammi.",
+    "full": "L'oncia troy è l'unità standard per quotare oro, argento e platino. Vale circa 31,1035 grammi — leggermente più dell'oncia comune (28,35 g). I prezzi dei future su metalli preziosi sono in dollari per oncia troy.",
+    "formula": "",
+    "example": "Se l'oro (GC=F) quota 2.400 USD, significa 2.400 dollari per oncia troy (~31,1 g).",
+    "context": "Usato per oro, argento e platino nella pagina Indici & Materie prime.",
+    "source_label": "Investopedia — Troy Ounce",
+    "source_url": "https://www.investopedia.com/terms/t/troyounce.asp",
+    "related": [
+      "libbra"
+    ]
+  },
+  {
+    "id": "bushel",
+    "label": "Bushel (cereali)",
+    "short": "Unità di volume per i cereali: ~35,2 litri; il peso varia per prodotto.",
+    "full": "Il bushel è l'unità con cui si quotano mais, grano e soia negli USA. È un'unità di volume (~35,24 litri) ma nella pratica corrisponde a un peso standard che dipende dal cereale (es. mais ~25,4 kg, grano/soia ~27,2 kg per bushel). I future agricoli sono quotati in centesimi di dollaro per bushel.",
+    "formula": "",
+    "example": "Se il mais (ZC=F) quota 450, significa 450 cent (4,50 USD) per bushel.",
+    "context": "Usato per mais, grano e soia nella pagina Indici & Materie prime.",
+    "source_label": "Investopedia — Bushel",
+    "source_url": "https://www.investopedia.com/terms/b/bushel.asp",
+    "related": []
+  },
+  {
+    "id": "libbra",
+    "label": "Libbra (pound)",
+    "short": "Unità di peso anglosassone: 1 libbra ≈ 0,4536 kg.",
+    "full": "La libbra (pound, lb) vale circa 453,6 grammi. È l'unità con cui si quotano rame, caffè, zucchero e cotone. I relativi future sono espressi in dollari (o centesimi) per libbra.",
+    "formula": "",
+    "example": "Se il rame (HG=F) quota 4,20 USD, significa 4,20 dollari per libbra (~0,45 kg).",
+    "context": "Usato per rame, caffè, zucchero e cotone nella pagina Indici & Materie prime.",
+    "source_label": "Investopedia — Pound",
+    "source_url": "https://www.investopedia.com/terms/p/pound.asp",
+    "related": [
+      "oncia_troy"
+    ]
+  },
+  {
+    "id": "gallone",
+    "label": "Gallone (USA)",
+    "short": "Unità di volume USA: 1 gallone ≈ 3,785 litri.",
+    "full": "Il gallone statunitense vale circa 3,785 litri. È l'unità con cui si quota la benzina (RB=F). Un barile di petrolio contiene 42 galloni.",
+    "formula": "",
+    "example": "Se la benzina (RB=F) quota 2,50 USD, significa 2,50 dollari per gallone (~3,79 litri).",
+    "context": "Usato per la benzina nella pagina Indici & Materie prime.",
+    "source_label": "Investopedia — Gallon",
+    "source_url": "https://www.investopedia.com/terms/g/gallon.asp",
+    "related": [
+      "barile"
+    ]
+  },
+  {
+    "id": "mmbtu",
+    "label": "MMBtu (gas naturale)",
+    "short": "Un milione di BTU: unità di energia con cui si quota il gas naturale.",
+    "full": "MMBtu = un milione di British Thermal Unit, unità di contenuto energetico. Il gas naturale (NG=F) è quotato in dollari per MMBtu. Un BTU è l'energia per scaldare una libbra d'acqua di 1°F.",
+    "formula": "",
+    "example": "Se il gas naturale (NG=F) quota 3,00 USD, significa 3 dollari per milione di BTU.",
+    "context": "Usato per il gas naturale nella pagina Indici & Materie prime.",
+    "source_label": "Investopedia — MMBtu",
+    "source_url": "https://www.investopedia.com/terms/m/mmbtu.asp",
+    "related": []
+  },
+  {
+    "id": "future",
+    "label": "Future (contratto)",
+    "short": "Contratto per comprare/vendere un bene a prezzo e data futuri; le materie prime si quotano così (suffisso =F).",
+    "full": "Un future è un contratto standardizzato per scambiare un bene (materia prima, indice) a una data futura a un prezzo fissato oggi. Le materie prime non hanno un prezzo 'spot' unico quotato in borsa: si scambiano tramite future. Su yfinance il suffisso =F indica il contratto future front-month (il più vicino a scadenza).",
+    "formula": "",
+    "example": "GC=F è il future sull'oro, CL=F sul petrolio WTI, NG=F sul gas naturale.",
+    "context": "Tutte le materie prime nella pagina Indici & Materie prime usano ticker future (=F).",
+    "source_label": "Investopedia — Futures",
+    "source_url": "https://www.investopedia.com/terms/f/futures.asp",
+    "related": [
+      "barile",
+      "oncia_troy"
+    ]
+  },
+  {
+    "id": "data-source",
+    "label": "Fonti dati",
+    "short": "Da dove viene ogni dato di Tradash, ogni quanto scade e quali sono le regole che ne governano l'uso.",
+    "full": "Tradash non ha una fonte sola: ogni tipo di dato ha un provider primario e, dove serve, un fallback esplicito. BILANCI: Defeatbeta (parquet HuggingFace via DuckDB) è la fonte primaria e copre solo titoli US; yfinance è il fallback, mai automatico. PREZZI/OHLCV: Defeatbeta in blocco più coda yfinance per i giorni recenti sui titoli US, yfinance diretto sugli europei. METADATA (prezzo, market cap, settore, beta, float, insider): yfinance. CONSENSUS ANALISTI, EARNINGS SURPRISE, PEER, NEWS: Finnhub (piano gratuito). FILING E DOCUMENTI: SEC EDGAR. CALENDARIO EARNINGS: Defeatbeta più Finnhub come conferma.\n\nTre regole non negoziabili governano l'uso delle fonti. (1) MAI uno switch automatico di fonte: mescolare provider dentro una stessa serie storica può produrre artefatti che sembrano fatti aziendali — yoy_change confronta il trimestre più recente con quello di un anno prima, quindi una differenza di definizione tra provider finisce tutta dentro la crescita YoY, e da lì nel bucket, nei veti e nei filtri dello screener. Il passaggio a una fonte secondaria è sempre un'azione esplicita dell'utente, e passa comunque da un'istruttoria (vedi sotto). (2) POINT-IN-TIME: ogni dato porta la propria data (data_through_date per i bilanci, fetch_ts per i dati di rete, snapshot_date per il Good Drawdown); nessuna sezione mostra numeri senza dire a quando sono fermi. (3) DEGRADAZIONE ESPLICITA: una fonte che non risponde produce un valore nullo dichiarato o un motivo leggibile, mai un'eccezione che rompe la pagina e mai un valore inventato.",
+    "example": "Caso RACE (Ferrari NV), agosto 2026 — il caso che ha originato tutto questo. Defeatbeta era fermo al trimestre 31/03/2026 mentre yfinance aveva già il 30/06/2026 e l'earnings del 30/07 era passato: il punteggio FQS, il pannello Fondamentali e la sezione Health mostravano dati vecchi di un trimestre senza segnalarlo. Il rimedio non è stato cambiare fonte, ma: (a) segnalare la disponibilità di un trimestre più recente; (b) chiedere conferma esplicita; (c) prima di usarlo, verificare che le due fonti siano confrontabili. La verifica ha bocciato il primo tentativo perché al trimestre yfinance mancavano cinque voci — poi si è visto che tre di quelle (amortization, cash, other_non_operating_income_expenses) non sono lette da nessun calcolo, e il controllo è stato ristretto alle sole voci che alimentano davvero una metrica.",
+    "context": "SCADENZE (TTL) IN VIGORE, dal più corto al più lungo: frame yfinance in memoria 60 secondi (solo coalescing della richiesta in corso, non cache di dati); vista Fondamentali 30 minuti (cache in-process, contiene anche prezzo e market cap); OHLCV Defeatbeta 1 giorno; cache prezzi parquet 1 giorno; metadata ticker 2 giorni; calendario earnings 5 giorni; consensus EPS 7 giorni; earnings surprise 7 giorni; EPS trailing 7 giorni; P/E mediano di settore 7 giorni; snapshot Good Drawdown giornaliero (job dynamic_update) più bottone manuale; profilo/officers/split/dividendi 30 giorni; bilanci trimestrali Defeatbeta 45 giorni; specifica dataset Defeatbeta 45 giorni; bilanci annuali Defeatbeta 90 giorni; peer snapshot e registro peer qualitativi 90 giorni. Punteggio FQS: non scade, ma la confidence decade linearmente tra 120 e 365 giorni dalla data dei dati.\n\nNEGATIVE CACHING: consensus ed earnings surprise registrano il TENTATIVO di fetch, non solo il risultato (tabella corporate_event_source_cache). Senza questo, un ticker che Finnhub non copre — ogni listing europeo, molti nomi USA minori — genererebbe una chiamata di rete a ogni singola apertura di pagina, per sempre e senza possibilità di successo.\n\nISTRUTTORIA SUL SUPPLEMENTO (services/data_analysis/supplement_validation.py): quando l'utente chiede di usare un trimestre yfinance più recente, Tradash non lo accetta al buio. yfinance pubblica anche i trimestri che Defeatbeta ha già: su quelli sovrapposti si confrontano le due fonti voce per voce (scarto mediano oltre il 2% o segno invertito = discordanza), si verifica che il trimestre nuovo non perda voci consumate dai calcoli, e si controllano due identità contabili (attivo = passivo + patrimonio netto, margine lordo <= ricavi). Servono almeno 2 trimestri sovrapposti: sotto quella soglia l'esito è 'non verificabile' e il default è non procedere. Le voci che nessun modulo legge non bloccano (l'elenco di quelle lette è raccolto per introspezione dalle costanti ITEM_* dei moduli consumatori, così non esiste un registro parallelo che va alla deriva). Limite noto: una riclassificazione che yfinance applicasse solo al trimestre nuovo non è osservabile finché Defeatbeta non pubblica.\n\nPUNTI APERTI NOTI, da tenere presenti prima di modificare qualcosa: (1) l'Opportunity scanner chiama Finnhub una volta per ogni ticker scansionato (segnale Catalyst in scanner_service.calculate_catalyst) e non usa la cache a 7 giorni della pagina Ticker: una scansione su 500 titoli sono 500 chiamate; (2) lo stesso scanner calcola tutti e cinque i segnali anche quando il peso è zero, quindi si paga il fetch anche per un segnale inutilizzato; (3) la vista Fondamentali supplementata non viene messa in cache (verrebbe servita anche a chi non l'ha chiesta), quindi ogni lettura la ricalcola; (4) il FQS persiste il calcolo fatto col supplemento, mentre Fondamentali e Health lo ricalcolano ogni volta: la stessa scelta sopravvive in un posto e non negli altri due.\n\nBUG STORICI DA NON REINTRODURRE: yfinance a volte restituisce la barra del giorno corrente con Close a NaN (mercato aperto), che propagata diventa un prezzo di 0 dollari e un -100% nei grafici — filtrata alla fonte in services/market_data/yfinance_provider.py. Defeatbeta può restare indietro di un trimestre intero rispetto a yfinance sui bilanci: non è un malfunzionamento, è la cadenza della fonte, e si auto-risolve quando pubblica.\n\nDOVE VIVE IL CODICE: services/data_analysis/fundamentals_service.py (bilanci), fundamentals_freshness.py (rilevamento e integrazione del trimestre più recente), supplement_validation.py (istruttoria), analyst_estimates_service.py (consensus e surprise con TTL), ticker_metadata_service.py (metadata), services/market_data/ (prezzi e OHLCV), services/defeatbeta_ingestion/datasets.py (registro dei TTL per dataset), services/ticker_refresh_service.py (i due refresh manuali della pagina Ticker).",
+    "source_label": "Documentazione interna — architettura dati Tradash",
+    "related": [
+      "consensus-eps",
+      "earnings-revenue-history",
+      "debt-to-equity-history",
+      "fcf-vs-earnings",
+      "health-score"
+    ]
+  }
+]
