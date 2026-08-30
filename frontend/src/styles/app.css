@@ -9,6 +9,8 @@
  */
 @import "bootstrap/dist/css/bootstrap.min.css";
 @import "bootstrap-icons/font/bootstrap-icons.css";
+/* Dopo Bootstrap, perche' ne sovrascrive le variabili. */
+@import "./palette.css";
 
 /* I numeri incolonnati si leggono solo se le cifre hanno tutte la stessa
    larghezza: senza, una colonna di capitalizzazioni balla. */
