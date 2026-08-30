@@ -271,12 +271,29 @@ ricostruito da zero in 5 s dalla pagina; sette titoli aggiunti con gli scarti
 dichiarati; il giro completo prompt → JSON classificato → import, che ha creato
 dieci temi su due livelli e assegnato profilo e maturity a tutti e sette.*
 
-**Blocco 5 — Glossario.** Backend gia' pronto (copiato). Frontend in Svelte:
-rilevatore keyword, hover, pannello laterale, toggle globale persistito.
-**Requisito nuovo rispetto al vecchio:** la sottolineatura dev'essere
-**sistematica** — applicata dal componente di testo di default, non aggiunta a
-mano dove qualcuno si ricorda. Nel vecchio tradash solo 21 file su tutto il
-frontend usavano `GlossaryText`: copertura parziale che sembrava completa.
+**Blocco 5 — Glossario. FATTO il 2026-08-30, 119 test Python + 11 JavaScript.**
+Backend copiato (171 termini in `data/glossary.json`, curati a mano e mai
+riscritti dal programma). Frontend in Svelte: rilevatore keyword, pannello
+laterale, pagina di consultazione, interruttore globale ricordato.
+
+**Il requisito nuovo e' soddisfatto con un controllo, non con una regola
+scritta.** La sottolineatura passa dal componente `Testo`, e un test della
+suite legge i sorgenti del frontend: ogni componente o usa `Testo`, o compare
+nell'elenco delle eccezioni **col suo motivo**. Aggiungere una pagina nuova fa
+fallire la suite finche' qualcuno non sceglie fra le due cose — ed e' cio' che
+nel vecchio tradash mancava, dove usavano `GlossaryText` 21 file su tutto il
+frontend e la copertura parziale sembrava completa.
+
+Il rilevatore sta in `lib/rilevatore.js`, senza stato e senza Svelte — la
+stessa separazione che nel backend tiene `domain/` senza I/O — e ha undici test
+suoi: parole dentro altre parole, sigle, frasi lunghe che ne contengono di
+corte, e l'espressione regolare con stato che salta pezzi alla seconda chiamata.
+
+*Verifica passata dal vivo: 171 termini serviti, la lettura registrata con
+provenienza `local`, i rimandi di `roic` che puntano a termini esistenti.*
+*Difetto trovato nei dati copiati: cinque rimandi puntavano a termini mai
+scritti — `volatility`, `market_tailwind`, `sector_leadership`. Tolti, e i tre
+concetti restano da scrivere se li vuoi.*
 
 **Blocco 6 — Grafici.** `lightweight-charts` pilotato dai nodi indicatore.
 Pannelli, overlay, impostazioni per ticker.

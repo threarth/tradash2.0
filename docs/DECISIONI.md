@@ -464,6 +464,60 @@ profilo e maturity assegnati, zero perdite nel giro di andata e ritorno.
 
 ---
 
+## Il glossario (Blocco 5)
+
+**La sottolineatura e' sistematica perche' c'e' un controllo, non una regola.**
+Nel vecchio tradash il glossario funzionava, ma andava applicato a mano
+avvolgendo il testo in `GlossaryText`, e su tutto il frontend lo facevano **21
+file**. Il difetto non era la copertura parziale: era che *sembrava completa* —
+apri una pagina in cui i termini sono sottolineati e dai per scontato che lo
+siano ovunque.
+
+Qui la prosa passa da un componente `Testo`, e un test della suite legge i
+sorgenti del frontend: ogni componente o usa `Testo`, o sta nell'elenco delle
+eccezioni **col suo motivo**. Aggiungere una pagina fa fallire la suite finche'
+qualcuno non sceglie. Due test di contorno tengono onesto l'elenco: le
+eccezioni per file che non esistono piu' fanno fallire (una regola che si
+allenta senza che nessuno se ne accorga), e le tre "porte della prosa" —
+`Assente`, `Errore`, `Valore` — devono usare il glossario, perche' sono loro a
+rendere vere le eccezioni degli altri.
+
+**Il rilevatore e' logica pura, in un file suo.** Niente stato, niente Svelte,
+niente chiamate: la stessa separazione che nel backend tiene `domain/` senza
+I/O. Cosi' si e' potuto testarlo davvero, e i casi che ha richiesto dicono
+quanto era necessario: parole dentro altre parole (`RS` dentro `MARS`), frasi
+lunghe che ne contengono di corte (`Free Cash Flow` che non va spezzato in
+`Cash` e `Flow`), le sigle distinte dalle traduzioni fra parentesi, e
+l'espressione regolare con flag globale, il cui `lastIndex` mutabile fa saltare
+pezzi di testo alla seconda chiamata sullo stesso oggetto.
+
+E' costato una dipendenza nuova, `vitest` (387 M download/mese): il backend ha
+ruff e pytest a far rispettare le regole, il frontend non aveva niente.
+
+**Cinque rimandi puntavano a termini mai scritti.** Trovati dal test sui dati
+copiati: `volatility` (citato da bollinger, atr e rolling_beta),
+`market_tailwind` e `sector_leadership`. Un rimando rotto e' peggio di nessun
+rimando — promette e non mantiene. Sono stati tolti dal file invece di
+inventare tre definizioni in un glossario che e' curato a mano: **i tre
+concetti restano da scrivere**, e questa riga esiste per non dimenticarlo.
+
+---
+
+## Il battito della barra aveva un ritmo solo
+
+Trovato guardando il log del server dal vivo: la barra in alto chiedeva
+`/api/ops/active` **ogni tre secondi per sempre**, anche a schermo fermo. E'
+una lettura in memoria e non costa quasi niente, ma "il costo di una pagina non
+dipende da quanto a lungo resta aperta" e' la regola 2 alla lettera — e il
+vecchio sistema e' morto proprio cosi', con una scheda dimenticata che al
+riavvio del backend ha rilanciato 500 download.
+
+Adesso i ritmi sono due: due secondi mentre qualcosa gira, trenta quando non
+gira niente. La reattivita' resta dov'e' utile, e una scheda dimenticata smette
+di essere un costo.
+
+---
+
 ## Un test lasciava vivo il proprio thread
 
 Trovato dall'avviso di pytest su un'eccezione in un thread: il test delle route

@@ -27,6 +27,7 @@ cd frontend
 pnpm install
 pnpm build     # produce dist/, che Flask serve: un solo processo
 pnpm dev       # sviluppo con ricarica a caldo su :5173, /api va a Flask
+pnpm test      # i test della logica pura (rilevatore del glossario)
 ```
 
 In uso reale gira **solo Flask**: niente SvelteKit, quindi niente processo Node
@@ -85,10 +86,11 @@ puo' cancellare senza danno. Il file non e' in git: **il backup e' copiarlo.**
 | 2 — Universo derivato: 11.256 titoli, costruzione fermabile | **fatto** |
 | 3 — Watchlist e tag: verita' in un file, temi multipli, profilo e maturity | **fatto** |
 | 4 — Frontend, scheletro: Svelte 5 + Vite + Bootstrap CSS | **fatto** |
-| 5-9 | da fare |
+| 5 — Glossario: 171 termini, sottolineatura sistematica per costruzione | **fatto** |
+| 6-9 | da fare |
 
-108 test verdi in meno di due secondi, piu' 2 che escono davvero in rete e
-girano solo se richiesti.
+119 test Python in meno di due secondi (piu' 2 che escono davvero in rete e
+girano solo se richiesti) e 11 test JavaScript sul rilevatore del glossario.
 
 ## La regola che governa tutto
 
