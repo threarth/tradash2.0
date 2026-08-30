@@ -72,8 +72,8 @@ def test_correggere_il_file_a_mano_viene_raccolto(universo_finto):
 
     contenuto = json.loads(config.WATCHLIST_PATH.read_text(encoding="utf-8"))
     contenuto["titoli"].append(
-        {"symbol": "TSM", "tag": None, "preferito": True,
-         "aggiunto_il": "2026-08-29T00:00:00+00:00"}
+        {"symbol": "TSM", "tag": [], "profilo": None, "maturity": None,
+         "preferito": True, "aggiunto_il": "2026-08-29T00:00:00+00:00"}
     )
     config.WATCHLIST_PATH.write_text(json.dumps(contenuto), encoding="utf-8")
 
@@ -139,14 +139,24 @@ def test_niente_terzo_livello():
         watchlist.tag_crea("DRAM", padre=figlio["nome"])
 
 
-def test_un_titolo_ha_un_solo_tag(universo_finto):
-    """Assegnare un tag nuovo sostituisce il precedente, non si somma."""
+def test_un_titolo_puo_stare_in_piu_temi(universo_finto):
+    """La decisione del 30/08: AMD sta nei semiconduttori E nell'AI infra.
+
+    Col tag singolo del primo modello quella scelta andava fatta una volta e non
+    era recuperabile.
+    """
     primo = watchlist.tag_crea(AMBITO)
-    secondo = watchlist.tag_crea("Foundry")
+    secondo = watchlist.tag_crea("AI Infrastructure")
     watchlist.aggiungi("TSM", tag=primo["nome"])
 
-    watchlist.assegna_tag(["TSM"], secondo["nome"])
-    assert watchlist.elenco()[0]["tag"] == secondo["nome"]
+    watchlist.aggiungi_tag(["TSM"], secondo["nome"])
+
+    temi = [t["nome"] for t in watchlist.elenco()[0]["temi"]]
+    assert sorted(temi) == sorted([primo["nome"], secondo["nome"]])
+    assert [t["symbol"] for t in watchlist.elenco(tag=secondo["nome"])] == ["TSM"]
+
+    watchlist.togli_tag(["TSM"], primo["nome"])
+    assert [t["nome"] for t in watchlist.elenco()[0]["temi"]] == [secondo["nome"]]
 
 
 def test_eliminare_un_tag_libera_i_titoli_senza_cancellarli(universo_finto):
@@ -158,7 +168,7 @@ def test_eliminare_un_tag_libera_i_titoli_senza_cancellarli(universo_finto):
 
     assert esito["titoli_liberati"] == ["TSM"]
     rimasto = watchlist.elenco()[0]
-    assert rimasto["symbol"] == "TSM" and rimasto["tag"] is None
+    assert rimasto["symbol"] == "TSM" and rimasto["temi"] == []
 
 
 def test_eliminare_un_ambito_con_figli_richiede_la_cascata(universo_finto):
@@ -172,7 +182,7 @@ def test_eliminare_un_ambito_con_figli_richiede_la_cascata(universo_finto):
 
     esito = watchlist.tag_elimina(ambito["nome"], cascata=True)
     assert sorted(esito["eliminati"]) == [ambito["nome"], figlio["nome"]]
-    assert watchlist.elenco()[0]["tag"] is None
+    assert watchlist.elenco()[0]["temi"] == []
 
 
 def test_i_tag_si_sincronizzano_padri_prima_dei_figli(universo_finto):
@@ -295,3 +305,199 @@ def test_un_errore_d_uso_torna_come_400_non_come_guasto(client):
     risposta = client.get("/api/watchlist/da-aggiornare/inventata")
     assert risposta.status_code == 400
     assert "categoria sconosciuta" in risposta.get_json()["error"]
+
+
+# --- profilo, maturity e il giro import/export ------------------------------
+
+def test_profilo_e_maturity_si_impostano_per_titolo(universo_finto):
+    """Sono giudizi, e nascono vuoti: inventarli sarebbe peggio che lasciarli in bianco."""
+    watchlist.aggiungi("AAPL")
+    assert watchlist.elenco()[0]["profilo"] is None
+
+    watchlist.imposta_attributi("aapl", profilo="CORE", maturity="SCALED")
+
+    titolo = watchlist.elenco()[0]
+    assert titolo["profilo"] == "CORE"
+    assert titolo["maturity"] == "SCALED"
+
+
+def test_un_valore_fuori_elenco_non_entra(universo_finto):
+    """CHECK in tabella e controllo nel servizio: un valore inventato si ferma."""
+    watchlist.aggiungi("AAPL")
+
+    with pytest.raises(WatchlistError, match="profilo"):
+        watchlist.imposta_attributi("AAPL", profilo="FANTASTICO")
+    with pytest.raises(WatchlistError, match="maturity"):
+        watchlist.imposta_attributi("AAPL", maturity="QUASI")
+
+
+def test_impostare_un_attributo_non_azzera_gli_altri(universo_finto):
+    """Non passare un campo vuol dire 'lascialo com'e'', non 'svuotalo'."""
+    ambito = watchlist.tag_crea(AMBITO)
+    watchlist.aggiungi("MU", tag=ambito["nome"])
+    watchlist.imposta_attributi("MU", profilo="EMERGING", maturity="OPERATIONAL")
+
+    watchlist.imposta_attributi("MU", profilo="CORE")
+
+    titolo = watchlist.elenco()[0]
+    assert titolo["profilo"] == "CORE"
+    assert titolo["maturity"] == "OPERATIONAL", "non l'abbiamo toccata"
+    assert [t["nome"] for t in titolo["temi"]] == [ambito["nome"]]
+
+
+def test_si_filtra_per_profilo_e_maturity(universo_finto):
+    watchlist.aggiungi("AAPL, MU")
+    watchlist.imposta_attributi("AAPL", profilo="CORE", maturity="SCALED")
+    watchlist.imposta_attributi("MU", profilo="EMERGING", maturity="OPERATIONAL")
+
+    assert [t["symbol"] for t in watchlist.elenco(profilo="CORE")] == ["AAPL"]
+    assert [t["symbol"] for t in watchlist.elenco(maturity="OPERATIONAL")] == ["MU"]
+
+
+def test_esportare_e_reimportare_non_cambia_niente(universo_finto):
+    """Il giro completo: esci, torni, e la watchlist e' quella di prima."""
+    ambito = watchlist.tag_crea(AMBITO)
+    watchlist.aggiungi("AAPL, MU", tag=ambito["nome"])
+    watchlist.imposta_attributi("AAPL", profilo="CORE", maturity="SCALED")
+    prima = watchlist.esporta()
+
+    esito = watchlist.importa(prima)
+
+    assert esito["aggiunti"] == []
+    assert sorted(esito["aggiornati"]) == ["AAPL", "MU"]
+    assert watchlist.esporta()["titoli"] == prima["titoli"]
+
+
+def test_l_import_crea_i_temi_che_non_esistono(universo_finto):
+    """E' il punto di importare una classificazione: rifiutarla perche' i nomi
+    sono nuovi vorrebbe dire ricopiarli a mano prima di poterla usare."""
+    watchlist.aggiungi("MU")
+
+    esito = watchlist.importa({
+        "versione": config.WATCHLIST_FILE_VERSION,
+        "tag": [{"nome": "semiconductors", "etichetta": "Semiconductors", "padre": None}],
+        "titoli": [{"symbol": "MU", "tag": ["semiconductors.memory"],
+                    "profilo": "CORE", "maturity": "SCALED"}],
+    })
+
+    assert sorted(esito["tag_creati"]) == ["semiconductors", "semiconductors.memory"]
+    per_nome = {t["name"]: t for t in watchlist.tag_elenco()}
+    assert per_nome["semiconductors.memory"]["parent"] == "semiconductors"
+    assert per_nome["semiconductors.memory"]["label"] == "Memory", "etichetta dedotta dallo slug"
+
+
+def test_l_import_dichiara_chi_non_ha_potuto_accettare(universo_finto):
+    """Quattro esiti anche qui: aggiunti, aggiornati, scartati, sconosciuti."""
+    esito = watchlist.importa({"titoli": [
+        {"symbol": "AAPL", "tag": [], "profilo": "CORE", "maturity": "SCALED"},
+        {"symbol": "ZZQX", "tag": []},
+        {"symbol": "no@buono", "tag": []},
+        {"symbol": "MU", "profilo": "INVENTATO"},
+    ]})
+
+    assert esito["aggiunti"] == ["AAPL"] or "AAPL" in esito["aggiunti"]
+    assert esito["sconosciuti"] == ["ZZQX"]
+    assert esito["scartati"] == ["no@buono"]
+    assert esito["rifiutati"][0]["symbol"] == "MU"
+    assert "profilo" in esito["rifiutati"][0]["motivo"]
+
+
+def test_l_import_rifiuta_un_elenco_smisurato(universo_finto):
+    """Un incollaggio sbagliato non deve diventare una watchlist da diecimila righe."""
+    troppi = [{"symbol": f"AAA{i}"} for i in range(config.WATCHLIST_IMPORT_MAX + 1)]
+    with pytest.raises(WatchlistError, match="tetto"):
+        watchlist.importa({"titoli": troppi})
+
+
+def test_il_prompt_porta_con_se_valori_e_temi_esistenti(universo_finto):
+    """Senza, l'LLM inventa temi paralleli e l'import si riempie di doppioni."""
+    ambito = watchlist.tag_crea(AMBITO)
+    watchlist.aggiungi("MU", tag=ambito["nome"])
+
+    testo = watchlist.prompt_classificazione()
+
+    assert "MU" in testo
+    assert ambito["nome"] in testo
+    for valore in (*config.PROFILI, *config.MATURITY):
+        assert valore in testo
+    assert "{profili}" not in testo and "{titoli}" not in testo
+
+
+def test_il_prompt_su_una_watchlist_vuota_lo_dice():
+    with pytest.raises(WatchlistError, match="vuota"):
+        watchlist.prompt_classificazione()
+
+
+def test_un_file_della_versione_1_viene_convertito(universo_finto):
+    """La migrazione descritta in DECISIONI: Python su un dizionario, e testabile."""
+    config.WATCHLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
+    config.WATCHLIST_PATH.write_text(json.dumps({
+        "versione": 1,
+        "tag": [{"nome": "semi", "etichetta": "Semi", "padre": None, "ordine": 100}],
+        "titoli": [{"symbol": "MU", "tag": "semi", "preferito": True,
+                    "aggiunto_il": "2026-08-29T00:00:00+00:00"}],
+    }), encoding="utf-8")
+    watchlist._vista["impronta"] = None
+
+    titolo = watchlist.elenco()[0]
+
+    assert [t["nome"] for t in titolo["temi"]] == ["semi"]
+    assert titolo["profilo"] is None
+    assert titolo["favorite"] == 1
+
+
+def test_le_route_di_attributi_e_import(client, universo_finto):
+    client.post("/api/watchlist", json={"testo": "AAPL"})
+
+    modificato = client.patch("/api/watchlist/AAPL",
+                              json={"profilo": "CORE", "maturity": "SCALED"}).get_json()
+    assert modificato["data"]["profilo"] == "CORE"
+
+    assert client.patch("/api/watchlist/AAPL", json={"profilo": "BOH"}).status_code == 400
+
+    esportato = client.get("/api/watchlist/esporta").get_json()["data"]
+    assert esportato["titoli"][0]["profilo"] == "CORE"
+
+    prompt = client.get("/api/watchlist/prompt").get_json()["data"]
+    assert "AAPL" in prompt["prompt"]
+
+    reimportato = client.post("/api/watchlist/importa", json=esportato).get_json()
+    assert reimportato["data"]["aggiornati"] == ["AAPL"]
+
+    elenco = client.get("/api/watchlist?profilo=CORE").get_json()["data"]
+    assert len(elenco["titoli"]) == 1
+    assert elenco["profili"] == list(config.PROFILI)
+
+
+# --- Flask serve anche la SPA ----------------------------------------------
+
+def test_le_rotte_del_frontend_ricevono_la_pagina_iniziale(client, monkeypatch, tmp_path):
+    """Ricaricare /watchlist non e' un endpoint mancante: e' una rotta della SPA."""
+    (tmp_path / "index.html").write_text("<html>tradash</html>", encoding="utf-8")
+    monkeypatch.setattr(config, "FRONTEND_DIST", tmp_path)
+
+    for percorso in ("/", "/watchlist", "/operazioni"):
+        risposta = client.get(percorso)
+        assert risposta.status_code == 200, percorso
+        assert b"tradash" in risposta.data
+
+
+def test_senza_build_lo_dice_col_comando_da_lanciare(client, monkeypatch, tmp_path):
+    """Un 404 muto manderebbe a cercare un errore di rotte che non esiste."""
+    monkeypatch.setattr(config, "FRONTEND_DIST", tmp_path / "inesistente")
+
+    risposta = client.get("/")
+
+    assert risposta.status_code == 503
+    assert "pnpm build" in risposta.get_json()["error"]
+
+
+def test_un_endpoint_api_inesistente_resta_un_404(client, monkeypatch, tmp_path):
+    """La rotta generica della SPA non deve inghiottire le API."""
+    (tmp_path / "index.html").write_text("<html>tradash</html>", encoding="utf-8")
+    monkeypatch.setattr(config, "FRONTEND_DIST", tmp_path)
+
+    risposta = client.get("/api/inventata")
+
+    assert risposta.status_code == 404
+    assert "inesistente" in risposta.get_json()["error"]
