@@ -215,9 +215,14 @@ def _prepara(table: str, extra: str) -> str:
 TENTATIVI = 2
 
 
-def _uri_nella_query(sql: str) -> str | None:
-    """L'URL del parquet dentro la query: e' l'unica cosa fra apici che comincia per http."""
-    return next((p for p in sql.split("'") if p.startswith("http")), None)
+def _uri_nella_query(sql: str) -> list[str]:
+    """TUTTI gli URL di parquet dentro la query.
+
+    Tutti e non il primo: la derivazione dell'universo ne unisce cinque, e
+    svuotare la cache di uno solo — quello che capitava per primo nel testo —
+    lascerebbe intatto proprio il file rotto.
+    """
+    return [pezzo for pezzo in sql.split("'") if pezzo.startswith("http")]
 
 
 def _ricomincia_da_capo(sql: str) -> None:
@@ -233,17 +238,21 @@ def _ricomincia_da_capo(sql: str) -> None:
     cosa che noi, file per file, non sapremmo fare.
     """
     cliente = _stato.get("client")
-    uri = _uri_nella_query(sql)
+    indirizzi = _uri_nella_query(sql)
 
-    if cliente is not None and uri is not None:
-        try:
-            cliente.connection.execute(f"SELECT cache_httpfs_clear_cache_for_file('{uri}')")
-        except Exception:
-            logger.exception("[DEFEATBETA] non sono riuscito a svuotare la cache di %s", uri)
+    if cliente is not None:
+        for uri in indirizzi:
+            try:
+                cliente.connection.execute(f"SELECT cache_httpfs_clear_cache_for_file('{uri}')")
+            except Exception:
+                logger.exception("[DEFEATBETA] cache non svuotata per %s", uri)
 
     _stato["client"] = None
-    logger.warning("[DEFEATBETA] lettura fallita: butto cache e client e riprovo una volta. "
-                   "Succede quando il dataset si aggiorna mentre il processo e' acceso.")
+    logger.warning(
+        "[DEFEATBETA] lettura fallita: svuotata la cache di %d file e buttato il client, "
+        "riprovo una volta. Succede quando il dataset si aggiorna mentre il processo "
+        "e' acceso.", len(indirizzi),
+    )
 
 
 def _esegui(sql: str, parametri: list) -> tuple[pd.DataFrame, int]:
