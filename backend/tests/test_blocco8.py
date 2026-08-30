@@ -1462,3 +1462,31 @@ def test_le_citazioni_mancate_non_fanno_perdere_le_tre_fasi_pagate(
 def test_il_tetto_di_token_dipende_dalla_fase():
     """La fase delle citazioni deve produrre la risposta piu' lunga del sistema."""
     assert config.LLM_TOKEN_PER_FASE["qualitativa_fase4"] > config.LLM_TOKEN_MASSIMI
+
+
+def test_il_listino_si_puo_applicare_dopo(monkeypatch):
+    """Un modello nuovo si comincia a usare PRIMA di avere il suo listino, e
+    quelle chiamate restano a costo zero. I token pero' sono salvati: il costo
+    si recupera dopo, senza rifare una sola chiamata."""
+    _finto(monkeypatch, _Risposta("va bene", entrata=1_000_000, uscita=1_000_000))
+    llm.chiedi(fase="p", sistema="s", messaggio="m", modello="gpt-5.5")
+
+    assert llm.speso_totale()["costo_usd"] == 0.0
+
+    monkeypatch.setitem(config.LLM_PREZZI, "gpt-5.5",
+                        {"ingresso": 2.0, "uscita": 8.0})
+    esito = llm.ricalcola_costi()
+
+    assert esito["righe_aggiornate"] == 1
+    assert esito["modelli_ancora_senza_listino"] == []
+    assert llm.speso_totale()["costo_usd"] == 10.0
+    assert llm.speso_totale()["chiamate_senza_listino"] == 0
+
+
+def test_ricalcolare_due_volte_non_cambia_niente(monkeypatch):
+    """Il conto di cosa e' cambiato dev'essere vero, non «tutte»."""
+    monkeypatch.setattr(llm, "_client",
+                        lambda f: _ClienteFinto(_RispostaAnthropic("va bene")))
+    llm.chiedi(fase="p", sistema="s", messaggio="m", modello="claude-opus-5")
+
+    assert llm.ricalcola_costi()["righe_aggiornate"] == 0

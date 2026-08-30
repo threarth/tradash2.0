@@ -286,6 +286,41 @@ def chiedi(fase: str, sistema: str, messaggio: str, scope: str | None = None,
             "token": {"entrata": esito["entrata"], "uscita": esito["uscita"]}}
 
 
+def ricalcola_costi() -> dict:
+    """Riapplica il listino alle chiamate gia' registrate. Ritorna cosa e' cambiato.
+
+    Serve al caso normale, non a un caso strano: un modello nuovo si comincia a
+    usare **prima** di avere il suo listino, e le chiamate di quel periodo
+    restano registrate con costo zero. I token pero' sono salvati, quindi il
+    costo si puo' calcolare dopo — e senza rifare una sola chiamata.
+
+    Non tocca le righe il cui costo non cambia: cosi' il conto di cosa e'
+    cambiato e' vero, e non «tutte».
+    """
+    with db_read() as conn:
+        righe = [dict(r) for r in conn.execute(
+            "SELECT id, modello, token_entrata, token_uscita, costo_usd FROM llm_calls"
+        )]
+
+    aggiornate, ancora_ignote = [], set()
+    for riga in righe:
+        if riga["modello"] not in config.LLM_PREZZI:
+            ancora_ignote.add(riga["modello"])
+            continue
+        nuovo_costo = costo(riga["modello"], riga["token_entrata"], riga["token_uscita"])
+        if abs(nuovo_costo - (riga["costo_usd"] or 0.0)) > 1e-9:
+            aggiornate.append((nuovo_costo, riga["id"]))
+
+    if aggiornate:
+        with db_session() as conn:
+            conn.executemany("UPDATE llm_calls SET costo_usd = ? WHERE id = ?",
+                             aggiornate)
+
+    return {"righe_totali": len(righe), "righe_aggiornate": len(aggiornate),
+            "modelli_ancora_senza_listino": sorted(ancora_ignote),
+            "speso": speso_totale()}
+
+
 def speso_totale(run_id: str | None = None) -> dict:
     """Quanto si e' speso, in tutto o dentro un lavoro.
 
