@@ -435,8 +435,16 @@ reale sul DB:**
   (`get_earnings_surprise_history`, 114 chiamate Finnhub) sparisce con Finnhub.
   Ricostruito sulle **earnings call** — guidance dichiarata a voce, domande
   degli analisti — e' un prodotto diverso e migliore. Portato com'era, moriva.
-- `spin_off_analysis` resta nell'elenco ma con zero referti storici: e' il
-  candidato successivo a essere tolto se non lo usi.
+- `spin_off_analysis` **si salva, con le fonti riviste** (decisione del
+  30/08/2026). Le sue due fonti di allora sono fuori dal perimetro:
+  `stockanalysis.com/actions/spinoffs/` era un provider esterno raschiato in
+  HTML, e la conferma veniva da una ricerca su EDGAR. Al loro posto, cio' che
+  Defeatbeta sa: **780 notizie su 247 simboli** che nominano uno spin-off, col
+  corpo dell'articolo, piu' le earnings call dove il management lo annuncia.
+  Cambia natura — da **calendario validato** a **rilevatore di menzioni che le
+  legge** — e la differenza si dichiara in ogni referto: che si parli di uno
+  spin-off e' un fatto, che lo spin-off ci sia e' cio' che il modello deve
+  stabilire leggendo.
 
 Tre vincoli gia' pagati con giri veri, da non riscoprire:
 

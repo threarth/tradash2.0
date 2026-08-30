@@ -461,6 +461,27 @@ def sec_filings(symbol: str, run_id: str | None = None) -> Lettura:
     return _read(TABLE_SEC_FILING, symbol, extra="ORDER BY filing_date DESC", run_id=run_id)
 
 
+def news_che_nominano(symbol: str, parola: str,
+                      limit: int = config.DEFEATBETA_NEWS_LIMIT_DEFAULT,
+                      run_id: str | None = None) -> Lettura:
+    """Le notizie su un titolo che nominano una parola, dalla piu' recente.
+
+    Serve al rilevatore di spin-off: le notizie che ne parlano possono essere
+    vecchie di mesi, e `news()` porta solo le ultime per data. Cercare nel
+    TITOLO e non nel corpo e' una scelta di costo — il corpo e' un elenco di
+    paragrafi da scartare riga per riga su 1,1 GB — e una di precisione: un
+    articolo che nomina uno spin-off di passaggio nel decimo paragrafo non
+    parla di quello.
+    """
+    if not 1 <= limit <= config.DEFEATBETA_NEWS_LIMIT_MAX:
+        raise ValueError(
+            f"limit deve stare fra 1 e {config.DEFEATBETA_NEWS_LIMIT_MAX}, ricevuto {limit}"
+        )
+    return _read(TABLE_NEWS, symbol,
+                 extra="AND lower(title) LIKE ? ORDER BY report_date DESC LIMIT ?",
+                 extra_params=[f"%{parola.strip().lower()}%", limit], run_id=run_id)
+
+
 def transcripts(symbol: str, limit: int = config.TRASCRIZIONI_LETTE,
                 run_id: str | None = None) -> Lettura:
     """Le trascrizioni delle earnings call, dalla piu' recente.

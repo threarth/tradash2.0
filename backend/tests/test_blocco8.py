@@ -18,7 +18,7 @@ import config
 from core import llm
 from core.db import db_read
 from data import analisi, defeatbeta, filing_locali
-from domain import pannello, segnali, trascrizione
+from domain import pannello, segnali, spinoff, trascrizione
 
 TRIMESTRI = ["2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
              "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]
@@ -804,3 +804,90 @@ def test_l_earnings_legge_due_call_per_vedere_cosa_e_cambiato(monkeypatch):
 
     assert esito["contenuto"]["call"] == "2027 Q2"
     assert esito["contenuto"]["call_precedente"] == "2027 Q1"
+
+
+# --- il rilevatore di spin-off ---------------------------------------------
+
+def _notizia(titolo: str, quando: str = "2026-08-01", corpo=None) -> dict:
+    return {"title": titolo, "report_date": quando, "publisher": "Tale dei Tali",
+            "link": "https://x.example", "news": corpo}
+
+
+def test_lo_stadio_si_deduce_dal_titolo_e_puo_non_dedursi():
+    """"non determinabile" e' diverso da "annunciato": confonderli farebbe
+    contare come annuncio un commento."""
+    assert spinoff.stadio("IDT Delays net2phone Spin-Off Until Markets Improve") == "rinviato"
+    assert spinoff.stadio("Comcast announces plans to spin off NBCUniversal") == "annunciato"
+    assert spinoff.stadio("GE Vernova completes its spin-off") == "completato"
+    assert spinoff.stadio("Corteva's Vylor Spin-Off Seen as Catalyst") == \
+        spinoff.STADIO_IGNOTO
+
+
+def test_il_completamento_vince_sull_annuncio():
+    """Un articolo che racconta il completamento nomina spesso anche l'annuncio."""
+    assert spinoff.stadio("Company completes the spin-off it announced last year") == \
+        "completato"
+
+
+def test_scarta_le_notizie_che_parlano_di_un_altra_societa():
+    """Misurato: NVDA aveva dodici menzioni, e parlavano di Comcast e Honeywell —
+    rassegne di mercato associate al simbolo ma su altre societa'."""
+    righe = [
+        _notizia("There Are Now 4 Honeywell Stocks After This Latest Spin-Off"),
+        _notizia("Nvidia's chip unit spin-off is confirmed"),
+    ]
+
+    trovate = spinoff.menzioni_nelle_notizie(righe, "NVDA", "NVIDIA Corporation")
+
+    assert [m["titolo"] for m in trovate] == ["Nvidia's chip unit spin-off is confirmed"]
+
+
+def test_riconosce_la_societa_dal_simbolo_o_dal_nome():
+    assert spinoff.riguarda_il_titolo("IDT Delays Spin-Off", "IDT", "IDT Corporation")
+    assert spinoff.riguarda_il_titolo("Corteva's Vylor Spin-Off", "CTVA", "Corteva, Inc.")
+    assert not spinoff.riguarda_il_titolo("Honeywell Spin-Off", "CTVA", "Corteva, Inc.")
+
+
+def test_le_forme_giuridiche_non_contano_come_nome():
+    """"Corporation" comparirebbe in mezzo mercato, e riconoscerebbe chiunque."""
+    assert not spinoff.riguarda_il_titolo("Some Corporation Spin-Off", "AAA",
+                                          "IDT Corporation")
+
+
+def test_senza_nome_noto_non_si_filtra_ma_lo_si_dichiara():
+    """L'8,6% dell'universo non ha un nome: un silenzio sarebbe peggio."""
+    trovate = spinoff.menzioni_nelle_notizie([_notizia("Some Spin-Off news")], "", None)
+
+    assert len(trovate) == 1
+    assert trovate[0]["riguarda_il_titolo"] is None
+
+
+def test_dalla_call_si_distingue_chi_parla():
+    """Il management che lo annuncia e un analista che lo chiede non sono la
+    stessa cosa: il primo e' una dichiarazione, il secondo una preoccupazione."""
+    struttura = {
+        "preparata": [{"chi": "CFO", "testo": "We plan a spin-off of our unit."}],
+        "scambi": [{"analista": "Tizio", "domanda": "Any update on the spinoff?",
+                    "risposte": [{"chi": "CEO", "testo": "It is on track."}]}],
+    }
+
+    menzioni = spinoff.menzioni_nella_call(struttura)
+
+    assert [m["dove"] for m in menzioni] == ["parte preparata", "domanda di un analista"]
+    assert menzioni[0]["chi"] == "CFO"
+
+
+def test_senza_menzioni_non_si_chiede_niente_al_modello(monkeypatch):
+    """Un modello a cui si chiede di analizzare il vuoto produce comunque una
+    risposta, e quella risposta sembra un'analisi."""
+    monkeypatch.setattr(analisi, "_menzioni_notizie", lambda s, r: [])
+    monkeypatch.setattr(analisi, "_menzioni_call", lambda s, r: [])
+    chiamato = {"si": False}
+    monkeypatch.setattr(llm, "chiedi", lambda **k: chiamato.__setitem__("si", True))
+
+    esito = analisi._spin_off("AAA", None)
+
+    assert chiamato["si"] is False
+    assert esito["costo_usd"] == 0.0
+    assert esito["contenuto"]["c_e_uno_spinoff"] == "no"
+    assert esito["contenuto"]["dati_mancanti"], "dice anche cosa NON puo' sapere"

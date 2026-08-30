@@ -29,7 +29,7 @@ from core import llm, registry
 from core.db import db_read, db_session
 from core.tipi import python_puro
 from data import defeatbeta
-from domain import pannello, prospetti, scansione, segnali, trascrizione
+from domain import pannello, prospetti, scansione, segnali, spinoff, trascrizione
 
 logger = logging.getLogger(__name__)
 
@@ -81,11 +81,12 @@ METODI = {
                  "e domande degli analisti",
     },
     "spin_off": {
-        "nome": "Analisi spin-off",
-        "natura": "modello",
-        "pronta": False,
-        "fonte": "documenti societari",
-        "manca": "tutto: zero referti storici, e' il candidato a essere tolto",
+        "nome": "Rilevatore di spin-off",
+        "natura": "rilevatore di menzioni + lettura del modello",
+        "pronta": True,
+        "fonte": "le notizie che ne parlano e le earnings call, da Defeatbeta. "
+                 "NON e' un calendario: le fonti che lo erano — stockanalysis.com "
+                 "e la ricerca su EDGAR — sono fuori dal perimetro",
     },
     "verdetto": {
         "nome": "Verdetto finale",
@@ -381,8 +382,106 @@ def _earnings(simbolo: str, run_id: str | None) -> dict:
             "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
 
 
+# --- il rilevatore di spin-off ---------------------------------------------
+
+# Quante notizie si scorrono cercando le menzioni. Il filtro e' gia' sul titolo:
+# questo e' il tetto di quante ne tornano.
+NOTIZIE_SPINOFF = 30
+
+
+def _nome_societa(simbolo: str) -> str | None:
+    """Il nome della societa', dall'universo che lo ha gia' derivato."""
+    with db_read() as conn:
+        riga = conn.execute("SELECT name FROM universe WHERE symbol = ?",
+                            (simbolo.strip().upper(),)).fetchone()
+    return riga["name"] if riga else None
+
+
+def _menzioni_notizie(simbolo: str, run_id: str | None) -> list[dict]:
+    """Le menzioni di spin-off DI QUESTA societa'. Elenco vuoto se non ce ne sono."""
+    trovate: list[dict] = []
+    viste: set[str] = set()
+    nome = _nome_societa(simbolo)
+
+    for parola in spinoff.PAROLE:
+        lettura = defeatbeta.news_che_nominano(simbolo, parola, limit=NOTIZIE_SPINOFF,
+                                               run_id=run_id)
+        if not lettura.available:
+            continue
+        righe = [{c: r[c] for c in lettura.frame.columns} for _, r in lettura.frame.iterrows()]
+        for menzione in spinoff.menzioni_nelle_notizie(righe, simbolo, nome):
+            # Le tre parole trovano spesso gli stessi articoli: si tiene il
+            # titolo una volta sola.
+            if menzione["titolo"] not in viste:
+                viste.add(menzione["titolo"])
+                trovate.append(menzione)
+
+    return sorted(trovate, key=lambda m: m["quando"], reverse=True)
+
+
+def _menzioni_call(simbolo: str, run_id: str | None) -> list[dict]:
+    """Dove, nelle ultime call, si parla di spin-off."""
+    try:
+        lettura = defeatbeta.transcripts(simbolo, run_id=run_id)
+    except defeatbeta.DefeatbetaUnavailable:
+        return []
+    if not lettura.available:
+        return []
+
+    trovate = []
+    for _, riga in lettura.frame.iterrows():
+        struttura = trascrizione.struttura(riga["transcripts"])
+        for menzione in spinoff.menzioni_nella_call(struttura):
+            trovate.append({"call": f"{riga['fiscal_year']} "
+                                    f"Q{python_puro(riga['fiscal_quarter'])}", **menzione})
+    return trovate
+
+
+def _spin_off(simbolo: str, run_id: str | None) -> dict:
+    """Cerca le menzioni, poi le fa leggere. Se non ce ne sono, non chiede niente.
+
+    Non chiamare il modello quando non c'e' niente da leggere non e' solo
+    risparmio: un modello a cui si chiede di analizzare il vuoto produce
+    comunque una risposta, e quella risposta sembra un'analisi.
+    """
+    notizie = _menzioni_notizie(simbolo, run_id)
+    call = _menzioni_call(simbolo, run_id)
+
+    if not notizie and not call:
+        return {"contenuto": {
+            "c_e_uno_spinoff": "no",
+            "lettura": f"Nessuna menzione di spin-off per {simbolo} nelle notizie "
+                       f"di Defeatbeta ne' nelle ultime earnings call.",
+            "menzioni_trovate": 0,
+            "dati_mancanti": ["il sistema legge le menzioni, non un calendario di "
+                              "spin-off: un'operazione di cui non si e' ancora "
+                              "parlato non risulterebbe"],
+            "confidenza": "bassa",
+        }, "modello": None, "costo_usd": 0.0}
+
+    sistema = _prompt("analisi_spinoff")
+    messaggio = (
+        f"Titolo: {_contesto(simbolo, run_id)}\n\n"
+        f"## Menzioni nelle notizie ({len(notizie)})\n"
+        f"{json.dumps(notizie, indent=2, ensure_ascii=False)}\n\n"
+        f"## Menzioni nelle earnings call ({len(call)})\n"
+        f"{json.dumps(call, indent=2, ensure_ascii=False) if call else 'nessuna'}"
+    )
+
+    risposta = llm.chiedi(fase="analisi_spinoff", sistema=sistema, messaggio=messaggio,
+                          scope=simbolo, run_id=run_id)
+    if risposta["rifiutata"]:
+        raise AnalisiError("il modello ha rifiutato di rispondere")
+
+    return {"contenuto": {**_leggi_json(risposta["testo"]),
+                          "menzioni_trovate": len(notizie) + len(call),
+                          "menzioni_notizie": notizie,
+                          "menzioni_call": call},
+            "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
+
+
 ESECUTORI = {"tecnica": _tecnica, "fondamentale": _fondamentale,
-             "earnings": _earnings}
+             "earnings": _earnings, "spin_off": _spin_off}
 
 
 # --- eseguire e conservare --------------------------------------------------
