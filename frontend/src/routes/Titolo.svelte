@@ -15,6 +15,7 @@
     import Documenti from "../components/Documenti.svelte";
     import Fondamentali from "../components/Fondamentali.svelte";
     import Grafico from "../components/Grafico.svelte";
+    import Segnali from "../components/Segnali.svelte";
     import Testo from "../components/Testo.svelte";
     import Valore from "../components/Valore.svelte";
     import { api } from "../lib/api.js";
@@ -96,6 +97,13 @@
                 {grafico.dato.barre.length} sedute · dati arrivati da {grafico.dato.source}
             </p>
         {/if}
+
+        <hr class="my-4" />
+        <h2 class="h6">Segnali di rischio fondamentale</h2>
+        <p class="small text-secondary">
+            Deterministici: calcolati dai bilanci, senza modelli linguistici.
+        </p>
+        <Segnali {simbolo} />
 
         <hr class="my-4" />
         <h2 class="h6">Fondamentali</h2>

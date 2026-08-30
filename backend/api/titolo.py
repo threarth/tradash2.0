@@ -20,7 +20,7 @@ from api import HTTP_NOT_FOUND, fail, ok
 from core.tipi import python_puro
 from data import defeatbeta, depositi, grafici
 from data.grafici import GraficiError
-from domain import indicators, prospetti, publication_dates
+from domain import indicators, prospetti, publication_dates, segnali
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,8 @@ bp = Blueprint("titolo", __name__, url_prefix="/api/titolo")
 # Le sezioni promesse dal PIANO e non ancora costruite. Dichiararle qui e' il
 # modo di non farle sparire: la pagina le mostra vuote, col blocco che le porta.
 SEZIONI_FUTURE = {
-    "analisi": {"blocco": 8, "cosa": "le sette analisi, ognuna nella sua sezione"},
+    "analisi_llm": {"blocco": 8, "cosa": "le analisi che richiedono un modello "
+                                         "linguistico, da verificare dal vivo"},
 }
 
 ACTION_SEZIONE_FUTURA = "questa sezione arriva con il blocco {blocco} del piano"
@@ -288,3 +289,42 @@ def news(simbolo: str):
 
     return ok({"symbol": simbolo.strip().upper(), "available": True, "as_of": quando,
                "notizie": notizie, "source": lettura.source})
+
+
+@bp.get("/<simbolo>/segnali")
+def segnali_fondamentali(simbolo: str):
+    """I cinque segnali di rischio fondamentale, calcolati dai bilanci.
+
+    Deterministici: nessun modello linguistico, nessuna opinione. Ogni segnale
+    porta le misure su cui poggia, e la copertura dice quanti si sono potuti
+    calcolare — tre spenti su cinque calcolabili non sono la stessa cosa di tre
+    spenti su cinque quando gli altri due erano ignoti.
+
+    Con `as_of` si ricostruiscono sui soli bilanci che a quella data erano gia'
+    stati depositati, come i fondamentali.
+    """
+    quando, errore = _as_of(request.args.get("as_of"))
+    if errore:
+        return fail(errore)
+
+    lettura = defeatbeta.statements(simbolo)
+    if not lettura.available:
+        return fail(lettura.reason, HTTP_NOT_FOUND)
+
+    mappa_depositi = depositi.mappa(simbolo)
+    tutti = prospetti.periodi(lettura.frame)
+    visibili = _periodi_visibili(mappa_depositi, tutti, quando, trimestrale=True)
+
+    tabelle = {
+        nome: prospetti.tabella(lettura.frame, nome, prospetti.TRIMESTRALE, visibili)
+        for nome in prospetti.PROSPETTI
+    }
+
+    return ok({
+        "symbol": simbolo.strip().upper(), "as_of": quando,
+        **segnali.tutti(tabelle),
+        "base_del_taglio": publication_dates.truncation_basis(
+            mappa_depositi, visibili if visibili is not None else tutti, True
+        ) if quando else None,
+        "source": lettura.source,
+    })

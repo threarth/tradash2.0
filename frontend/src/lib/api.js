@@ -102,6 +102,8 @@ export const api = {
         chiama(`/titolo/${encodeURIComponent(simbolo)}/filings${query({ as_of: asOf })}`),
     news: (simbolo, asOf) =>
         chiama(`/titolo/${encodeURIComponent(simbolo)}/news${query({ as_of: asOf })}`),
+    segnali: (simbolo, asOf) =>
+        chiama(`/titolo/${encodeURIComponent(simbolo)}/segnali${query({ as_of: asOf })}`),
     titoloGrafico: (simbolo) => chiama(`/titolo/${encodeURIComponent(simbolo)}/grafico`),
     titoloSalvaGrafico: (simbolo, configurazione) =>
         chiama(`/titolo/${encodeURIComponent(simbolo)}/grafico`,

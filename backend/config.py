@@ -129,6 +129,44 @@ UNIVERSE_AVG_VOLUME_SESSIONS = 30
 UNIVERSE_PAGE_LIMIT_DEFAULT = 100
 UNIVERSE_PAGE_LIMIT_MAX = 2000
 
+# --- Segnali fondamentali (Blocco 8) ---------------------------------------
+#
+# Le soglie vengono dal vecchio tradash, dove erano gia' state tarate girando:
+# non sono numeri inventati qui. Stanno in config e non nel codice perche' un
+# giudizio che cambia al cambiare di una soglia deve poter dire QUALE soglia.
+
+# F1 — margini. Quanti punti percentuali di calo, sulla mediana degli ultimi
+# trimestri contro quella dei precedenti, fanno scattare il segnale.
+F1_CALO_MARGINE_PP_ACCESO = 2.0
+F1_CALO_MARGINE_PP_ATTENZIONE = 1.0
+F1_TRIMESTRI_MINIMI = 6
+
+# F2 — crescita. Trimestri consecutivi di ricavi in calo, e quanto deve
+# rallentare la crescita perche' sia una decelerazione e non rumore.
+F2_TRIMESTRI_DI_CALO = 2
+F2_DECELERAZIONE_ACCESA = 0.50
+F2_DECELERAZIONE_ATTENZIONE = 0.30
+
+# F3 — leva. Un debito netto oltre 3,5 volte l'EBITDA, o una copertura degli
+# interessi sotto 3, sono fatti — non opinioni sul tipo di business.
+F3_DEBITO_SU_EBITDA_ACCESO = 3.5
+F3_COPERTURA_INTERESSI_ACCESA = 3.0
+
+# F4 — liquidita'. Trimestri di autonomia della cassa al ritmo di consumo
+# attuale. Sotto quattro e' un anno di vita.
+F4_AUTONOMIA_TRIMESTRI_ACCESA = 4.0
+F4_AUTONOMIA_TRIMESTRI_ATTENZIONE = 8.0
+
+# F5 — diluizione. Crescita annua del numero di azioni.
+#
+# NOTA: il vecchio sistema aveva QUATTRO coppie di soglie, una per tipo di
+# azienda — a una societa' in fase speculativa si concede una diluizione che a
+# una matura non si concede. Il classificatore che sceglieva la coppia non e'
+# ancora portato: qui c'e' una coppia sola, ed e' una semplificazione
+# dichiarata, non una svista.
+F5_DILUIZIONE_ACCESA = 0.08
+F5_DILUIZIONE_ATTENZIONE = 0.05
+
 # --- Scanner ---------------------------------------------------------------
 
 # Quanti titoli al massimo esamina una scansione. L'universo ne ha 11.256, e
