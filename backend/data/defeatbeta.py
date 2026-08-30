@@ -210,23 +210,40 @@ def _prepara(table: str, extra: str) -> str:
     return f"SELECT * FROM '{_table_uri(table)}' WHERE symbol = ? {extra}".strip()
 
 
-# Come si presenta una cache di byte disallineata. Misurato il 30/08/2026: il
-# dataset si aggiorna di notte, e un processo acceso da prima continua a tenere
-# pezzi della versione vecchia — mescolati ai nuovi danno un parquet illeggibile.
-SEGNI_DI_CACHE_GUASTA = ("don't know what type", "Invalid Input Error",
-                         "Corrupt", "magic bytes")
-
-
-def _cache_guasta(errore: Exception) -> bool:
-    """L'errore ha la forma di byte disallineati, non di una query sbagliata."""
-    testo = str(errore)
-    return any(segno in testo for segno in SEGNI_DI_CACHE_GUASTA)
+# Quante volte si riprova una lettura fallita. Una: riprovare all'infinito
+# nasconderebbe un guasto vero dietro a un ritardo.
+TENTATIVI = 2
 
 
 def _uri_nella_query(sql: str) -> str | None:
-    """L'URL del parquet dentro la query: e' l'unica cosa fra apici singoli."""
-    pezzi = sql.split("'")
-    return next((p for p in pezzi if p.startswith("http")), None)
+    """L'URL del parquet dentro la query: e' l'unica cosa fra apici che comincia per http."""
+    return next((p for p in sql.split("'") if p.startswith("http")), None)
+
+
+def _ricomincia_da_capo(sql: str) -> None:
+    """Butta via la cache del file e il client, poi lascia che si ricostruisca.
+
+    Il dataset si aggiorna ogni notte. `cache_httpfs` tiene i byte gia'
+    scaricati, e la libreria confronta `spec.json` con la cache **solo quando
+    costruisce il client**: un processo acceso da prima dell'aggiornamento non
+    ripete quel controllo mai piu' e continua a mescolare byte di due versioni.
+
+    Buttare il client e' la mossa giusta perche' ricostruirlo fa rifare alla
+    libreria il SUO controllo, che sa svuotare tutta la cache quando serve —
+    cosa che noi, file per file, non sapremmo fare.
+    """
+    cliente = _stato.get("client")
+    uri = _uri_nella_query(sql)
+
+    if cliente is not None and uri is not None:
+        try:
+            cliente.connection.execute(f"SELECT cache_httpfs_clear_cache_for_file('{uri}')")
+        except Exception:
+            logger.exception("[DEFEATBETA] non sono riuscito a svuotare la cache di %s", uri)
+
+    _stato["client"] = None
+    logger.warning("[DEFEATBETA] lettura fallita: butto cache e client e riprovo una volta. "
+                   "Succede quando il dataset si aggiorna mentre il processo e' acceso.")
 
 
 def _esegui(sql: str, parametri: list) -> tuple[pd.DataFrame, int]:
@@ -236,44 +253,36 @@ def _esegui(sql: str, parametri: list) -> tuple[pd.DataFrame, int]:
     tirare a indovinare: un percorso che non sa dichiarare la propria
     provenienza non deve poter leggere dati (regola 1).
 
-    **Un solo secondo tentativo, e solo per la cache disallineata.** Il dataset
-    si aggiorna ogni notte; la libreria confronta `spec.json` con la cache
-    quando costruisce il client, e un processo acceso da prima
-    dell'aggiornamento non ripete quel controllo mai piu'. Il risultato,
-    misurato: `don't know what type:` su una tabella che il giorno prima si
-    leggeva. Si svuota la cache di QUEL file e si riprova una volta sola —
-    riprovare all'infinito nasconderebbe un guasto vero.
+    **Un secondo tentativo, e uno solo.** Il dataset si aggiorna ogni notte e la
+    libreria confronta `spec.json` con la cache solo quando costruisce il
+    client: un processo acceso da prima dell'aggiornamento continua a mescolare
+    byte di due versioni. Misurato due volte in un giorno, con due errori
+    diversi. Al primo fallimento si butta via cache e client e si riprova; al
+    secondo si passa l'errore a chi ha chiamato, perche' e' un guasto vero.
     """
-    cursore = _ensure_client().connection.cursor()
-    _stato["cursore_attivo"] = cursore
-    try:
-        cursore.execute(SQL_TRUNCATE_LOG)
+    for tentativo in range(TENTATIVI):
+        cursore = _ensure_client().connection.cursor()
+        _stato["cursore_attivo"] = cursore
         try:
+            cursore.execute(SQL_TRUNCATE_LOG)
             frame = cursore.execute(sql, parametri).df()
-        except Exception as exc:
-            if not _cache_guasta(exc):
+            richieste = cursore.execute(SQL_COUNT_HTTP).fetchone()[0]
+            return frame, int(richieste)
+        except Exception:
+            # Non si guarda il TESTO dell'errore. Il primo tentativo di
+            # riconoscere una cache guasta lo faceva, e ha mancato la seconda
+            # forma che si e' presentata il giorno dopo — `TProtocolException`
+            # invece di `don't know what type`. Una query ben scritta non
+            # fallisce: se fallisce, si ricomincia da capo una volta e, se
+            # fallisce ancora, e' un guasto vero e passa a chi ha chiamato.
+            if tentativo == TENTATIVI - 1:
                 raise
-            frame = _riprova_senza_cache(cursore, sql, parametri, exc)
-        richieste = cursore.execute(SQL_COUNT_HTTP).fetchone()[0]
-        return frame, int(richieste)
-    finally:
-        _stato["cursore_attivo"] = None
-        cursore.close()
+            _ricomincia_da_capo(sql)
+        finally:
+            _stato["cursore_attivo"] = None
+            cursore.close()
 
-
-def _riprova_senza_cache(cursore, sql: str, parametri: list, errore: Exception):
-    """Svuota la cache del file coinvolto e riprova. Una volta sola."""
-    uri = _uri_nella_query(sql)
-    if uri is None:
-        raise errore
-
-    logger.warning(
-        "[DEFEATBETA] byte disallineati su %s (%s): svuoto la sua cache e riprovo. "
-        "Succede quando il dataset si aggiorna mentre il processo e' acceso.",
-        uri.rsplit("/", maxsplit=1)[-1], errore,
-    )
-    cursore.execute(f"SELECT cache_httpfs_clear_cache_for_file('{uri}')")
-    return cursore.execute(sql, parametri).df()
+    raise DefeatbetaUnavailable("lettura non riuscita dopo il secondo tentativo")
 
 
 def interrupt() -> bool:

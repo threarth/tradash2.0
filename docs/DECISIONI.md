@@ -593,13 +593,28 @@ un parquet illeggibile. La libreria un controllo ce l'ha — confronta
 client**: un server lasciato acceso attraversa l'aggiornamento e non lo ripete
 mai piu'.
 
-La difesa: un errore con la forma dei byte disallineati fa svuotare la cache di
-QUEL file e riprovare, **una volta sola**. Riprovare all'infinito nasconderebbe
-un guasto vero.
+**La prima difesa era debole, e si e' vista cadere dopo mezz'ora.** Riconosceva
+la cache guasta dal TESTO dell'errore, con un elenco di frasi ricavato da un
+solo campione. La lettura successiva si e' rotta con una forma diversa —
+`TProtocolException: Invalid data` invece di `don't know what type` — e ha
+attraversato il controllo indisturbata, mandando in 500 la scheda del titolo.
 
-E resta scritto il caso peggiore, quello che non abbiamo visto: una cache
-disallineata potrebbe restituire dati SBAGLIATI invece di un errore. Qui e'
-andata bene perche' il parquet si e' rotto rumorosamente.
+La difesa vera non guarda il testo: **una query ben scritta non fallisce.** Se
+fallisce, si butta via la cache di quel file *e il client*, e si riprova una
+volta sola; se fallisce ancora, e' un guasto vero e passa a chi ha chiamato.
+Buttare il client e' la mossa che conta, perche' ricostruirlo fa rifare alla
+libreria il SUO confronto con `spec.json`, che sa svuotare tutta la cache —
+cosa che noi, file per file, non sapremmo fare.
+
+**Quanto e' grave, misurato.** Avevo scritto che una cache disallineata
+"potrebbe restituire dati sbagliati invece di un errore". Non e' vero, o almeno
+non e' cio' che succede: alterando 200 byte dentro un pezzo di cache gia'
+scaricato, DuckDB si rifiuta di leggere il file
+(`Invalid Input Error: Failed to read file`). Parquet ha struttura e checksum
+sufficienti perche' il guasto sia rumoroso.
+
+Quindi: e' un difetto vero — ha rotto l'applicazione due volte in una sessione —
+ma **della specie rumorosa**, non di quella che falsa i numeri in silenzio.
 
 ---
 
