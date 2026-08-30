@@ -11,11 +11,15 @@ muove di piu', e il risultato non e' un'eccezione — e' un backtest bravissimo.
 Per questo i test qui sotto non guardano solo il risultato: guardano se il
 risultato sa dire su cosa poggia.
 """
+from datetime import date, timedelta
+
 import pandas as pd
+import pytest
 
 import config
-from data import defeatbeta, depositi
-from domain import prospetti, publication_dates
+from data import defeatbeta, depositi, materiale
+from data import ricostruzione as ricostruzione_dati
+from domain import prospetti, publication_dates, ricostruzione
 
 # Una mappa di depositi come la costruisce `data/depositi.py`: fine periodo →
 # (data di deposito, fonte).
@@ -196,3 +200,151 @@ def test_ricostruire_a_una_data_riduce_i_periodi(client, monkeypatch):
 
     assert d["periodi_visibili"] == 1, "il trimestre di giugno era depositato ad agosto"
     assert d["prospetti"][prospetti.CONTO_ECONOMICO]["periodi"] == ["2024-03-31"]
+
+
+# --- la ricostruzione a una data passata ------------------------------------
+#
+# Il valore di questa pagina sta in una condizione sola: cio' che mostra come
+# "quello che si sapeva" deve essere davvero quello che si sapeva. Bastano due
+# sedute di troppo nel taglio perche' il confronto diventi la dimostrazione che
+# il metodo funziona — e sarebbe una dimostrazione falsa.
+
+def _serie(prima_data: str, quante: int, prezzo_iniziale: float = 100.0) -> list[dict]:
+    """Sedute consecutive di calendario, una al giorno, in salita di un punto."""
+    inizio = date.fromisoformat(prima_data)
+    return [{"data": (inizio + timedelta(days=i)).isoformat(),
+             "close": prezzo_iniziale + i, "volume": 1_000_000.0}
+            for i in range(quante)]
+
+
+def test_il_taglio_dei_prezzi_include_la_data_scelta_e_non_una_seduta_di_piu():
+    barre = _serie("2026-01-01", 10)
+
+    prima, dopo = ricostruzione.dividi(barre, "2026-01-05")
+
+    assert [b["data"] for b in prima] == [f"2026-01-0{i}" for i in range(1, 6)]
+    assert dopo[0]["data"] == "2026-01-06"
+    assert len(prima) + len(dopo) == len(barre), "nessuna seduta si perde per strada"
+
+
+def test_un_orizzonte_non_ancora_maturato_vale_none_e_non_zero():
+    """«Non si sa ancora» e «non si e' mosso» sono letture opposte."""
+    barre = _serie("2026-01-01", 40)
+    prima, dopo = ricostruzione.dividi(barre, "2026-01-01")
+
+    esito = ricostruzione.cosa_e_successo(prima[-1]["close"], dopo, "2026-01-01")
+
+    assert esito["rendimenti"]["30g"] is not None
+    assert esito["rendimenti"]["90g"] is None
+    assert esito["rendimenti"]["365g"] is None
+
+
+def test_una_seduta_troppo_lontana_non_risponde_alla_domanda_fatta():
+    """Il prezzo di tre mesi dopo non e' il prezzo di un anno dopo."""
+    barre = _serie("2026-01-01", 100)
+    prima, dopo = ricostruzione.dividi(barre, "2026-01-01")
+
+    esito = ricostruzione.cosa_e_successo(prima[-1]["close"], dopo, "2026-01-01")
+
+    assert esito["rendimenti"]["90g"] is not None, "c'e' una seduta a 90 giorni"
+    assert esito["rendimenti"]["180g"] is None, "la piu' vicina dista 8 giorni di troppo"
+
+
+def test_gli_orizzonti_maturati_non_contraddicono_i_rendimenti():
+    """Il difetto visto dal vivo su NVDA: l'ultimo prezzo distava 364 giorni, il
+    rendimento a un anno veniva calcolato e l'orizzonte risultava non maturato.
+    Due campi della stessa risposta che si contraddicono."""
+    barre = _serie("2025-08-29", 365)
+    prima, dopo = ricostruzione.dividi(barre, "2025-08-29")
+
+    esito = ricostruzione.cosa_e_successo(prima[-1]["close"], dopo, "2025-08-29")
+    maturati = ricostruzione.orizzonti_maturati("2025-08-29", barre[-1]["data"])
+
+    assert "365g" in maturati
+    for orizzonte in maturati:
+        assert esito["rendimenti"][orizzonte] is not None, (
+            f"{orizzonte} risulta maturato ma non ha un numero")
+
+
+def test_senza_sedute_dopo_il_confronto_dice_che_non_e_ancora_possibile():
+    """Una data di ieri non e' un errore: e' un confronto che deve aspettare."""
+    esito = ricostruzione.cosa_e_successo(100.0, [], "2026-08-30")
+
+    assert esito["rendimenti"] == {}
+    assert "non e' ancora possibile" in esito["motivo"]
+
+
+def test_la_discesa_massima_dopo_si_misura_sul_prezzo_di_allora():
+    barre = [{"data": "2026-01-02", "close": 50.0, "volume": 1.0},
+             {"data": "2026-01-03", "close": 130.0, "volume": 1.0}]
+
+    esito = ricostruzione.cosa_e_successo(100.0, barre, "2026-01-01")
+
+    assert esito["discesa_massima"] == pytest.approx(-0.5)
+    assert esito["salita_massima"] == pytest.approx(0.3)
+    assert esito["rendimento_a_oggi"] == pytest.approx(0.3), "l'ultima, non la migliore"
+
+
+def test_con_pochi_prezzi_la_lettura_tecnica_di_allora_si_ferma():
+    """Una lettura costruita su venti sedute vale meno di nessuna lettura."""
+    poche = _serie("2026-01-01", 10)
+
+    misurato = ricostruzione_dati._misure_di_allora(poche)
+
+    assert misurato["available"] is False
+    assert "60" in misurato["reason"]
+    assert misurato["action"]
+
+
+def test_la_ricostruzione_taglia_i_bilanci_sulla_data_di_deposito(monkeypatch):
+    """Il look-ahead classico: un trimestre chiuso il 31 gennaio non era pubblico
+    il 1 febbraio. Tagliarlo sulla fine del periodo mostrerebbe il futuro."""
+    visto = {}
+
+    def _finti(simbolo, run_id, quando=None):
+        visto["quando"] = quando
+        return {"segnali": {}, "as_of": quando, "periodi_visibili": 17,
+                "periodi_totali": 20, "base_del_taglio": {"source": "filing_index"}}
+
+    monkeypatch.setattr(materiale, "segnali_fondamentali", _finti)
+    monkeypatch.setattr(defeatbeta, "prices", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame({"report_date": [b["data"] for b in _serie("2026-01-01", 90)],
+                            "close": [b["close"] for b in _serie("2026-01-01", 90)],
+                            "volume": [1e6] * 90}),
+        scope=s, category="price", source="cache", available=True, reason="finto"))
+
+    esito = ricostruzione_dati.confronto("NVDA", "2026-02-15")
+
+    assert visto["quando"] == "2026-02-15", "la data arriva fino al taglio dei bilanci"
+    assert esito["allora"]["fondamentale"]["periodi_visibili"] == 17
+    assert esito["allora"]["fondamentale"]["base_del_taglio"]["source"] == "filing_index"
+
+
+def test_la_rotta_della_ricostruzione_pretende_una_data(client):
+    """Senza data non c'e' niente da ricostruire, e "nessun taglio" vorrebbe
+    dire mostrare tutto il futuro."""
+    risposta = client.get("/api/titolo/NVDA/ricostruzione")
+
+    assert risposta.status_code == 400
+    assert "as_of" in risposta.get_json()["error"]
+
+
+def test_anche_la_ricostruzione_rifiuta_una_data_scritta_male(client):
+    risposta = client.get("/api/titolo/NVDA/ricostruzione?as_of=ieri")
+
+    assert risposta.status_code == 400
+    assert "YYYY-MM-DD" in risposta.get_json()["error"]
+
+
+def test_una_data_prima_del_primo_prezzo_dice_da_quando_c_e_storia(client, monkeypatch):
+    barre = _serie("2026-01-01", 90)
+    monkeypatch.setattr(defeatbeta, "prices", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame({"report_date": [b["data"] for b in barre],
+                            "close": [b["close"] for b in barre],
+                            "volume": [1e6] * len(barre)}),
+        scope=s, category="price", source="cache", available=True, reason="finto"))
+
+    risposta = client.get("/api/titolo/NVDA/ricostruzione?as_of=2020-01-01")
+
+    assert risposta.status_code == 404
+    assert "2026-01-01" in risposta.get_json()["error"]

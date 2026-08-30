@@ -18,6 +18,7 @@
     import Fondamentali from "../components/Fondamentali.svelte";
     import Grafico from "../components/Grafico.svelte";
     import Metriche from "../components/Metriche.svelte";
+    import Ricostruzione from "../components/Ricostruzione.svelte";
     import Segnali from "../components/Segnali.svelte";
     import Testo from "../components/Testo.svelte";
     import Valore from "../components/Valore.svelte";
@@ -140,6 +141,16 @@
         <hr class="my-4" />
         <h2 class="h6">Analisi</h2>
         <Analisi {simbolo} />
+
+        <hr class="my-4" />
+        <h2 class="h6">Come si vedeva questo titolo a una data passata</h2>
+        <p class="small text-secondary">
+            Le misure di allora, ricostruite sui soli dati che a quella data
+            erano pubblici — i prezzi fino a quel giorno, i bilanci gia'
+            depositati — e accanto cosa e' successo dopo. Nessun modello: il
+            giudizio su come e' andata lo fai tu.
+        </p>
+        <Ricostruzione {simbolo} />
 
         <hr class="my-4" />
         <div class="row g-3">

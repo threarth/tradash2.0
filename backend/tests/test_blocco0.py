@@ -6,8 +6,10 @@ La verifica dichiarata nel PIANO.md e' una sola frase: "un lavoro finto parte,
 si vede in elenco, si ferma con Stop, e il log mostra ogni chiamata con la
 provenienza valorizzata". Qui e' spezzata nei suoi pezzi verificabili.
 """
+import os
 import threading
 import time
+from pathlib import Path
 
 import pytest
 
@@ -282,3 +284,46 @@ def test_il_rebuild_con_la_parola_sbagliata_non_cancella_niente(monkeypatch):
 
     assert manage.comando_rebuild() == manage.EXIT_ABORTED
     assert cancellazioni["quante"] == 0
+
+
+# --- le chiavi, che stanno fuori dal sorgente -------------------------------
+
+def test_una_variabile_gia_in_ambiente_vince_sul_file(tmp_path, monkeypatch):
+    """Una variabile esportata nella shell e' una scelta di chi ha lanciato il
+    processo: un file letto da disco non deve poterla ribaltare di nascosto."""
+    env = tmp_path / ".env"
+    env.write_text("CHIAVE_DI_PROVA=dal_file\n", encoding="utf-8")
+    monkeypatch.setenv("CHIAVE_DI_PROVA", "dall_ambiente")
+
+    caricate = config._carica_env(env)
+
+    assert os.environ["CHIAVE_DI_PROVA"] == "dall_ambiente"
+    assert "CHIAVE_DI_PROVA" not in caricate
+
+
+def test_il_caricatore_ritorna_i_nomi_e_mai_i_valori(tmp_path, monkeypatch):
+    """Questo elenco finisce nei log: un valore li' dentro sarebbe una chiave in
+    chiaro su disco."""
+    env = tmp_path / ".env"
+    env.write_text("# un commento\n\nANTHROPIC_API_KEY=sk-segretissima\n"
+                   'export ALTRA="fra virgolette"\nriga senza uguale\n', encoding="utf-8")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ALTRA", raising=False)
+
+    caricate = config._carica_env(env)
+
+    assert caricate == ["ANTHROPIC_API_KEY", "ALTRA"]
+    assert "sk-segretissima" not in " ".join(caricate)
+    assert os.environ["ALTRA"] == "fra virgolette", "le virgolette non fanno parte del valore"
+
+
+def test_senza_file_delle_chiavi_non_succede_niente(tmp_path):
+    """Il file non c'e' quasi mai in sviluppo: non deve essere un errore."""
+    assert config._carica_env(tmp_path / "mai-esistito.env") == []
+
+
+def test_il_file_delle_chiavi_non_puo_finire_nel_repo():
+    """La regola sta in .gitignore, non nell'attenzione di chi committa."""
+    ignorati = (Path(config.BASE_DIR).parent / ".gitignore").read_text(encoding="utf-8")
+
+    assert ".env" in ignorati.split()

@@ -11,6 +11,43 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
+# Il file delle credenziali. Non e' nel repo — `.gitignore` lo esclude — e
+# questo modulo lo legge solo per metterne il contenuto nell'ambiente, che e'
+# da dove le librerie se lo aspettano.
+ENV_PATH = BASE_DIR / ".env"
+
+
+def _carica_env(percorso: Path) -> list[str]:
+    """Mette in ambiente le variabili di `.env`, senza sovrascrivere quelle vere.
+
+    Quindici righe invece di una dipendenza: `python-dotenv` farebbe questo, e
+    un file di `CHIAVE=valore` non ha bisogno di un parser.
+
+    **Chi c'e' gia' vince.** Una variabile esportata nella shell e' una scelta
+    deliberata di chi ha lanciato il processo; un file letto da disco non deve
+    poterla ribaltare di nascosto.
+
+    Ritorna i NOMI caricati — mai i valori: questo elenco finisce nei log
+    all'avvio, e un valore li' dentro sarebbe una chiave in chiaro su disco.
+    """
+    if not percorso.is_file():
+        return []
+
+    caricate = []
+    for riga in percorso.read_text(encoding="utf-8").splitlines():
+        pulita = riga.strip()
+        if not pulita or pulita.startswith("#") or "=" not in pulita:
+            continue
+        nome, _, valore = pulita.partition("=")
+        nome = nome.removeprefix("export ").strip()
+        if nome and nome not in os.environ:
+            os.environ[nome] = valore.strip().strip("\"'")
+            caricate.append(nome)
+    return caricate
+
+
+CHIAVI_CARICATE = _carica_env(ENV_PATH)
+
 # Il database dell'uso reale. Dichiarato a parte perche' `core/db.py` lo usa
 # per rifiutarsi di aprirlo mentre gira la suite: la vecchia suite scriveva sul
 # database vero, e "stiamo attenti" non e' una difesa.

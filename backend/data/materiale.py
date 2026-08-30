@@ -16,8 +16,8 @@ import logging
 from pathlib import Path
 
 from core.tipi import python_puro
-from data import defeatbeta
-from domain import pannello, prospetti, segnali
+from data import defeatbeta, depositi
+from domain import pannello, prospetti, publication_dates, segnali
 
 logger = logging.getLogger(__name__)
 
@@ -112,14 +112,39 @@ def pannello_metriche(simbolo: str, run_id: str | None) -> tuple[dict, list[str]
     return misure, mancanti
 
 
-def segnali_fondamentali(simbolo: str, run_id: str | None) -> dict:
-    """I cinque segnali di rischio, dagli stessi bilanci della scheda."""
+def segnali_fondamentali(simbolo: str, run_id: str | None,
+                         quando: str | None = None) -> dict:
+    """I cinque segnali di rischio, dagli stessi bilanci della scheda.
+
+    Con `quando` si ricostruiscono sui soli bilanci che a quella data erano gia'
+    stati DEPOSITATI — non su quelli il cui periodo era chiuso. Un trimestre che
+    finisce il 31 gennaio diventa pubblico a fine febbraio, e usarlo prima e'
+    guardare il futuro.
+
+    La risposta porta sempre `base_del_taglio`: dice se il taglio poggia su date
+    di deposito reali o su un ritardo stimato. Due ricostruzioni fatte sulle une
+    e sulle altre non sono confrontabili, e chi legge deve poterlo sapere senza
+    andare a indovinare.
+    """
     lettura = defeatbeta.statements(simbolo, run_id=run_id)
     if not lettura.available:
         raise AnalisiError(f"nessun bilancio per {simbolo}: {lettura.reason}")
 
+    tutti = prospetti.periodi(lettura.frame)
+    mappa = depositi.mappa(simbolo, run_id) if quando else {}
+    visibili = None if quando is None else [
+        p for p in tutti if publication_dates.was_public(mappa, p, quando, True)
+    ]
+
     tabelle = {
-        nome: prospetti.tabella(lettura.frame, nome, prospetti.TRIMESTRALE)
+        nome: prospetti.tabella(lettura.frame, nome, prospetti.TRIMESTRALE, visibili)
         for nome in prospetti.PROSPETTI
     }
-    return segnali.tutti(tabelle)
+    return {
+        **segnali.tutti(tabelle),
+        "as_of": quando,
+        "periodi_totali": len(tutti),
+        "periodi_visibili": len(tutti) if visibili is None else len(visibili),
+        "base_del_taglio": None if quando is None else publication_dates.truncation_basis(
+            mappa, visibili, True),
+    }

@@ -162,9 +162,12 @@ def test_la_scheda_dichiara_le_sezioni_che_non_ci_sono_ancora(client, monkeypatc
 
     assert risposta["profilo"]["sector"] == "Technology"
     assert risposta["profilo"]["full_time_employees"] == 30000
+    # L'elenco adesso e' vuoto: le sezioni che aspettavano sono arrivate. La
+    # regola pero' vale per la prossima, e questo test la difende.
     for nome, sezione in risposta["sezioni_future"].items():
         assert sezione["available"] is False, nome
-        assert sezione["blocco"] in (7, 8)
+        assert sezione["reason"] and sezione["action"], (
+            f"{nome} dichiara di mancare ma non dice perche' ne' cosa aspettare")
         assert "blocco" in sezione["action"]
 
 

@@ -329,7 +329,7 @@ intervallo mostrato. A un mese di grafico l'EMA50 aveva 22 valori — una "media
 50 giorni" costruita su ventidue sedute, un numero che sembra giusto e non lo e'.
 Ora si calcola su tutta la storia (6.943 sedute per NVDA) e si taglia dopo.*
 
-**Blocco 7 — Matematica e as_of. IN PARTE, il 2026-08-30, 146 test verdi.**
+**Blocco 7 — Matematica e as_of. FATTO il 2026-08-31, 282 test verdi.**
 
 *Fatto:* `domain/publication_dates.py` (copiato e **reso puro**: le date di
 deposito gliele passa chi chiama, invece di andarsele a prendere),
@@ -349,11 +349,24 @@ di deposito reali, CIEN 20/20 (era 11/17), RACE 7/20 — che infatti risulta
 Blocco 8 travestito da `domain/`. Vanno con l'8, e la pagina di confronto
 point-in-time con loro.
 
-*Da chiudere ancora:* `before` su `get_recent_filings` — qui il taglio dei
-filing e' esatto e usato, ma la lezione vale per ogni parametro nuovo.
-Comprende la **pagina di confronto point-in-time**: ricostruire l'analisi a una
-data passata e confrontarla con l'evoluzione reale (`compare_point_in_time`,
-`fair_value_history`). `truncation_basis()` deve continuare a dichiarare se un
+*Chiuso col Blocco 8:* la **pagina di confronto point-in-time**. Sceglie una
+data, ricostruisce cosa si sapeva allora e ci mette accanto cosa e' successo
+dopo — rendimenti a uno, tre, sei e dodici mesi, discesa e salita massime.
+Nessun modello: il giudizio su come e' andata lo fa chi guarda, ed e' il motivo
+per cui vale la pena guardarla.
+
+I due tagli sono diversi e la differenza e' tutto: i **prezzi** si tagliano
+sulla data, i **bilanci** sulla data di DEPOSITO. Verificato dal vivo su NVDA
+al 2025-08-29: 17 periodi su 20 visibili, tutti su date di deposito reali, e nel
+frattempo il titolo ha fatto +24,9% con una discesa massima del 5,2%.
+
+Un difetto trovato proprio da quella verifica: il rendimento a un anno veniva
+calcolato (l'ultima seduta distava 364 giorni, dentro la tolleranza) ma
+l'orizzonte risultava non maturato. Due campi della stessa risposta che si
+contraddicevano.
+
+*Resta da chiudere:* `before` su `get_recent_filings` — qui il taglio dei
+filing e' esatto e usato, ma la lezione vale per ogni parametro nuovo. `truncation_basis()` deve continuare a dichiarare se un
 periodo poggia su una data di deposito reale o su una stima — la copertura varia
 moltissimo (AAPL 17/17 periodi reali, CIEN 11/17, RACE 4/16) e sei periodi su
 una stima, invisibili, erano proprio sul ticker su cui la fase era stata

@@ -19,9 +19,9 @@ import config
 from api import HTTP_NOT_FOUND, fail, ok
 from core.db import db_read
 from core.tipi import python_puro
-from data import defeatbeta, depositi, filing_locali, grafici
+from data import defeatbeta, depositi, filing_locali, grafici, materiale, ricostruzione
 from data.grafici import GraficiError
-from domain import indicators, prospetti, publication_dates, segnali
+from domain import indicators, prospetti, publication_dates
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +29,15 @@ bp = Blueprint("titolo", __name__, url_prefix="/api/titolo")
 
 # Le sezioni promesse dal PIANO e non ancora costruite. Dichiararle qui e' il
 # modo di non farle sparire: la pagina le mostra vuote, col blocco che le porta.
-SEZIONI_FUTURE = {
-    "analisi_llm": {"blocco": 8, "cosa": "le analisi che richiedono un modello "
-                                         "linguistico, da verificare dal vivo"},
-}
+# Le sezioni della scheda non ancora costruite. **Adesso e' vuoto**: i sette
+# metodi ci sono tutti e la ricostruzione point-in-time e' arrivata. Il
+# meccanismo resta perche' la regola che lo ha prodotto vale ancora — una
+# sezione che manca lo dice, con dentro quale blocco la portera', invece di far
+# finta che quel dato non esista.
+#
+# Cio' che manca ora non e' una sezione: e' la verifica dal vivo delle chiamate
+# al modello, e quella si dichiara dove sta — nel registro dei metodi.
+SEZIONI_FUTURE: dict[str, dict] = {}
 
 ACTION_SEZIONE_FUTURA = "questa sezione arriva con il blocco {blocco} del piano"
 
@@ -322,27 +327,37 @@ def segnali_fondamentali(simbolo: str):
     if errore:
         return fail(errore)
 
-    lettura = defeatbeta.statements(simbolo)
-    if not lettura.available:
-        return fail(lettura.reason, HTTP_NOT_FOUND)
+    try:
+        # Lo stesso taglio che usa la ricostruzione point-in-time, e la stessa
+        # funzione: due tagli scritti due volte divergono, e il giorno che
+        # divergono una delle due pagine mostra il futuro senza dirlo.
+        calcolati = materiale.segnali_fondamentali(simbolo, None, quando)
+    except materiale.AnalisiError as exc:
+        return fail(str(exc), HTTP_NOT_FOUND)
 
-    mappa_depositi = depositi.mappa(simbolo)
-    tutti = prospetti.periodi(lettura.frame)
-    visibili = _periodi_visibili(mappa_depositi, tutti, quando, trimestrale=True)
+    return ok({"symbol": simbolo.strip().upper(), **calcolati})
 
-    tabelle = {
-        nome: prospetti.tabella(lettura.frame, nome, prospetti.TRIMESTRALE, visibili)
-        for nome in prospetti.PROSPETTI
-    }
 
-    return ok({
-        "symbol": simbolo.strip().upper(), "as_of": quando,
-        **segnali.tutti(tabelle),
-        "base_del_taglio": publication_dates.truncation_basis(
-            mappa_depositi, visibili if visibili is not None else tutti, True
-        ) if quando else None,
-        "source": lettura.source,
-    })
+@bp.get("/<simbolo>/ricostruzione")
+def ricostruzione_point_in_time(simbolo: str):
+    """Cosa si poteva sapere a una data passata, e cosa e' successo dopo.
+
+    Una lettura scritta oggi si potra' giudicare fra un anno; ricostruita a una
+    data passata si giudica subito, perche' il dopo e' gia' successo.
+
+    Nessun modello: misure deterministiche di allora e prezzi di poi. E i due
+    tagli sono diversi — i prezzi sulla data, i bilanci sulla data di DEPOSITO.
+    """
+    quando, errore = _as_of(request.args.get("as_of"))
+    if errore:
+        return fail(errore)
+    if quando is None:
+        return fail("serve as_of: senza una data non c'e' niente da ricostruire")
+
+    esito = ricostruzione.confronto(simbolo, quando)
+    if not esito["available"]:
+        return fail(esito["reason"], HTTP_NOT_FOUND)
+    return ok(esito)
 
 
 @bp.get("/<simbolo>/filing-da-salvare")
