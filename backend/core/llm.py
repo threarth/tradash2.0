@@ -62,7 +62,8 @@ def _client():
             import anthropic  # noqa: PLC0415
         except ImportError as exc:
             raise LlmNonDisponibile(
-                "la libreria `anthropic` non e' installata: pip install anthropic"
+                "la libreria `anthropic` non e' installata. E' in "
+                "requirements.txt: `uv pip install -r requirements.txt`"
             ) from exc
 
         try:
