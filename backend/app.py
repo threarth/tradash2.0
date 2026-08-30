@@ -12,6 +12,7 @@ import logging
 from flask import Flask
 
 import config
+from api.analisi import bp as analisi_bp
 from api.calls import bp as calls_bp
 from api.glossary import bp as glossary_bp
 from api.ops import bp as ops_bp
@@ -37,6 +38,7 @@ def create_app() -> Flask:
     ensure_schema()
 
     app.register_blueprint(ops_bp)
+    app.register_blueprint(analisi_bp)
     app.register_blueprint(calls_bp)
     app.register_blueprint(glossary_bp)
     app.register_blueprint(scanner_bp)

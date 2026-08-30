@@ -129,6 +129,32 @@ UNIVERSE_AVG_VOLUME_SESSIONS = 30
 UNIVERSE_PAGE_LIMIT_DEFAULT = 100
 UNIVERSE_PAGE_LIMIT_MAX = 2000
 
+# --- Modelli linguistici (Blocco 8) ----------------------------------------
+#
+# Il modello si dichiara qui perche' e' una scelta che si paga: cambiarlo cambia
+# il conto, e chi guarda un referto deve poter sapere chi l'ha scritto.
+#
+# MISURATO sul vecchio sistema, e da non riscoprire: **Haiku fallisce le fasi
+# dell'analisi qualitativa** — su Q ha prodotto un submit invalido bruciando
+# $0,24, mentre Sonnet ha chiuso a $0,99. Haiku resta buono per compressione e
+# triage, non per le fasi.
+LLM_MODELLO = os.environ.get("TRADASH2_MODELLO", "claude-opus-5")
+LLM_MODELLO_COMPRESSIONE = "claude-haiku-4-5"
+
+# Il tetto di token in uscita. Sopra i 16k conviene lo streaming, altrimenti si
+# rischia di sbattere contro il timeout HTTP prima della fine della risposta.
+LLM_TOKEN_MASSIMI = 16000
+
+# Prezzo per milione di token, per calcolare il costo di ogni chiamata. Da
+# aggiornare quando cambiano i listini: un costo calcolato su prezzi vecchi e'
+# peggio di nessun costo, perche' sembra un dato.
+LLM_PREZZI = {
+    "claude-opus-5": {"ingresso": 5.00, "uscita": 25.00},
+    "claude-sonnet-5": {"ingresso": 2.00, "uscita": 10.00},
+    "claude-haiku-4-5": {"ingresso": 1.00, "uscita": 5.00},
+}
+TOKEN_PER_MILIONE = 1_000_000
+
 # --- Segnali fondamentali (Blocco 8) ---------------------------------------
 #
 # Le soglie vengono dal vecchio tradash, dove erano gia' state tarate girando:

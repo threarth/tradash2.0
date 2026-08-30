@@ -167,3 +167,50 @@ CREATE TABLE IF NOT EXISTS watchlist_membri (
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_watchlist_membri_tag ON watchlist_membri (tag);
+
+-- ---------------------------------------------------------------------------
+-- MODELLI LINGUISTICI — cosa e' stato chiesto, a chi, e quanto e' costato
+-- ---------------------------------------------------------------------------
+
+-- Ogni chiamata a un modello lascia DUE righe: una in `calls`, come tutte le
+-- altre chiamate del sistema, e una qui con quello che di un LLM conta e che
+-- nessun'altra chiamata ha — il modello, i token, il costo.
+--
+-- Il costo in particolare non e' un dettaglio contabile: e' l'unica difesa
+-- contro un'analisi che gira a vuoto. Nel vecchio sistema una run e' rimasta
+-- "running" venti minuti senza che nessuno potesse vedere quanto stava bruciando.
+CREATE TABLE IF NOT EXISTS llm_calls (
+    id            INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    modello       TEXT    NOT NULL,
+    fase          TEXT    NOT NULL,
+    scope         TEXT,
+    token_entrata INTEGER NOT NULL DEFAULT 0 CHECK (token_entrata >= 0),
+    token_uscita  INTEGER NOT NULL DEFAULT 0 CHECK (token_uscita >= 0),
+    costo_usd     REAL    NOT NULL DEFAULT 0 CHECK (costo_usd >= 0),
+    stop_reason   TEXT,
+    status        TEXT    NOT NULL CHECK (status IN ('ok', 'error')),
+    error_msg     TEXT,
+    run_id        TEXT             REFERENCES jobs (run_id) ON DELETE SET NULL,
+    called_at     TEXT    NOT NULL
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_llm_calls_called_at ON llm_calls (called_at DESC);
+CREATE INDEX IF NOT EXISTS idx_llm_calls_run_id    ON llm_calls (run_id);
+
+-- I referti prodotti dalle analisi. Il contenuto e' un documento annidato, e
+-- SQLite lo regge: `json_extract` con indice sui campi che si cercano, e FTS5
+-- se un giorno servira' cercare nei testi. E' la ragione per cui MongoDB e'
+-- stato scartato.
+CREATE TABLE IF NOT EXISTS referti (
+    id         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    symbol     TEXT    NOT NULL,
+    metodo     TEXT    NOT NULL,
+    as_of      TEXT,
+    contenuto  TEXT    NOT NULL,
+    modello    TEXT,
+    costo_usd  REAL    NOT NULL DEFAULT 0 CHECK (costo_usd >= 0),
+    run_id     TEXT             REFERENCES jobs (run_id) ON DELETE SET NULL,
+    creato_il  TEXT    NOT NULL
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_referti_symbol ON referti (symbol, metodo, creato_il DESC);

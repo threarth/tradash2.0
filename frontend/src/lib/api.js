@@ -109,6 +109,13 @@ export const api = {
         chiama(`/titolo/${encodeURIComponent(simbolo)}/grafico`,
             corpoJson("PUT", configurazione)),
 
+    // --- analisi ---
+    metodiAnalisi: () => chiama("/analisi"),
+    eseguiAnalisi: (metodo, simbolo) =>
+        chiama(`/analisi/${encodeURIComponent(metodo)}/${encodeURIComponent(simbolo)}`,
+            { method: "POST" }),
+    referti: (simbolo, metodo) => chiama(`/analisi/referti${query({ symbol: simbolo, metodo })}`),
+
     // --- scanner ---
     scannerCriteri: () => chiama("/scanner/criteri"),
     scannerAvvia: (richiesta) => chiama("/scanner", corpoJson("POST", richiesta)),

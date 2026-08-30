@@ -42,10 +42,18 @@ import config  # noqa: E402
 from core.db import db_session  # noqa: E402
 from core.schema import ensure_schema  # noqa: E402
 
-# Tabelle da svuotare fra un test e l'altro. L'ordine conta: `calls.run_id` ha
-# una chiave esterna verso `jobs`.
-TABELLE_DA_SVUOTARE = ("calls", "jobs", "freshness", "universe",
-                       "watchlist", "watchlist_tags")
+
+# Le tabelle si svuotano TUTTE, chieste al database invece che elencate a mano.
+#
+# L'elenco scritto a mano c'era, ed e' marcito alla prima tabella nuova: i test
+# del Blocco 8 leggevano righe lasciate dal test precedente. Una lista da
+# aggiornare a ogni tabella e' una lista che prima o poi non viene aggiornata.
+def _tutte_le_tabelle(conn) -> list[str]:
+    """I nomi delle tabelle esistenti adesso, quelle di servizio escluse."""
+    righe = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+    ).fetchall()
+    return [r["name"] for r in righe]
 
 
 class ReteVietata(RuntimeError):
@@ -90,10 +98,16 @@ def rete_spenta(request, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def tabelle_pulite(schema):
-    """Ogni test parte da tabelle vuote."""
+    """Ogni test parte da tabelle vuote.
+
+    Le chiavi esterne si spengono per la durata della pulizia: cosi' l'ordine
+    delle cancellazioni non conta, ed e' un'altra cosa che non puo' sbagliarsi.
+    """
     with db_session() as conn:
-        for tabella in TABELLE_DA_SVUOTARE:
+        conn.execute("PRAGMA foreign_keys = OFF")
+        for tabella in _tutte_le_tabelle(conn):
             conn.execute(f"DELETE FROM {tabella}")
+        conn.execute("PRAGMA foreign_keys = ON")
     yield
 
 

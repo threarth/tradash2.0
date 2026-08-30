@@ -361,9 +361,37 @@ verificata dal vivo.
 *Da chiudere qui: `before` su `get_recent_filings` era esposto e nessuno dei 9
 chiamanti di produzione lo passava.*
 
-**Blocco 8 — Tutte le analisi.** Nessuna esclusa, e ognuna prende la sua
-sezione nella scheda titolo. L'elenco completo, cosi' com'e' nel vecchio
-sistema:
+**Blocco 8 — Tutte le analisi. IN PARTE, il 2026-08-30, 183 test verdi.**
+
+*Fatto:* i **cinque segnali fondamentali** F1-F5, deterministici, con le soglie
+del vecchio sistema e la copertura dichiarata a parte. L'**infrastruttura** per
+i modelli: `core/llm.py`, dove ogni chiamata lascia due righe — una in `calls`
+come tutte, una in `llm_calls` col modello, i token e **il costo**. Il
+**registro dei sette metodi**, dove quelli non ancora costruiti restano in
+elenco con scritto cosa manca a ciascuno. E la prima analisi che gira davvero,
+la **lettura tecnica**.
+
+*La scelta di disegno che conta:* **niente loop di strumenti.** Nel vecchio
+sistema l'analisi era una conversazione in cui il modello chiamava tool fino a
+decidere di aver finito, e il contesto riaccodato a ogni tentativo cresceva
+senza limite. Qui si calcola prima e si chiede dopo, una volta sola: il modello
+riceve i numeri gia' pronti e puo' solo sintetizzarli. La regola ferrea del
+vecchio prompt — *"non ricalcolare NULLA"* — diventa strutturale invece che
+raccomandata, perche' senza strumenti da chiamare non ha modo di inventare un
+numero.
+
+*Non fatto, e ognuno sa perche':* la **qualitativa** aspetta la lettura dei
+filing da sec.gov; la **forward** aspetta il suo pacchetto (3.295 righe mai
+girate); l'**earnings review** la tabella delle trascrizioni; il **verdetto**
+gli altri metodi; il **fondamentale** i veti del modello sopra i segnali che
+gia' ci sono; lo **spin-off** e' il candidato a essere tolto.
+
+*Non verificato dal vivo:* la lettura tecnica non e' mai stata eseguita con un
+modello vero — servono la chiave e la decisione di spendere. La memoria dice che
+per i prompt il mock non basta, e questo resta l'unico pezzo del sistema che
+non ho potuto guardare girare.
+
+L'elenco completo, cosi' com'e' nel vecchio sistema:
 
 | Analisi | Natura | Prompt / motore |
 |---|---|---|

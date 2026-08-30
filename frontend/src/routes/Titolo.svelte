@@ -12,6 +12,7 @@
     import Assente from "../components/Assente.svelte";
     import Caricamento from "../components/Caricamento.svelte";
     import Errore from "../components/Errore.svelte";
+    import Analisi from "../components/Analisi.svelte";
     import Documenti from "../components/Documenti.svelte";
     import Fondamentali from "../components/Fondamentali.svelte";
     import Grafico from "../components/Grafico.svelte";
@@ -111,6 +112,10 @@
 
         <hr class="my-4" />
         <Documenti {simbolo} />
+
+        <hr class="my-4" />
+        <h2 class="h6">Analisi</h2>
+        <Analisi {simbolo} />
 
         <hr class="my-4" />
         <div class="row g-3">
