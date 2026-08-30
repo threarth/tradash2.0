@@ -6,6 +6,8 @@
     la definizione sta accanto ai dati, non nella testa di chi li ha inseriti.
 -->
 <script>
+    import Testo from "./Testo.svelte";
+
     const PROFILI = [
         ["CORE", "business gia' provato, scala e visibilita' economica relativamente elevate."],
         ["EMERGING", "business commerciale reale ma ancora in accelerazione, concentrazione o " +
@@ -33,13 +35,13 @@
         <div class="col-12 col-lg-6">
             <h3 class="h6">Profilo</h3>
             {#each PROFILI as [nome, significato] (nome)}
-                <p class="small mb-1"><strong>{nome}</strong> — {significato}</p>
+                <p class="small mb-1"><strong>{nome}</strong> — <Testo testo={significato} /></p>
             {/each}
         </div>
         <div class="col-12 col-lg-6">
             <h3 class="h6">Maturity</h3>
             {#each MATURITY as [nome, significato] (nome)}
-                <p class="small mb-1"><strong>{nome}</strong> — {significato}</p>
+                <p class="small mb-1"><strong>{nome}</strong> — <Testo testo={significato} /></p>
             {/each}
         </div>
     </div>

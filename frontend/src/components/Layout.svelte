@@ -10,20 +10,28 @@
     import { onMount } from "svelte";
 
     import { api } from "../lib/api.js";
+    import { glossario } from "../lib/glossario.svelte.js";
     import { intercettaClick, percorso } from "../lib/router.js";
     import { alternaTema, SCURO, temaAttuale } from "../lib/tema.js";
+    import PannelloGlossario from "./PannelloGlossario.svelte";
 
     let { children } = $props();
 
-    // Ogni quanto si chiede se c'e' qualcosa in corso. Non e' lavoro pesante:
-    // e' una lettura in memoria del registro, e senza non ci si accorgerebbe di
-    // un lavoro partito da un'altra pagina.
-    const INTERVALLO_LAVORI_MS = 3000;
+    // Ogni quanto si chiede se c'e' qualcosa in corso. Due ritmi, non uno:
+    // svelto mentre qualcosa gira, lento quando non gira niente.
+    //
+    // Con un ritmo solo, una scheda dimenticata continuerebbe a chiedere per
+    // giorni — e "il costo di una pagina non dipende da quanto resta aperta" e'
+    // la regola 2 alla lettera. Il vecchio sistema e' morto proprio cosi', con
+    // una scheda aperta che al riavvio del backend ha rilanciato 500 download.
+    const RITMO_ATTIVO_MS = 2000;
+    const RITMO_FERMO_MS = 30000;
 
     const PAGINE = [
         { percorso: "/", etichetta: "Universo", icona: "bi-globe2" },
         { percorso: "/watchlist", etichetta: "Watchlist", icona: "bi-bookmark-star" },
-        { percorso: "/operazioni", etichetta: "Operazioni", icona: "bi-activity" }
+        { percorso: "/operazioni", etichetta: "Operazioni", icona: "bi-activity" },
+        { percorso: "/glossario", etichetta: "Glossario", icona: "bi-book" }
     ];
 
     let tema = $state(SCURO);
@@ -31,7 +39,13 @@
 
     onMount(() => {
         tema = temaAttuale();
+        // Una lettura sola per tutta la sessione, da un file locale: e' cio' che
+        // serve perche' la sottolineatura funzioni ovunque senza che ogni
+        // pagina se la vada a prendere per conto suo.
+        glossario.carica();
+
         let vivo = true;
+        let prossimo = null;
 
         async function guarda() {
             try {
@@ -42,13 +56,17 @@
                 // se ne accorge la pagina che sta chiedendo davvero qualcosa.
                 if (vivo) lavoriAttivi = 0;
             }
+            if (vivo) {
+                prossimo = setTimeout(
+                    guarda, lavoriAttivi > 0 ? RITMO_ATTIVO_MS : RITMO_FERMO_MS
+                );
+            }
         }
 
         guarda();
-        const battito = setInterval(guarda, INTERVALLO_LAVORI_MS);
         return () => {
             vivo = false;
-            clearInterval(battito);
+            clearTimeout(prossimo);
         };
     });
 
@@ -77,14 +95,27 @@
             {/each}
         </ul>
 
-        <button class="btn btn-sm btn-outline-secondary"
-                onclick={() => (tema = alternaTema())}
-                title="Cambia tema" aria-label="Cambia tema">
-            <i class="bi {tema === SCURO ? 'bi-sun' : 'bi-moon-stars'}" aria-hidden="true"></i>
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm {glossario.attivo
+                        ? 'btn-outline-primary' : 'btn-outline-secondary'}"
+                    onclick={() => glossario.alterna()}
+                    title={glossario.attivo
+                        ? "Spegni la sottolineatura dei termini"
+                        : "Accendi la sottolineatura dei termini"}
+                    aria-label="Sottolineatura dei termini">
+                <i class="bi bi-journal-text" aria-hidden="true"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary"
+                    onclick={() => (tema = alternaTema())}
+                    title="Cambia tema" aria-label="Cambia tema">
+                <i class="bi {tema === SCURO ? 'bi-sun' : 'bi-moon-stars'}" aria-hidden="true"></i>
+            </button>
+        </div>
     </div>
 </nav>
 
 <main class="container-fluid contenuto py-4">
     {@render children()}
 </main>
+
+<PannelloGlossario />

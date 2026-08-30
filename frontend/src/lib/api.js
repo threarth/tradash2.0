@@ -92,6 +92,9 @@ export const api = {
             { method: "DELETE" }),
     storico: (limit) => chiama(`/watchlist/storico${query({ limit })}`),
 
+    // --- glossario ---
+    glossario: () => chiama("/glossario"),
+
     // --- lavori e chiamate: la regola 1 vista dal frontend ---
     lavoriAttivi: () => chiama("/ops/active"),
     lavoriStorici: () => chiama("/ops/history"),

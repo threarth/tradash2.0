@@ -6,6 +6,7 @@
     import Assente from "./components/Assente.svelte";
     import Layout from "./components/Layout.svelte";
     import { percorso } from "./lib/router.js";
+    import Glossario from "./routes/Glossario.svelte";
     import Operazioni from "./routes/Operazioni.svelte";
     import Universo from "./routes/Universo.svelte";
     import Watchlist from "./routes/Watchlist.svelte";
@@ -13,7 +14,8 @@
     const PAGINE = {
         "/": Universo,
         "/watchlist": Watchlist,
-        "/operazioni": Operazioni
+        "/operazioni": Operazioni,
+        "/glossario": Glossario
     };
 
     const Pagina = $derived(PAGINE[$percorso]);

@@ -12,6 +12,7 @@
 -->
 <script>
     import { api } from "../lib/api.js";
+    import Testo from "./Testo.svelte";
 
     let { onImportato } = $props();
 
@@ -127,7 +128,7 @@
                                 {esito.scartati.join(", ")}</li>
                         {/if}
                         {#each esito.rifiutati as rifiutato (rifiutato.symbol)}
-                            <li class="text-danger">{rifiutato.symbol}: {rifiutato.motivo}</li>
+                            <li class="text-danger">{rifiutato.symbol}: <Testo testo={rifiutato.motivo} /></li>
                         {/each}
                     </ul>
                 {/if}

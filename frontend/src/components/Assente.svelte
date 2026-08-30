@@ -8,6 +8,8 @@
     ancora chiesto".
 -->
 <script>
+    import Testo from "./Testo.svelte";
+
     let { motivo, azione = null, titolo = "Non c'e' niente da mostrare", children } = $props();
 </script>
 
@@ -16,10 +18,10 @@
     <div class="flex-grow-1">
         <div class="fw-semibold">{titolo}</div>
         {#if motivo}
-            <div class="small mt-1">{motivo}</div>
+            <div class="small mt-1"><Testo testo={motivo} /></div>
         {/if}
         {#if azione}
-            <div class="small text-secondary mt-1">Cosa fare: {azione}</div>
+            <div class="small text-secondary mt-1">Cosa fare: <Testo testo={azione} /></div>
         {/if}
         {#if children}
             <div class="mt-2">{@render children()}</div>

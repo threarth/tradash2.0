@@ -3,6 +3,8 @@
     feat (Blocco 4): una cella vuota non dice niente; questa dice cosa manca.
 -->
 <script>
+    import Testo from "./Testo.svelte";
+
     // `null` e `undefined` non sono zero: mostrarli come "0" sarebbe una bugia.
     let { valore, unita = "", decimali = 2, mancante = "n/d" } = $props();
 
@@ -27,5 +29,5 @@
 {:else if typeof valore === "number"}
     <span>{abbrevia(valore)}{unita}</span>
 {:else}
-    <span>{valore}{unita}</span>
+    <span><Testo testo={String(valore)} />{unita}</span>
 {/if}

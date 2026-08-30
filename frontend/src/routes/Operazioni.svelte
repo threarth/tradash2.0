@@ -11,6 +11,7 @@
 
     import Assente from "../components/Assente.svelte";
     import Errore from "../components/Errore.svelte";
+    import Testo from "../components/Testo.svelte";
     import { api } from "../lib/api.js";
 
     // Il battito con cui si aggiorna la pagina mentre un lavoro gira.
@@ -89,7 +90,7 @@
                         <span class="fw-semibold">{lavoro.label}</span>
                         <span class="text-secondary small ms-2">{lavoro.kind}</span>
                         {#if lavoro.detail}
-                            <div class="small text-secondary">{lavoro.detail}</div>
+                            <div class="small text-secondary"><Testo testo={lavoro.detail} /></div>
                         {/if}
                     </div>
                     <button class="btn btn-sm btn-outline-danger"
@@ -127,7 +128,7 @@
                         <td>{lavoro.label}</td>
                         <td class="numerico">{lavoro.done}{lavoro.total
                             ? ` / ${lavoro.total}` : ""}</td>
-                        <td class="small text-secondary">{lavoro.detail ?? ""}</td>
+                        <td class="small text-secondary"><Testo testo={lavoro.detail ?? ""} /></td>
                         <td class="small">{lavoro.started_at}</td>
                     </tr>
                 {/each}
