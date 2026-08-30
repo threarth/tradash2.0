@@ -848,3 +848,57 @@ controllata **prima** di ogni altra cosa: `None`, `NaN`, `NA`, `NaT`.
 E una lezione sul metodo: dopo il guasto, i quattro prompt sono stati costruiti
 **senza chiamare il modello** per vedere se qualcos'altro esplodeva. Provare a
 vuoto cio' che costa e' gratis, e va fatto prima.
+
+
+---
+
+## Una risposta tagliata non e' una risposta sbagliata
+
+La fase delle citazioni ha prodotto **16.000 token esatti** — il tetto — e il
+JSON e' arrivato monco. Il registro aveva gia' scritto la causa vera,
+`incomplete: max_output_tokens`, e il referto ha riportato «il JSON del modello
+non e' leggibile». **Una diagnosi disponibile e ignorata e' peggio di una
+diagnosi assente: manda a cercare nel posto sbagliato.**
+
+Quattro correzioni, una per livello:
+
+1. L'adattatore riconosce il taglio per entrambi i fornitori e lo porta su; la
+   fase lo controlla **prima** di provare a leggere il JSON.
+2. Il tetto dipende dalla fase: le citazioni devono elencare una frase letterale
+   per ogni affermazione di nove sezioni, ed e' la risposta piu' lunga che
+   questo sistema chieda.
+3. Se ne chiedono **al massimo 24**, e il prompt spiega perche' scegliere e'
+   meglio che elencare: una risposta piu' lunga non viene accorciata, viene
+   tagliata, e allora si perdono tutte e non le ultime.
+4. La quarta fase non fa piu' perdere le altre tre. Buttare un report gia'
+   scritto perche' l'ultimo passo e' fallito e' sbagliato due volte: si perde il
+   referto e si perde il denaro gia' speso.
+
+E la lezione a monte, che vale per ogni analisi a piu' passi: **il materiale si
+raccoglie tutto prima di spendere il primo token.** Il `json.dumps` che lo
+controlla non e' decorativo, e' il controllo — un guasto nei dati costa zero
+invece di due fasi.
+
+---
+
+## Il giro riuscito, e cosa dimostra
+
+31/08/2026, GPT-5.5, i documenti veri di NVDA salvati a mano. 140.831 token in
+ingresso, 27.439 in uscita, quattro fasi.
+
+- **Nove sezioni scritte**, tutte piene.
+- **Dodici dimensioni classificate, zero etichette inventate.** Il vocabolario
+  chiuso ha tenuto senza che a farlo rispettare ci fosse l'enum di uno schema:
+  la verifica dopo la risposta basta.
+- **25 citazioni verificate alla lettera, zero scartate**, prese da tutti e due
+  i documenti — il 10-K e il 10-Q. Una di quelle conteneva un apostrofo
+  tipografico: e' la citazione che, con la codifica sbagliata, sarebbe stata
+  scartata senza che nessuno capisse perche'.
+- La sezione Risk Factors e' stata **troncata** da 114.916 a 60.000 caratteri, e
+  il referto lo dichiara in tre posti: nel prompt, nella copertura, e a schermo.
+
+Un dettaglio da tenere d'occhio: ne sono arrivate **25 a fronte di 24 chieste**.
+Il tetto e' una richiesta nel prompt, non un limite imposto dal codice, e il
+modello puo' superarlo di poco. Si dichiarano tutte e due le cifre invece di
+troncare l'elenco: tagliare la venticinquesima nasconderebbe che il modello non
+ha rispettato il tetto.

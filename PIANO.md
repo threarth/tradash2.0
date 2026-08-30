@@ -443,12 +443,26 @@ su diciotto.
   e' coerente e sbagliata, e il testo da solo non direbbe quando e' stato
   scritto.
 
-*Non verificato dal vivo:* **nessuna delle sette analisi e' mai stata eseguita
-con un modello vero** — non c'e' una chiave configurata, e ogni giro costa. La
-memoria dice che per i prompt il mock non basta, e questo resta l'unico pezzo
-del sistema che non ho potuto guardare girare. Tutto cio' che sta PRIMA della
-chiamata al modello, invece, gira e ha i suoi test: le sezioni dei filing, il
-pannello, il DCF, le menzioni, la scelta dei referti.
+*Verificato dal vivo il 31/08/2026, con GPT-5.5 e i documenti veri di NVDA:*
+
+- **Lettura tecnica**: 14 secondi, 838 token in ingresso. Ha dichiarato
+  confidenza BASSA scrivendo perche' — manca la forza relativa, manca il
+  confronto con un benchmark, mancano i dati di volatilita'. Il prompt chiedeva
+  di dirlo invece di riempire il vuoto, e l'ha fatto.
+- **Report qualitativo a 10 sezioni**, quattro fasi: 140.831 token in ingresso e
+  27.439 in uscita. **Nove sezioni scritte, dodici dimensioni classificate, zero
+  etichette inventate** — il vocabolario chiuso ha tenuto senza l'enum di uno
+  schema a farlo rispettare. E **25 citazioni verificate alla lettera nel testo,
+  zero scartate**, prese da tutti e due i documenti.
+
+Le altre cinque analisi non sono ancora state eseguite con un modello vero.
+
+*Cosa e' costato arrivarci, e non va dimenticato:* tre giri falliti prima di
+questo, 143.000 token in ingresso buttati, e tre difetti veri che nessun mock
+avrebbe mostrato — `pandas.NA` dai dirigenti, un server che serviva codice
+vecchio senza dirlo, e una risposta tagliata dal tetto di token che il sistema
+ha riportato come «JSON illeggibile» **pur avendo gia' registrato la causa
+vera**.
 
 Per la qualitativa serve anche altro: i documenti SEC vanno **salvati a mano**
 nella cartella che la scheda del titolo indica. Il sistema dice quali sono e con
