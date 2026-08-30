@@ -779,7 +779,7 @@ def test_l_earnings_si_ferma_se_non_ci_sono_trascrizioni(monkeypatch):
         frame=pd.DataFrame(), scope=s, category="transcripts", source="cache",
         available=False, reason="nessuna call"))
 
-    with pytest.raises(analisi.AnalisiError, match="6.495 simboli"):
+    with pytest.raises(analisi.AnalisiError, match=r"6\.495 simboli"):
         analisi._earnings("X", None)
 
 
