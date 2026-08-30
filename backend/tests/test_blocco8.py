@@ -246,11 +246,12 @@ class _Risposta:
     """
 
     def __init__(self, testo, entrata=1000, uscita=500, stato="completed",
-                 rifiuto=False):
+                 rifiuto=False, tagliata=False):
         self.output_text = testo
         self.usage = _Uso(entrata, uscita)
         self.status = stato
-        self.incomplete_details = None
+        self.incomplete_details = (
+            type("Motivo", (), {"reason": "max_output_tokens"})() if tagliata else None)
         pezzi = [_Blocco(testo, "refusal" if rifiuto else "output_text")]
         self.output = [type("Voce", (), {"type": "message", "content": pezzi})()]
 
@@ -1429,3 +1430,35 @@ def test_se_il_materiale_non_e_serializzabile_non_si_chiama_nessuno(
         qualitativa.esegui("NVDA", _lavoro_finto())
 
     assert qualitativa_pronta.chiamate == []
+
+
+def test_una_risposta_tagliata_non_si_legge_come_json_sbagliato(monkeypatch):
+    """Il difetto: la fase delle citazioni ha sbattuto contro il tetto di token,
+    il JSON e' arrivato monco, e il sistema ha dato la colpa al JSON — mentre
+    aveva gia' registrato la causa vera, `incomplete: max_output_tokens`.
+    Una diagnosi disponibile e ignorata e' peggio di una assente."""
+    _finto(monkeypatch, _Risposta('{"citations": [{"claim": "a mez',
+                                  stato="incomplete", tagliata=True))
+
+    with pytest.raises(qualitativa.AnalisiError, match="tagliata al tetto"):
+        qualitativa._chiedi("fase4", "sistema", "NVDA", None, "domanda")
+
+
+def test_le_citazioni_mancate_non_fanno_perdere_le_tre_fasi_pagate(
+        qualitativa_pronta, monkeypatch):
+    """Buttare via un report gia' scritto perche' l'ultima fase e' fallita
+    sarebbe sbagliato due volte: si perde il referto e si perde il denaro."""
+    monkeypatch.setattr(qualitativa, "_fase4", lambda *a, **k: (_ for _ in ()).throw(
+        qualitativa.AnalisiError("la risposta e' stata tagliata al tetto")))
+
+    referto = qualitativa.esegui("NVDA", _lavoro_finto())
+
+    contenuto = referto["contenuto"]
+    assert contenuto["business_overview"], "le sezioni scritte restano"
+    assert contenuto["citations"] == []
+    assert "tagliata al tetto" in contenuto["citazioni_non_prodotte"]
+
+
+def test_il_tetto_di_token_dipende_dalla_fase():
+    """La fase delle citazioni deve produrre la risposta piu' lunga del sistema."""
+    assert config.LLM_TOKEN_PER_FASE["qualitativa_fase4"] > config.LLM_TOKEN_MASSIMI

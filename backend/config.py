@@ -216,6 +216,12 @@ QUALITATIVA_SEZIONE_CARATTERI = 60_000
 # e data, non il testo, che vorrebbe dire scaricarli.
 QUALITATIVA_DEPOSITI_RECENTI = 12
 
+# Quante citazioni si chiedono al massimo. Misurato: senza tetto il modello ne
+# ha prodotte tante da sbattere contro il limite di token in uscita, e il JSON
+# e' arrivato troncato — cioe' si sono perse TUTTE, non le ultime. Meglio venti
+# scelte che quaranta tagliate a meta' di una parentesi.
+QUALITATIVA_CITAZIONI_MASSIME = 24
+
 # Il verdetto legge i referti degli altri metodi. Quanto se ne manda di ognuno,
 # e da quanti giorni un referto va segnalato come vecchio: mettere insieme una
 # lettura di tre mesi fa e una di stamattina produce una sintesi coerente e
@@ -244,6 +250,15 @@ LLM_SFORZO = os.environ.get("TRADASH2_SFORZO", "medium")
 # Il tetto di token in uscita. Sopra i 16k conviene lo streaming, altrimenti si
 # rischia di sbattere contro il timeout HTTP prima della fine della risposta.
 LLM_TOKEN_MASSIMI = 16000
+
+# Le fasi che hanno bisogno di piu' spazio. Misurato dal vivo: la fase delle
+# citazioni su NVDA ha prodotto 16.000 token esatti — cioe' ha sbattuto contro
+# il tetto — e il JSON e' arrivato tagliato a meta'. Deve elencare una citazione
+# per ogni affermazione di nove sezioni, ognuna con la sua frase letterale: e'
+# la risposta piu' lunga che questo sistema chieda.
+LLM_TOKEN_PER_FASE = {
+    "qualitativa_fase4": 24000,
+}
 
 # Prezzo per milione di token, per calcolare il costo di ogni chiamata. Da
 # aggiornare quando cambiano i listini: un costo calcolato su prezzi vecchi e'

@@ -39,6 +39,12 @@ from core.db import db_read, db_session
 
 logger = logging.getLogger(__name__)
 
+# Come i due fornitori dicono "ho smesso perche' avevo finito lo spazio". E'
+# l'informazione che distingue una risposta sbagliata da una risposta TAGLIATA,
+# e senza si da' la colpa al JSON illeggibile invece che al tetto.
+MOTIVO_TAGLIO_OPENAI = "max_output_tokens"
+MOTIVO_TAGLIO_ANTHROPIC = "max_tokens"
+
 PROVIDER_OPENAI = "openai"
 PROVIDER_ANTHROPIC = "anthropic"
 
@@ -170,7 +176,8 @@ def _registra(dove: dict, risposta: dict | None, esito: dict) -> float:
     return speso
 
 
-def _chiedi_a_openai(cliente, scelto: str, sistema: str, messaggio: str) -> dict:
+def _chiedi_a_openai(cliente, scelto: str, sistema: str, messaggio: str,
+                     tetto: int) -> dict:
     """Una domanda a un modello OpenAI, attraverso l'API delle risposte.
 
     Lo sforzo di ragionamento e' esplicito: questi modelli vogliono un livello,
@@ -182,15 +189,17 @@ def _chiedi_a_openai(cliente, scelto: str, sistema: str, messaggio: str) -> dict
         model=scelto,
         instructions=sistema,
         input=messaggio,
-        max_output_tokens=config.LLM_TOKEN_MASSIMI,
+        max_output_tokens=tetto,
         reasoning={"effort": config.LLM_SFORZO},
     )
     uso = risposta.usage
     incompleta = getattr(risposta, "incomplete_details", None)
+    motivo = None if incompleta is None else getattr(incompleta, "reason", "?")
     return {
         "testo": risposta.output_text or "",
-        "stop_reason": risposta.status if incompleta is None
-                       else f"{risposta.status}: {getattr(incompleta, 'reason', '?')}",
+        "stop_reason": risposta.status if motivo is None
+                       else f"{risposta.status}: {motivo}",
+        "tagliata": motivo == MOTIVO_TAGLIO_OPENAI,
         "rifiutata": _rifiutata_openai(risposta),
         "entrata": getattr(uso, "input_tokens", 0) or 0,
         "uscita": getattr(uso, "output_tokens", 0) or 0,
@@ -206,7 +215,8 @@ def _rifiutata_openai(risposta) -> bool:
     return False
 
 
-def _chiedi_ad_anthropic(cliente, scelto: str, sistema: str, messaggio: str) -> dict:
+def _chiedi_ad_anthropic(cliente, scelto: str, sistema: str, messaggio: str,
+                         tetto: int) -> dict:
     """Una domanda a un modello Anthropic.
 
     Il pensiero e' in modalita' adattiva: il modello decide da solo quanto
@@ -214,7 +224,7 @@ def _chiedi_ad_anthropic(cliente, scelto: str, sistema: str, messaggio: str) -> 
     """
     risposta = cliente.messages.create(
         model=scelto,
-        max_tokens=config.LLM_TOKEN_MASSIMI,
+        max_tokens=tetto,
         thinking={"type": "adaptive"},
         system=sistema,
         messages=[{"role": "user", "content": messaggio}],
@@ -222,6 +232,7 @@ def _chiedi_ad_anthropic(cliente, scelto: str, sistema: str, messaggio: str) -> 
     return {
         "testo": "".join(b.text for b in risposta.content if b.type == "text"),
         "stop_reason": risposta.stop_reason,
+        "tagliata": risposta.stop_reason == MOTIVO_TAGLIO_ANTHROPIC,
         "rifiutata": risposta.stop_reason == "refusal",
         "entrata": risposta.usage.input_tokens,
         "uscita": risposta.usage.output_tokens,
@@ -241,8 +252,13 @@ def chiedi(fase: str, sistema: str, messaggio: str, scope: str | None = None,
     li'.
 
     Il fornitore lo decide il nome del modello, non una configurazione a parte.
+
+    Il tetto di token in uscita **dipende dalla fase**, e non e' un dettaglio:
+    la fase delle citazioni deve produrre una risposta molto piu' lunga delle
+    altre, e col tetto normale usciva TAGLIATA a meta' di un JSON.
     """
     scelto = modello or config.LLM_MODELLO
+    tetto = config.LLM_TOKEN_PER_FASE.get(fase, config.LLM_TOKEN_MASSIMI)
     fornitore = provider_di(scelto)
     dove = {"modello": scelto, "fase": fase, "scope": scope, "run_id": run_id}
     cliente = _client(fornitore)
@@ -250,7 +266,7 @@ def chiedi(fase: str, sistema: str, messaggio: str, scope: str | None = None,
     with calls.track(fornitore, f"messaggio:{fase}", scope=scope, run_id=run_id) as chiamata:
         chiamata.from_network()
         try:
-            esito = ADATTATORI[fornitore](cliente, scelto, sistema, messaggio)
+            esito = ADATTATORI[fornitore](cliente, scelto, sistema, messaggio, tetto)
         except Exception as exc:
             _registra(dove, None, {"stato": calls.STATUS_ERROR,
                                    "errore": f"{type(exc).__name__}: {exc}"})
@@ -265,7 +281,8 @@ def chiedi(fase: str, sistema: str, messaggio: str, scope: str | None = None,
     # il modello ha DECISO di non rispondere, e riprovare non serve.
     return {"testo": esito["testo"], "modello": scelto, "costo_usd": speso,
             "fornitore": fornitore, "stop_reason": esito["stop_reason"],
-            "rifiutata": esito["rifiutata"],
+            "rifiutata": esito["rifiutata"], "tagliata": esito["tagliata"],
+            "tetto_token": tetto,
             "token": {"entrata": esito["entrata"], "uscita": esito["uscita"]}}
 
 

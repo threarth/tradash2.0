@@ -25,10 +25,16 @@ hai preso la frase, copiato esattamente.
 
 ## Cosa devi produrre
 
-Una citazione per ogni affermazione materiale delle sezioni scritte, e almeno
-una per ciascuna sezione. Un'eccezione sola: se una sezione dice «informazione
-non disponibile nei documenti letti», quella si salta — non c'e' niente da
-citare.
+Una citazione per le affermazioni materiali delle sezioni scritte, e almeno una
+per ciascuna sezione. Un'eccezione sola: se una sezione dice «informazione non
+disponibile nei documenti letti», quella si salta — non c'e' niente da citare.
+
+**Al massimo {massimo} citazioni in tutto.** Non e' un dettaglio di formato: una
+risposta piu' lunga viene tagliata a meta' e si perde per intero. Se le
+affermazioni materiali sono piu' del tetto, **scegli**: prima una per ogni
+sezione, poi quelle che sostengono le affermazioni su cui il report poggia di
+piu'. Meglio venti citazioni scelte che quaranta troncate a meta' di una
+parentesi.
 
 Se per un'affermazione non trovi nessuna frase che la sostenga, **non
 inventarla**: lasciala senza citazione ed elencala fra quelle non sostenute. E'

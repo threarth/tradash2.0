@@ -162,11 +162,24 @@ def _testo_per_il_modello(pezzi: list[dict], quali: tuple | None = None) -> str:
 
 def _chiedi(fase: str, sistema: str, simbolo: str, run_id: str | None,
             richiesta: str) -> tuple[dict, dict]:
-    """Una fase: chiede, e ritorna `(contenuto, risposta)`. Non ingoia i rifiuti."""
+    """Una fase: chiede, e ritorna `(contenuto, risposta)`. Non ingoia i rifiuti.
+
+    Il controllo sul TAGLIO viene prima di leggere il JSON, ed e' li' per un
+    motivo preciso: la fase delle citazioni ha sbattuto contro il tetto di token
+    e il JSON e' arrivato monco. Il sistema aveva registrato la causa vera —
+    `incomplete: max_output_tokens` — e poi ha dato la colpa al JSON illeggibile.
+    Una diagnosi disponibile e ignorata e' peggio di una diagnosi assente.
+    """
     risposta = llm.chiedi(fase=f"qualitativa_{fase}", sistema=sistema,
                           messaggio=richiesta, scope=simbolo, run_id=run_id)
     if risposta["rifiutata"]:
         raise AnalisiError(f"il modello ha rifiutato di rispondere alla fase {fase}")
+    if risposta["tagliata"]:
+        raise AnalisiError(
+            f"la risposta della fase {fase} e' stata tagliata al tetto di "
+            f"{risposta['tetto_token']:,} token in uscita: e' incompleta, non "
+            f"sbagliata. Il tetto per fase sta in config.LLM_TOKEN_PER_FASE"
+        )
     return materiale.leggi_json(risposta["testo"]), risposta
 
 
@@ -252,6 +265,7 @@ def _fase4(simbolo: str, scritte: dict, pezzi: list[dict], run_id: str | None) -
     """Le citazioni, e la verifica che siano davvero nel testo."""
     sistema = materiale.prompt(
         "qualitativa_fase4",
+        massimo=str(config.QUALITATIVA_CITAZIONI_MASSIME),
         sezioni=json.dumps(scritte, indent=2, ensure_ascii=False),
         documenti=_testo_per_il_modello(pezzi),
     )
@@ -307,6 +321,7 @@ def _riepilogo(pezzi: list[dict], avvisi: list[str], scartate: list) -> dict:
         "sezioni_troncate": [f"{p['forma']}/{p['sezione']}" for p in pezzi if p["troncata"]],
         "sezioni_non_lette": avvisi,
         "citazioni_scartate": len(scartate),
+        "citazioni_massime_chieste": config.QUALITATIVA_CITAZIONI_MASSIME,
         "fonti_non_disponibili": [
             "i documenti dei concorrenti: il confronto competitivo poggia su "
             "quanto l'azienda dice di loro nei propri documenti",
@@ -380,9 +395,20 @@ def esegui(simbolo: str, lavoro) -> dict:
 
     unito = {**prima, **seconda, **terza}
     scritte = {nome: unito.get(nome) for nome in SEZIONI_SCRITTE if unito.get(nome)}
-    quarta, risposta = _fase4(simbolo, scritte, pezzi, run_id)
-    costo += risposta["costo_usd"]
-    lavoro.advance(detail="fase 4 di 4: citazioni verificate")
+
+    # La quarta fase aggiunge le citazioni a un report che a questo punto e'
+    # gia' scritto per intero. Se fallisce, buttare via le altre tre — pagate —
+    # sarebbe sbagliato due volte: si perde il referto E si perde il denaro. Il
+    # referto esce lo stesso, dichiarando che le citazioni non ci sono e perche'.
+    try:
+        quarta, risposta = _fase4(simbolo, scritte, pezzi, run_id)
+        costo += risposta["costo_usd"]
+        lavoro.advance(detail="fase 4 di 4: citazioni verificate")
+    except AnalisiError as exc:
+        logger.warning("[QUALITATIVA] citazioni non prodotte per %s: %s", simbolo, exc)
+        quarta = {"citations": [], "citazioni_scartate": [],
+                  "citazioni_non_prodotte": str(exc)}
+        lavoro.advance(detail=f"fase 4 di 4 fallita: {exc}")
 
     classificazione, scarti = tassonomia.valida(
         {**(prima.get("classificazione") or {}), **(seconda.get("classificazione") or {})}
