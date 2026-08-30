@@ -26,6 +26,7 @@
         "confidenza", "classificazione", "classificazione_scartata",
         "citations", "citazioni_scartate", "senza_riscontro", "copertura",
         "menzioni_trovate", "menzioni_notizie", "menzioni_call",
+        "dcf",  // ha un suo blocco qui sotto: la griglia va letta come tabella
     ]);
 
     // L'ordine in cui si legge un report qualitativo. Le sezioni che non sono
@@ -71,6 +72,24 @@
     );
 
     const citazioni = $derived(contenuto?.citations ?? []);
+    const conto = $derived(contenuto?.dcf ?? null);
+
+    const percento = (frazione) =>
+        frazione === null || frazione === undefined
+            ? "—"
+            : `${(frazione * 100).toFixed(1)}%`;
+
+    const dollari = (valore) =>
+        valore === null || valore === undefined ? "—" : `$${Number(valore).toFixed(2)}`;
+
+    // Le crescite e gli sconti provati, per disporre la griglia in tabella:
+    // una lista di 18 righe non si legge, una tabella 6x3 si'.
+    const crescite = $derived([...new Set((conto?.sensibilita ?? []).map((v) => v.crescita_vicina))]);
+    const sconti = $derived([...new Set((conto?.sensibilita ?? []).map((v) => v.sconto))]);
+    const nellaGriglia = (crescita, sconto) =>
+        (conto?.sensibilita ?? []).find(
+            (v) => v.crescita_vicina === crescita && v.sconto === sconto
+        )?.prezzo_equo;
     const copertura = $derived(contenuto?.copertura ?? null);
 </script>
 
@@ -145,6 +164,76 @@
             </div>
         {/each}
     </details>
+{/if}
+
+{#if conto}
+    <!-- Il prezzo equo da solo direbbe "sopravvalutata del 300%", che non e'
+         informazione: e' l'aritmetica di cio' che si e' assunto. La griglia e la
+         crescita implicita stanno accanto al numero per questo. -->
+    <div class="mt-3">
+        <div class="fw-semibold">Il flusso di cassa scontato, e le sue ipotesi</div>
+        <div class="small">
+            Prezzo equo <strong class="numerico">{dollari(conto.prezzo_equo)}</strong>
+            contro un mercato di
+            <strong class="numerico">{dollari(conto.prezzo_di_mercato)}</strong>
+            ({percento(conto.scostamento_dal_mercato)}).
+        </div>
+        <div class="small text-secondary">
+            Assumendo una crescita del {percento(conto.ipotesi.crescita_vicina)} per
+            cinque anni, uno sconto del {percento(conto.ipotesi.sconto)} e un tasso
+            terminale del {percento(conto.ipotesi.crescita_terminale)}.
+            {#if conto.storia_della_crescita?.ricavi_cagr_3a !== null}
+                I ricavi degli ultimi tre anni sono cresciuti del
+                {percento(conto.storia_della_crescita.ricavi_cagr_3a)} all'anno.
+            {/if}
+        </div>
+        <div class="small">
+            Perche' il prezzo di mercato torni servirebbe una crescita del
+            <strong class="numerico">{percento(conto.crescita_implicita_nel_prezzo)}</strong>.
+            {#if conto.nota_sulla_crescita_implicita}
+                <span class="text-warning">
+                    <Testo testo={conto.nota_sulla_crescita_implicita} />
+                </span>
+            {/if}
+        </div>
+        <div class="small text-secondary">
+            Nel valore terminale — cio' che succede dopo il decimo anno — sta il
+            {percento(conto.peso_del_valore_terminale)} del valore.
+        </div>
+
+        {#if conto.controllo_sulla_libreria?.concorde === false}
+            <div class="small text-warning">
+                <Testo testo={conto.controllo_sulla_libreria.nota} />
+            </div>
+        {/if}
+
+        {#if crescite.length}
+            <div class="table-responsive mt-2">
+                <table class="table table-sm small mb-0">
+                    <thead>
+                        <tr>
+                            <th>crescita \ sconto</th>
+                            {#each sconti as sconto (sconto)}
+                                <th class="numerico">{percento(sconto)}</th>
+                            {/each}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each crescite as crescita (crescita)}
+                            <tr>
+                                <th class="numerico">{percento(crescita)}</th>
+                                {#each sconti as sconto (sconto)}
+                                    <td class="numerico">
+                                        {dollari(nellaGriglia(crescita, sconto))}
+                                    </td>
+                                {/each}
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+        {/if}
+    </div>
 {/if}
 
 {#if copertura}

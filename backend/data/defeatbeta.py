@@ -91,6 +91,10 @@ CATEGORIA_PER_TABELLA = {
 # sola che ne unisce quattro, e non appartiene a nessun titolo.
 CATEGORY_UNIVERSE = "universe"
 CATEGORY_METRICHE = "metriche"
+
+# Il DCF: non e' una tabella del dataset ma un calcolo della libreria sopra i
+# bilanci, i prezzi e i rendimenti del Tesoro. Cambia quando cambiano quelli.
+CATEGORY_DCF = "dcf"
 ENDPOINT_UNIVERSE = "universo:derivazione"
 
 # Tutte le tabelle che questo modulo puo' nominare. L'elenco e' chiuso perche'
@@ -148,6 +152,24 @@ class Lettura:
     `None`.
     """
     frame: pd.DataFrame
+    scope: str
+    category: str
+    source: str
+    available: bool
+    reason: str
+    action: str | None = None
+
+
+@dataclass(frozen=True)
+class Dato:
+    """Il risultato di una lettura che non e' una tabella.
+
+    Il DCF della libreria torna un dizionario annidato — tassi, proiezioni,
+    valore — e non una tabella. Piegarlo in un DataFrame per farlo entrare in
+    `Lettura` avrebbe voluto dire appiattirlo e poi ricostruirlo: stessa forma
+    di `Lettura`, campo diverso.
+    """
+    dato: dict | None
     scope: str
     category: str
     source: str
@@ -635,6 +657,47 @@ def metrica(simbolo: str, nome: str, run_id: str | None = None) -> Lettura:
         provenienza = chiamata.source
 
     return _esito(frame, ambito, CATEGORY_METRICHE, provenienza)
+
+
+def dcf(simbolo: str, run_id: str | None = None) -> Dato:
+    """Il flusso di cassa scontato della libreria: tassi, proiezioni, prezzo equo.
+
+    E' il calcolo piu' pesante che la libreria faccia — legge bilanci, prezzi,
+    capitalizzazione e rendimenti del Tesoro — e per questo passa dal registro
+    come tutto il resto: una chiamata che non si vede e' una chiamata che non
+    si puo' fermare.
+
+    Il risultato NON e' un verdetto, e chi lo usa non deve leggerlo come tale:
+    la libreria ci mette dentro anche un campo `recommendation` con scritto
+    "Buy" o "Sell", che questo sistema non propaga.
+    """
+    ambito = freshness.normalize_scope(simbolo)
+    if not SYMBOL_PATTERN.match(ambito):
+        rifiuto = _simbolo_rifiutato(ambito, CATEGORY_DCF)
+        return Dato(dato=None, scope=rifiuto.scope, category=CATEGORY_DCF,
+                    source=rifiuto.source, available=False, reason=rifiuto.reason,
+                    action=rifiuto.action)
+
+    with calls.track(PROVIDER_NAME, "dcf", scope=ambito, run_id=run_id) as chiamata:
+        try:
+            with _read_lock:
+                calcolo, richieste = _esegui_metodo(ambito, "dcf_data")
+        except Exception as exc:
+            raise DefeatbetaUnavailable(
+                f"dcf per {ambito} fallito: {type(exc).__name__}: {exc}"
+            ) from exc
+        _dichiara_provenienza(chiamata, richieste, ambito, CATEGORY_DCF)
+        provenienza = chiamata.source
+
+    if not isinstance(calcolo, dict) or not calcolo.get("dcf_template"):
+        return Dato(dato=None, scope=ambito, category=CATEGORY_DCF, source=provenienza,
+                    available=False,
+                    reason=f"la libreria non ha prodotto un DCF per {ambito}: "
+                           f"servono bilanci, flusso di cassa e capitalizzazione",
+                    action=ACTION_SIMBOLO_ASSENTE)
+
+    return Dato(dato=calcolo, scope=ambito, category=CATEGORY_DCF, source=provenienza,
+                available=True, reason=f"DCF di {ambito}, da {provenienza}")
 
 
 # --- l'universo: una query sola che ne unisce quattro ----------------------

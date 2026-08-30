@@ -49,6 +49,7 @@ FRESHNESS_TTL_S: dict[str, int] = {
     "treasury_yield": 12 * SECONDS_PER_HOUR,
     "universe": 1 * SECONDS_PER_DAY,       # dato globale, non di un titolo
     "metriche": 1 * SECONDS_PER_DAY,       # calcolate sui bilanci: cambiano a trimestre
+    "dcf": 1 * SECONDS_PER_DAY,            # idem: e' un calcolo sopra i bilanci
 }
 
 # TTL usato quando una categoria non e' in tabella. Volutamente cortissimo: una
@@ -177,6 +178,14 @@ QUALITATIVA_SEZIONE_CARATTERI = 60_000
 # Quanti depositi recenti si elencano alla fase prospettica. E' l'indice: tipo
 # e data, non il testo, che vorrebbe dire scaricarli.
 QUALITATIVA_DEPOSITI_RECENTI = 12
+
+# Il verdetto legge i referti degli altri metodi. Quanto se ne manda di ognuno,
+# e da quanti giorni un referto va segnalato come vecchio: mettere insieme una
+# lettura di tre mesi fa e una di stamattina produce una sintesi coerente e
+# sbagliata, e il testo da solo non direbbe quando e' stato scritto.
+VERDETTO_TESTO_CARATTERI = 2_000
+VERDETTO_VOCI_MASSIME = 12
+VERDETTO_GIORNI_VECCHIO = 30
 
 # --- Modelli linguistici (Blocco 8) ----------------------------------------
 #

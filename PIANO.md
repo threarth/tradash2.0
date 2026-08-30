@@ -361,7 +361,7 @@ verificata dal vivo.
 *Da chiudere qui: `before` su `get_recent_filings` era esposto e nessuno dei 9
 chiamanti di produzione lo passava.*
 
-**Blocco 8 — Tutte le analisi. IN PARTE, il 2026-08-30, 183 test verdi.**
+**Blocco 8 — Tutte le analisi. FATTO il 2026-08-31, 267 test verdi.**
 
 *Fatto:* i **cinque segnali fondamentali** F1-F5, deterministici, con le soglie
 del vecchio sistema e la copertura dichiarata a parte. L'**infrastruttura** per
@@ -397,23 +397,56 @@ misurato: ROE 33,1%, **il 45% sotto la sua industria**, con i margini invece
 sopra — la lettura che il vecchio sistema non sapeva produrre per undici ticker
 su diciotto.
 
-*Non fatto, e ognuno sa perche':* la **qualitativa** aspetta le quattro fasi (i
-documenti si possono gia' preparare: la scheda dice quali servono e con che nome
-salvarli); la **forward** aspetta il suo pacchetto (3.295 righe mai girate);
-l'**earnings review** la tabella delle trascrizioni; il **verdetto** gli altri
-metodi; lo **spin-off** e' il candidato a essere tolto.
+*Poi sono arrivate anche le altre cinque, e i sette metodi ci sono tutti.*
 
-*Non verificato dal vivo:* la lettura tecnica non e' mai stata eseguita con un
-modello vero — servono la chiave e la decisione di spendere. La memoria dice che
-per i prompt il mock non basta, e questo resta l'unico pezzo del sistema che
-non ho potuto guardare girare.
+- **Earnings review**, sulle trascrizioni. Due correzioni che solo i dati veri
+  hanno mostrato: il marcatore delle domande pescava il saluto iniziale
+  dell'operatore, e la parte preparata usciva vuota; e il CEO risultava
+  analista 28 volte, finche' non si e' visto che **e' l'operatore a nominare
+  l'analista** — dopo un suo turno, il primo che parla e' chi domanda.
+- **Rilevatore di spin-off**, con le fonti riviste: non e' un calendario, e' un
+  rilevatore di menzioni che le legge. Vedi il commit del 30/08.
+- **Report qualitativo a 10 sezioni**, quattro fasi. Il pezzo nuovo e' dividere
+  un filing nelle sue sezioni, ed e' li' che stavano i difetti: un rimando
+  scritto dentro Business («see Item 1A») tagliava Business a un terzo e faceva
+  cominciare li' Risk Factors; e in un 10-Q la numerazione riparte nella Parte
+  II, quindi l'MD&A si prendeva dentro i rischi. Le citazioni si **verificano
+  alla lettera** nel testo, e quelle che non si trovano si scartano dicendolo.
+- **Forward analysis**, ricostruita e non riportata. Le 3.295 righe del vecchio
+  pacchetto non sono mai girate, e riportarle avrebbe voluto dire chiamare
+  funzionalita' del codice mai visto funzionare. La fonte e' il **DCF che
+  Defeatbeta calcola gia'**, rifatto in proprio per poterlo rifare con altre
+  ipotesi. Misurato su NVDA: prezzo equo 52,59 contro 217,55 di mercato, che
+  detto cosi' significherebbe "sopravvalutata del 300%" e non e' informazione —
+  quel numero esce da una crescita assunta al 20% (il tetto della libreria)
+  mentre i ricavi sono cresciuti dell'88% annuo, e perche' il prezzo di mercato
+  torni servirebbe il **55,6%** annuo per cinque anni. Su KO e su F il fenomeno
+  e' opposto e piu' insidioso: prezzo equo 2,8 e 5 volte il mercato, con
+  **oltre l'80% del valore nel valore terminale** — cioe' in cio' che succede
+  dopo il decimo anno.
+- **Verdetto finale**, che non produce un punteggio. La sua parte utile sono le
+  **contraddizioni** fra i referti, e ogni referto gli arriva con la sua eta':
+  una sintesi che mette insieme una lettura di tre mesi fa e una di stamattina
+  e' coerente e sbagliata, e il testo da solo non direbbe quando e' stato
+  scritto.
+
+*Non verificato dal vivo:* **nessuna delle sette analisi e' mai stata eseguita
+con un modello vero** — non c'e' una chiave configurata, e ogni giro costa. La
+memoria dice che per i prompt il mock non basta, e questo resta l'unico pezzo
+del sistema che non ho potuto guardare girare. Tutto cio' che sta PRIMA della
+chiamata al modello, invece, gira e ha i suoi test: le sezioni dei filing, il
+pannello, il DCF, le menzioni, la scelta dei referti.
+
+Per la qualitativa serve anche altro: i documenti SEC vanno **salvati a mano**
+nella cartella che la scheda del titolo indica. Il sistema dice quali sono e con
+che nome, e non li scarica: a sec.gov questo sistema non chiede niente.
 
 L'elenco completo, cosi' com'e' nel vecchio sistema:
 
 | Analisi | Natura | Prompt / motore |
 |---|---|---|
 | Fondamentale (FQ) | deterministica + veti LLM | `fundamental_quality/` (18 moduli) |
-| **Forward analysis** | **pipeline deterministica, NON conversazione** | `forward_analysis/` (11 moduli, 3295 righe) |
+| **Forward analysis** | **DCF deterministico + lettura delle ipotesi** | rifatta sul DCF di Defeatbeta; le 3295 righe non sono state portate |
 | Qualitativa (report a 10 sezioni) | 4 fasi LLM bounded | `agent_qualitative_phase1..4` |
 | Tecnica | deterministica + lettura LLM | `agent_technical_analysis_system.txt` |
 | Earnings review **rifondato** | LLM sulle trascrizioni | `stock_earning_call_transcripts` (6.495 simboli) |

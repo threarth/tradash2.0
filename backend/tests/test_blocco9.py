@@ -7,15 +7,19 @@ potevano fermare, e che rispondevano con un elenco di titoli senza dire in base
 a cosa. Qui la scansione e' un lavoro del registro, e ogni titolo trovato porta
 la ragione per cui e' stato trovato.
 """
+import json
 import threading
+import time
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import pytest
 
+import config
 from core import registry
 from core.db import db_read, db_session
-from data import defeatbeta, scanner
-from domain import drawdown, scansione
+from data import defeatbeta, forward, scanner, verdetto
+from domain import dcf, drawdown, scansione
 
 TIMEOUT_S = 5.0
 
@@ -133,10 +137,15 @@ def test_i_filtri_dell_universo_riducono_i_candidati(universo_finto, monkeypatch
 def test_la_scansione_si_ferma_e_conserva_quello_che_aveva_trovato(universo_finto, monkeypatch):
     """Fermata a meta' e' meno di quanto chiesto, non niente."""
     partita = threading.Event()
+    proseguire = threading.Event()
 
     def _lente(simbolo, run_id=None):
+        # Il primo simbolo dice di essere partito e poi ASPETTA: senza questo il
+        # giro poteva finire prima che lo stop arrivasse, e il test falliva una
+        # volta ogni cinque circa. Una pausa fissa e' una scommessa sul carico
+        # della macchina; questa e' una sincronizzazione.
         partita.set()
-        threading.Event().wait(0.15)
+        assert proseguire.wait(TIMEOUT_S), "lo stop non e' mai stato chiesto"
         return defeatbeta.Lettura(frame=_prezzi([100, 120, 84, 96]), scope=simbolo,
                                   category="price", source="cache", available=True,
                                   reason="finto")
@@ -144,15 +153,20 @@ def test_la_scansione_si_ferma_e_conserva_quello_che_aveva_trovato(universo_fint
     monkeypatch.setattr(defeatbeta, "prices", _lente)
 
     run_id = scanner.avvia({"drawdown_minimo": 0.1}, {})
-    assert partita.wait(TIMEOUT_S)
+    assert partita.wait(TIMEOUT_S), "la scansione non e' partita"
     registry.request_stop(run_id)
+    proseguire.set()
 
-    scadenza = threading.Event()
-    while not scadenza.wait(0.05):
+    scadenza = time.monotonic() + TIMEOUT_S
+    riga = None
+    while time.monotonic() < scadenza:
         with db_read() as conn:
             riga = conn.execute("SELECT * FROM jobs WHERE run_id = ?", (run_id,)).fetchone()
         if riga["ended_at"]:
             break
+        threading.Event().wait(0.02)
+
+    assert riga is not None and riga["ended_at"], "il lavoro non si e' chiuso in tempo"
 
     assert riga["status"] == registry.STATUS_STOPPED
     assert scanner.esito(run_id)["completata"] is False
@@ -179,3 +193,233 @@ def test_l_esito_di_una_scansione_sconosciuta_lo_dice(client):
 
     assert risposta.status_code == 404
     assert "ops/active" in risposta.get_json()["error"]
+
+
+# --- il DCF, e quanto dipende da cio' che si assume -------------------------
+#
+# Le cifre qui sotto sono quelle vere di NVDA al 28/08/2026, prese dal DCF di
+# Defeatbeta. Servono a una cosa sola: verificare che il nostro conto e quello
+# della libreria diano lo STESSO numero. La griglia di sensibilita' e la
+# crescita implicita le calcoliamo noi, e valgono solo se la formula e' la sua.
+
+NVDA_INGRESSI = {
+    "base_fcf": 119076000000.0,
+    "crescita_vicina": 0.2,
+    "crescita_terminale": 0.035493374717919295,
+    "sconto": 0.2402416970804019,
+    "cassa": 80572000000.0,
+    "debito": 12348000000.0,
+    "azioni": 24147000000.0,
+}
+
+NVDA_PREZZO_EQUO_LIBRERIA = 52.58542482851448
+NVDA_VALORE_IMPRESA_LIBRERIA = 1201556253334.1392
+NVDA_PREZZO_DI_MERCATO = 217.55
+
+
+def test_il_nostro_dcf_da_lo_stesso_numero_della_libreria():
+    """Se divergesse, la griglia descriverebbe un prezzo diverso da quello mostrato."""
+    calcolo = dcf.prezzo_equo(NVDA_INGRESSI)
+
+    assert calcolo["prezzo_equo"] == pytest.approx(NVDA_PREZZO_EQUO_LIBRERIA, abs=1e-6)
+    assert calcolo["valore_impresa"] == pytest.approx(NVDA_VALORE_IMPRESA_LIBRERIA, rel=1e-12)
+
+
+def test_gli_anni_dal_sesto_scendono_per_gradi_uguali():
+    """Non e' una scelta nostra: e' l'interpolazione lineare della libreria."""
+    proiettati = dcf.flussi(100.0, 0.20, 0.00)
+
+    crescite = [proiettati[i] / proiettati[i - 1] - 1 for i in range(1, len(proiettati))]
+    assert crescite[:4] == pytest.approx([0.20] * 4)
+    assert crescite[4:] == pytest.approx([0.16, 0.12, 0.08, 0.04, 0.00], abs=1e-9)
+
+
+def test_uno_sconto_che_non_supera_la_crescita_terminale_non_da_un_valore():
+    """La formula di Gordon li' divide per zero o per un negativo: il risultato
+    non sarebbe un valore alto, sarebbe un valore senza senso."""
+    assert dcf.valore_terminale(100.0, 0.05, 0.05) is None
+    assert dcf.prezzo_equo({**NVDA_INGRESSI, "sconto": 0.02}) is None
+
+
+def test_lo_scostamento_si_misura_sul_prezzo_di_mercato():
+    """La libreria divide per il prezzo equo, e il suo -3,14 su NVDA si legge
+    come «sopravvalutata del 314%», che non e' quello che dice."""
+    scarto = dcf.scostamento(NVDA_PREZZO_EQUO_LIBRERIA, NVDA_PREZZO_DI_MERCATO)
+
+    assert scarto == pytest.approx(-0.7583, abs=1e-4)
+    assert dcf.scostamento(50.0, 0) is None
+
+
+def test_la_crescita_implicita_dice_cosa_dovrebbe_fare_l_azienda():
+    """La domanda utile non e' «quanto e' caro» ma «cosa deve succedere»."""
+    implicita = dcf.crescita_implicita(NVDA_INGRESSI, NVDA_PREZZO_DI_MERCATO)
+
+    assert implicita == pytest.approx(0.5555, abs=1e-3)
+    verifica = dcf.prezzo_equo({**NVDA_INGRESSI, "crescita_vicina": implicita})
+    assert verifica["prezzo_equo"] >= NVDA_PREZZO_DI_MERCATO
+
+
+def test_se_nemmeno_la_crescita_massima_basta_lo_dice():
+    """Un None qui e' una risposta: il prezzo non si spiega con la sola crescita."""
+    caro = dcf.crescita_implicita(NVDA_INGRESSI, prezzo_di_mercato=100_000.0)
+
+    assert caro is None
+
+
+def test_la_griglia_mostra_che_il_numero_e_un_opinione():
+    """Cinque punti di crescita in piu' spostano il prezzo equo di decine di punti."""
+    griglia = dcf.sensibilita(NVDA_INGRESSI, (0.10, 0.20), (0.20, 0.25))
+
+    assert len(griglia) == 4
+    prezzi = {(v["crescita_vicina"], v["sconto"]): v["prezzo_equo"] for v in griglia}
+    assert prezzi[(0.2, 0.2)] > prezzi[(0.1, 0.2)], "piu' crescita, piu' valore"
+    assert prezzi[(0.2, 0.25)] < prezzi[(0.2, 0.2)], "piu' sconto, meno valore"
+
+
+def test_il_forward_si_ferma_se_il_dcf_non_c_e(monkeypatch):
+    monkeypatch.setattr(defeatbeta, "dcf", lambda s, run_id=None: defeatbeta.Dato(
+        dato=None, scope=s, category="dcf", source="cache", available=False,
+        reason="bilanci insufficienti"))
+
+    with pytest.raises(forward.AnalisiError, match="bilanci insufficienti"):
+        forward.misure("XYZ", None)
+
+
+def test_un_dcf_a_pezzi_non_diventa_un_prezzo_a_pezzi(monkeypatch):
+    """Meglio nessun prezzo equo che uno calcolato sugli ingressi che c'erano."""
+    monkeypatch.setattr(defeatbeta, "dcf", lambda s, run_id=None: defeatbeta.Dato(
+        dato={"dcf_template": {"base_fcf": 1.0, "growth_rate_1_5y": 0.1},
+              "dcf_value": {}},
+        scope=s, category="dcf", source="cache", available=True, reason="finto"))
+
+    with pytest.raises(forward.AnalisiError, match="incompleto"):
+        forward.misure("XYZ", None)
+
+
+def test_il_forward_non_propaga_il_consiglio_della_libreria(monkeypatch):
+    """La libreria scrive «Buy» o «Sell» in un campo. Accanto a un'analisi
+    sembrerebbe la sua conclusione."""
+    monkeypatch.setattr(defeatbeta, "dcf", lambda s, run_id=None: defeatbeta.Dato(
+        dato={"dcf_template": {"base_fcf": NVDA_INGRESSI["base_fcf"],
+                               "growth_rate_1_5y": 0.2,
+                               "growth_rate_terminal": NVDA_INGRESSI["crescita_terminale"],
+                               "discount_rate": NVDA_INGRESSI["sconto"]},
+              "dcf_value": {"cash": NVDA_INGRESSI["cassa"],
+                            "total_debt": NVDA_INGRESSI["debito"],
+                            "shares_outstanding": NVDA_INGRESSI["azioni"],
+                            "fair_price": NVDA_PREZZO_EQUO_LIBRERIA,
+                            "current_price": NVDA_PREZZO_DI_MERCATO,
+                            "recommendation": "Sell"}},
+        scope=s, category="dcf", source="cache", available=True, reason="finto"))
+
+    misurato = forward.misure("NVDA", None)
+
+    assert "Sell" not in json.dumps(misurato)
+    assert misurato["controllo_sulla_libreria"]["concorde"] is True
+    assert misurato["prezzo_equo"] == pytest.approx(52.59, abs=0.01)
+
+
+def test_se_la_formula_della_libreria_cambia_il_referto_lo_dice(monkeypatch):
+    """Il giorno che divergono, pubblicare la griglia accanto al loro numero
+    sarebbe pubblicare una griglia che non lo descrive."""
+    monkeypatch.setattr(defeatbeta, "dcf", lambda s, run_id=None: defeatbeta.Dato(
+        dato={"dcf_template": {"base_fcf": NVDA_INGRESSI["base_fcf"],
+                               "growth_rate_1_5y": 0.2,
+                               "growth_rate_terminal": NVDA_INGRESSI["crescita_terminale"],
+                               "discount_rate": NVDA_INGRESSI["sconto"]},
+              "dcf_value": {"cash": NVDA_INGRESSI["cassa"],
+                            "total_debt": NVDA_INGRESSI["debito"],
+                            "shares_outstanding": NVDA_INGRESSI["azioni"],
+                            "fair_price": 999.0, "current_price": NVDA_PREZZO_DI_MERCATO}},
+        scope=s, category="dcf", source="cache", available=True, reason="finto"))
+
+    controllo = forward.misure("NVDA", None)["controllo_sulla_libreria"]
+
+    assert controllo["concorde"] is False
+    assert "la formula e' cambiata" in controllo["nota"]
+
+
+# --- il verdetto: le contraddizioni, non un punteggio ----------------------
+
+def _referto(metodo: str, giorni_fa: int, contenuto: dict) -> dict:
+    quando = datetime.now(UTC) - timedelta(days=giorni_fa)
+    return {"metodo": metodo, "creato_il": quando.isoformat(timespec="seconds"),
+            "contenuto": contenuto}
+
+
+METODI_FINTI = {
+    "tecnica": {"nome": "Lettura tecnica"},
+    "fondamentale": {"nome": "Qualita' fondamentale"},
+    "verdetto": {"nome": "Verdetto finale"},
+}
+
+
+def test_il_verdetto_prende_solo_l_ultimo_referto_di_ogni_metodo():
+    """Due letture tecniche della stessa settimana raddoppiano il contesto e
+    non aggiungono niente."""
+    tutti = [_referto("tecnica", 1, {"lettura": "la piu' recente"}),
+             _referto("tecnica", 9, {"lettura": "la vecchia"}),
+             _referto("fondamentale", 2, {"lettura": "margini in calo"})]
+
+    scelti, mancanti = verdetto.referti_da_sintetizzare(tutti, METODI_FINTI)
+
+    assert len(scelti) == 2
+    tecnica = next(r for r in scelti if r["metodo"] == "tecnica")
+    assert tecnica["contenuto"]["lettura"] == "la piu' recente"
+    assert mancanti == []
+
+
+def test_un_referto_vecchio_arriva_al_modello_marcato_vecchio():
+    """Una sintesi che mette insieme tre mesi fa e stamattina e' coerente e sbagliata."""
+    tutti = [_referto("tecnica", 90, {"lettura": "forza"}),
+             _referto("fondamentale", 1, {"lettura": "debolezza"})]
+
+    scelti, _ = verdetto.referti_da_sintetizzare(tutti, METODI_FINTI)
+
+    vecchi = {r["metodo"]: r["vecchio"] for r in scelti}
+    assert vecchi["tecnica"] is True
+    assert vecchi["fondamentale"] is False
+    assert next(r for r in scelti if r["metodo"] == "tecnica")["eta_in_giorni"] == 90
+
+
+def test_il_verdetto_dice_quali_metodi_non_hanno_referti():
+    """Un verdetto che tace su cio' che non ha letto si legge come completo."""
+    _, mancanti = verdetto.referti_da_sintetizzare(
+        [_referto("tecnica", 1, {"lettura": "x"})], METODI_FINTI)
+
+    assert any("Qualita' fondamentale" in m for m in mancanti)
+    assert not any("Verdetto" in m for m in mancanti), "non manca a se stesso"
+
+
+def test_con_un_solo_referto_il_verdetto_si_ferma():
+    """Con uno solo la sintesi sarebbe una parafrasi."""
+    lavoro = type("L", (), {"run_id": None})()
+
+    with pytest.raises(verdetto.AnalisiError, match="almeno 2 referti"):
+        verdetto.esegui("NVDA", lavoro,
+                        [_referto("tecnica", 1, {"lettura": "x"})], METODI_FINTI)
+
+
+def test_i_dati_grezzi_dei_referti_non_finiscono_nel_verdetto():
+    """Griglie, metriche e citazioni riempirebbero il contesto di numeri che il
+    verdetto non deve ricalcolare."""
+    tutti = [_referto("forward", 1, {"lettura": "caro", "dcf": {"sensibilita": [1] * 100}}),
+             _referto("fondamentale", 1, {"lettura": "solida",
+                                          "metriche": {"roe": {"adesso": 0.3}}})]
+
+    scelti, _ = verdetto.referti_da_sintetizzare(tutti, METODI_FINTI)
+
+    testo = json.dumps(scelti)
+    assert "sensibilita" not in testo and "roe" not in testo
+    assert "caro" in testo and "solida" in testo
+
+
+def test_un_testo_lunghissimo_di_un_referto_viene_tagliato(monkeypatch):
+    monkeypatch.setattr(config, "VERDETTO_TESTO_CARATTERI", 50)
+    tutti = [_referto("tecnica", 1, {"lettura": "parola " * 200}),
+             _referto("fondamentale", 1, {"lettura": "corta"})]
+
+    scelti, _ = verdetto.referti_da_sintetizzare(tutti, METODI_FINTI)
+
+    lungo = next(r for r in scelti if r["metodo"] == "tecnica")["contenuto"]["lettura"]
+    assert lungo.endswith("[…]") and len(lungo) < 100

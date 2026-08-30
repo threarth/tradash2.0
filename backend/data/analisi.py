@@ -32,7 +32,7 @@ import config
 from core import llm, registry
 from core.db import db_read, db_session
 from core.tipi import python_puro
-from data import defeatbeta, qualitativa
+from data import defeatbeta, forward, qualitativa, verdetto
 from data.materiale import (
     AnalisiError,
     contesto,
@@ -79,10 +79,12 @@ METODI = {
     },
     "forward": {
         "nome": "Forward analysis",
-        "natura": "pipeline deterministica, non conversazione",
-        "pronta": False,
-        "fonte": "proiezioni e DCF sui bilanci",
-        "manca": "il pacchetto forward_analysis, 3.295 righe MAI girate nel vecchio sistema",
+        "natura": "DCF deterministico + lettura delle ipotesi",
+        "pronta": True,
+        "fonte": "il DCF di Defeatbeta — WACC col CAPM, crescita dagli utili, tasso "
+                 "terminale dal Tesoro a 5 anni — rifatto in proprio per poterlo "
+                 "rifare con altre ipotesi. NON e' il pacchetto forward_analysis del "
+                 "vecchio sistema: quelle 3.295 righe non sono mai girate",
     },
     "earnings": {
         "nome": "Earnings review",
@@ -101,10 +103,11 @@ METODI = {
     },
     "verdetto": {
         "nome": "Verdetto finale",
-        "natura": "sintesi trasversale",
-        "pronta": False,
-        "fonte": "i referti degli altri metodi",
-        "manca": "gli altri metodi",
+        "natura": "sintesi trasversale, non un punteggio",
+        "pronta": True,
+        "fonte": "i referti degli altri metodi, l'ultimo per ciascuno, ognuno con "
+                 "la sua eta'. Ne servono almeno due di metodi diversi: con uno "
+                 "solo la sintesi sarebbe una parafrasi",
     },
 }
 
@@ -393,9 +396,22 @@ def _spin_off(simbolo: str, lavoro) -> dict:
             "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
 
 
+def _verdetto(simbolo: str, lavoro) -> dict:
+    """Il verdetto legge i referti degli altri, e il registro glieli passa.
+
+    Passarglieli invece di lasciare che se li prenda tiene fuori l'anello: il
+    verdetto e' un metodo del registro, e un metodo che importa il registro che
+    lo importa e' un import che funziona finche' nessuno cambia l'ordine.
+    """
+    return verdetto.esegui(simbolo, lavoro,
+                           referti(simbolo, limite=config.CALLS_PAGE_LIMIT_MAX),
+                           METODI)
+
+
 ESECUTORI = {"tecnica": _tecnica, "fondamentale": _fondamentale,
              "earnings": _earnings, "spin_off": _spin_off,
-             "qualitativa": qualitativa.esegui}
+             "qualitativa": qualitativa.esegui, "forward": forward.esegui,
+             "verdetto": _verdetto}
 
 # Quanti passi ha un metodo, quando non lo dichiara: uno. Serve alla barra di
 # avanzamento e allo Stop — un metodo che dura quattro chiamate al modello deve

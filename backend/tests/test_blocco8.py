@@ -352,11 +352,18 @@ def test_i_metodi_non_ancora_costruiti_restano_in_elenco_e_dicono_cosa_manca():
 
 
 def test_chiedere_un_metodo_non_pronto_dice_cosa_gli_manca():
-    with pytest.raises(analisi.AnalisiError, match=r"3\.295 righe"):
-        analisi.esegui("forward", "NVDA")
-
     with pytest.raises(analisi.AnalisiError, match="metodo sconosciuto"):
         analisi.esegui("oroscopo", "NVDA")
+
+    # Adesso i sette metodi ci sono tutti. La regola pero' resta, e vale per il
+    # prossimo che si aggiunge: chi non e' pronto dice cosa gli manca, chi lo e'
+    # ha davvero un esecutore. Un metodo "pronto" senza esecutore darebbe un
+    # KeyError al posto di una frase.
+    for metodo, definizione in analisi.METODI.items():
+        if definizione["pronta"]:
+            assert metodo in analisi.ESECUTORI, f"{metodo} e' pronto ma non ha esecutore"
+        else:
+            assert definizione.get("manca"), f"{metodo} non e' pronto e non dice perche'"
 
 
 def test_un_rifiuto_del_modello_non_diventa_un_referto_vuoto(monkeypatch):
