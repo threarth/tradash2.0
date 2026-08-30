@@ -3,8 +3,11 @@ pannello.py — le serie delle metriche ridotte a cio' che si legge.
 # feat (Blocco 8): matematica pura, nessuna lettura.
 
 Le metriche di Defeatbeta arrivano come serie storiche: `ttm_pe` da solo ha
-6.875 righe, una per giorno di borsa. Mandarle intere a un modello sarebbe
-pagare decine di migliaia di token per un numero che si guarda alla fine.
+6.875 righe, una per giorno di borsa. Mandarle intere a un modello vorrebbe dire
+pagare un ordine di grandezza di token in piu' per un numero che si guarda alla
+fine. (Quanto esattamente non lo sappiamo: nessuna analisi e' ancora stata
+eseguita con un modello vero, e i conteggi in giro sono stime a quattro
+caratteri per token.)
 
 Qui ogni serie diventa tre cose: **quanto vale adesso**, **quanto valeva un
 anno fa**, e **come si muove**. Piu' il confronto col settore quando esiste.

@@ -385,8 +385,11 @@ che calcolano ROE, ROIC, margini, debito netto, multipli e — cosa che il vecch
 tradash non aveva — i **confronti di settore**. Passano da
 `defeatbeta.metrica()`, quindi dal registro con la provenienza misurata. Le
 serie si comprimono in `domain/pannello.py` prima di arrivare a un modello:
-`ttm_pe` da solo ha 6.875 righe, e mandarle intere costerebbe ~200.000 token
-per un numero che si guarda alla fine.
+`ttm_pe` da solo ha 6.875 righe, e mandarle intere costerebbe un ordine di
+grandezza di token maggiore per un numero che si guarda alla fine — il prompt
+compresso sta in 6.157 caratteri, che e' l'unica cosa qui misurata davvero.
+Nessuna analisi e' mai stata eseguita con un modello vero: i conteggi di token
+di questo blocco sono stime a quattro caratteri per token, non misure.
 
 *Fatta anche la seconda analisi:* la **qualita' fondamentale**, che mette
 insieme i cinque segnali e nove metriche col confronto di settore. Su NVDA
