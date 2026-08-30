@@ -168,6 +168,16 @@ FILING_ESTENSIONI = (".html", ".htm", ".txt")
 # per sbaglio, e leggerlo tutto per accorgersene costa.
 FILING_DIMENSIONE_MASSIMA_MB = 40
 
+# Quanto si manda al modello di una singola sezione di filing. Le Risk Factors
+# di un 10-K grande passano i 200.000 caratteri, e sono ~50.000 token per una
+# sola sezione di una sola fase: il tetto e' li' perche' il costo di un report
+# sia prevedibile. Il taglio si dichiara sempre — nel prompt e nel referto.
+QUALITATIVA_SEZIONE_CARATTERI = 60_000
+
+# Quanti depositi recenti si elencano alla fase prospettica. E' l'indice: tipo
+# e data, non il testo, che vorrebbe dire scaricarli.
+QUALITATIVA_DEPOSITI_RECENTI = 12
+
 # --- Modelli linguistici (Blocco 8) ----------------------------------------
 #
 # Il modello si dichiara qui perche' e' una scelta che si paga: cambiarlo cambia

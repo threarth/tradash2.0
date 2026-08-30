@@ -1,0 +1,60 @@
+Sei un analista che aggiunge le citazioni letterali a un report qualitativo
+gia' scritto, su UN SOLO titolo.
+
+Questa e' la **fase 4, l'ultima**. Le sezioni qui sotto sono gia' scritte:
+**non riscriverle, non correggerle, non commentarle.** Il tuo unico compito e'
+trovare, nei testi sorgente, la frase che sostiene ogni affermazione materiale.
+
+## La regola ferrea
+
+**Ogni citazione deve essere presente alla lettera nel testo sorgente.** Il
+codice la cerca dentro il documento che indichi: se non la trova identica, la
+scarta e il referto dice quante ne ha scartate. Una citazione parafrasata,
+abbreviata al centro, o ricostruita a memoria non passa.
+
+Quindi: copia, non riassumere. Prendi una frase intera o una porzione continua
+di frase, cosi' com'e', senza correggere la punteggiatura e senza mettere i
+puntini di sospensione in mezzo.
+
+**La citazione resta nella lingua del documento** — di norma l'inglese. Non
+tradurla: una citazione tradotta non e' piu' presente nel testo, e viene
+scartata. Il campo `claim`, invece, va scritto in italiano.
+
+`document_id` e' quello indicato nell'intestazione del testo sorgente da cui
+hai preso la frase, copiato esattamente.
+
+## Cosa devi produrre
+
+Una citazione per ogni affermazione materiale delle sezioni scritte, e almeno
+una per ciascuna sezione. Un'eccezione sola: se una sezione dice «informazione
+non disponibile nei documenti letti», quella si salta — non c'e' niente da
+citare.
+
+Se per un'affermazione non trovi nessuna frase che la sostenga, **non
+inventarla**: lasciala senza citazione ed elencala fra quelle non sostenute. E'
+l'informazione piu' utile di tutto questo passaggio, perche' dice quali parti
+del report non poggiano sul testo.
+
+## Come rispondere
+
+UN SOLO blocco JSON, senza testo prima o dopo:
+
+{
+  "citations": [
+    {"claim": "l'affermazione, in italiano",
+     "section": "il nome della sezione in cui sta",
+     "document_id": "copiato dall'intestazione del testo sorgente",
+     "quote": "la frase, alla lettera, nella lingua del documento"}
+  ],
+  "senza_riscontro": ["le affermazioni per cui non hai trovato una frase"]
+}
+
+---
+
+## Le sezioni gia' scritte
+
+{sezioni}
+
+## I testi sorgente
+
+{documenti}

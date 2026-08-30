@@ -58,6 +58,11 @@ TABLE_EARNING_CALENDAR = "stock_earning_calendar"
 TABLE_SEC_FILING = "stock_sec_filing"
 TABLE_NEWS = "stock_news"
 
+# I dirigenti, col ruolo e il compenso dichiarato. E' quanto piu' vicino a un
+# dato di governance ci sia in Defeatbeta: il proxy statement (DEF 14A), dove
+# stanno consiglio, voti e compensi deliberati, nel dataset non c'e'.
+TABLE_OFFICERS = "stock_officers"
+
 # Azioni in circolazione: non ha un lettore suo perche' da sola non dice niente.
 # Serve dentro la derivazione dell'universo, dove moltiplicata per l'ultima
 # chiusura da' la capitalizzazione.
@@ -78,6 +83,7 @@ CATEGORIA_PER_TABELLA = {
     TABLE_EARNING_CALENDAR: "earning_calendar",
     TABLE_SEC_FILING: "sec_filings",
     TABLE_NEWS: "news",
+    TABLE_OFFICERS: "profile",
     TABLE_TRANSCRIPTS: "transcripts",
 }
 
@@ -431,6 +437,17 @@ def _read(table: str, symbol: str, extra: str = "",
 def profile(symbol: str, run_id: str | None = None) -> Lettura:
     """Anagrafica del titolo: settore, industria, paese, descrizione, dipendenti."""
     return _read(TABLE_PROFILE, symbol, run_id=run_id)
+
+
+def officers(symbol: str, run_id: str | None = None) -> Lettura:
+    """I dirigenti: nome, ruolo, eta', compenso dichiarato, opzioni.
+
+    Serve alla fase governance del report qualitativo. Non e' un dato di
+    governance completo e il prompt lo dichiara: consiglio di amministrazione,
+    compensi deliberati e classi di voto stanno nel proxy statement, che
+    Defeatbeta non porta.
+    """
+    return _read(TABLE_OFFICERS, symbol, run_id=run_id)
 
 
 def prices(symbol: str, run_id: str | None = None) -> Lettura:

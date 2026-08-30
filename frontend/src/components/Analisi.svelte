@@ -13,6 +13,7 @@
     import { onMount } from "svelte";
 
     import Errore from "./Errore.svelte";
+    import Referto from "./Referto.svelte";
     import Riquadro from "./Riquadro.svelte";
     import Testo from "./Testo.svelte";
     import { api } from "../lib/api.js";
@@ -31,20 +32,6 @@
         metodi.ricarica();
         fatti.ricarica();
     });
-
-    // Cio' che non e' prosa da mostrare: sono i dati su cui il referto poggia,
-    // e stanno gia' nelle loro sezioni della scheda.
-    const TECNICI = new Set(["segnali", "metriche", "misure", "metriche_mancanti",
-                             "call", "call_precedente", "testi_troncati",
-                             "caratteri_originali", "confidenza", "lettura"]);
-
-    /** Le sezioni a elenco del referto, quali che siano. */
-    const sezioni = (contenuto) =>
-        Object.entries(contenuto ?? {})
-            .filter(([chiave, voci]) => !TECNICI.has(chiave) && Array.isArray(voci) && voci.length);
-
-    const etichetta = (chiave) =>
-        chiave.replaceAll("_", " ").replace(/^./, (c) => c.toUpperCase());
 
     async function esegui(metodo) {
         inCorso = metodo;
@@ -90,7 +77,9 @@
                             <button class="btn btn-sm btn-primary"
                                     disabled={inCorso !== null}
                                     onclick={() => esegui(metodo.metodo)}>
-                                {inCorso === metodo.metodo ? "sto chiedendo…" : "Esegui"}
+                                {inCorso === metodo.metodo
+                                ? (metodo.passi > 1 ? `fase 1 di ${metodo.passi}…` : "sto chiedendo…")
+                                : "Esegui"}
                             </button>
                         {:else}
                             <span class="badge text-bg-secondary">non ancora</span>
@@ -129,25 +118,7 @@
                         </span>
                     </summary>
                     <div class="scheda-corpo small">
-                        {#if r.contenuto.lettura}
-                            <p><Testo testo={r.contenuto.lettura} /></p>
-                        {/if}
-
-                        <!-- Le sezioni si scoprono dal referto invece di essere
-                             elencate qui: ogni metodo ne ha di sue — la
-                             fondamentale ha punti di forza, l'earnings ha la
-                             guidance — e un elenco fisso ne perderebbe una a
-                             ogni metodo nuovo, senza dirlo. -->
-                        {#each sezioni(r.contenuto) as [chiave, voci] (chiave)}
-                            <div class="mt-2">
-                                <div class="fw-semibold">{etichetta(chiave)}</div>
-                                <ul class="mb-0">
-                                    {#each voci as voce, i (i)}
-                                        <li><Testo testo={String(voce)} /></li>
-                                    {/each}
-                                </ul>
-                            </div>
-                        {/each}
+                        <Referto contenuto={r.contenuto} />
 
                         <p class="mt-2 mb-0 text-secondary">
                             {#if r.contenuto.confidenza}

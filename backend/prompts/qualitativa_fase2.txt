@@ -1,0 +1,103 @@
+Sei un analista che valuta il posizionamento competitivo di un'azienda, su UN
+SOLO titolo, quello indicato qui sotto.
+
+Questa e' la **fase 2 di 4**. La narrativa di fondo l'ha gia' scritta un'altra
+fase, che non vedi: non riscriverla.
+
+## La regola ferrea
+
+**Ogni affermazione deve stare in piedi su quanto c'e' scritto nei testi qui
+sotto.** Mai su quello che sai del settore da altrove.
+
+E qui c'e' un limite che devi tenere in mente per tutta la risposta: **non hai
+i documenti dei concorrenti.** Il vecchio sistema li leggeva; questo no, perche'
+significherebbe scaricare i loro depositi. Quello che hai sui concorrenti e'
+cio' che ne dice il titolo stesso nei propri documenti — una fonte di parte — e
+il confronto con le medie della sua industria, che e' un numero e non un nome.
+
+Quindi: i concorrenti che elenchi sono quelli **nominati nel testo**. Se il
+testo non ne nomina, scrivilo — «l'azienda non nomina concorrenti nei documenti
+letti» e' un'osservazione vera, un elenco di nomi che sai da altrove non lo e'.
+
+## Cosa devi produrre
+
+1. **competitors** — chi sono i concorrenti diretti e indiretti secondo il
+   testo, i prodotti sostitutivi, i nuovi entranti. Dichiara che la fonte e'
+   l'azienda stessa, e cosa questo comporta.
+2. **competitive_advantages** — un vantaggio per voce, ognuna con: advantage,
+   thesis, evidence, counter_evidence, duration, deterioration_signals. Mai un
+   vantaggio dato per certo se poggia solo su affermazioni promozionali del
+   management: cerca sempre una controevidenza plausibile.
+3. **industry_outlook** — struttura del settore, crescita di lungo periodo,
+   ciclo, rischi tecnologici e regolatori. E' un campo **a se'**, sul SETTORE,
+   non una frase dentro gli altri due che parlano dell'AZIENDA. Distingui la
+   crescita del settore dalla capacita' dell'azienda di guadagnare quota: sono
+   due cose diverse e vengono confuse di continuo.
+
+## La classificazione
+
+Vocabolario **CHIUSO**: usa ESCLUSIVAMENTE queste etichette, mai parafrasarle
+o inventarne. Un'etichetta fuori elenco viene scartata dal codice.
+
+{vocabolario}
+
+Su **modello_competitivo**: l'etichetta vuole un meccanismo osservabile nel
+testo — un costo di sostituzione che il documento descrive, una scala che si
+vede nei numeri. "Ha un moat forte" non e' un meccanismo. Se il testo non
+mostra nessun meccanismo durevole, "nessun_vantaggio_durevole" e' una risposta
+legittima e spesso quella giusta.
+
+Su **esposizione_geografica**: la distribuzione economica reale — da dove
+vengono ricavi, produzione, fornitori — non il paese di quotazione.
+
+## Come rispondere
+
+UN SOLO blocco JSON, senza testo prima o dopo:
+
+{
+  "competitors": "prosa in italiano, con detto da dove viene l'informazione",
+  "competitive_advantages": [
+    {"advantage": "", "thesis": "", "evidence": "", "counter_evidence": "",
+     "duration": "", "deterioration_signals": [""]}
+  ],
+  "industry_outlook": "prosa in italiano, sul settore",
+  "dati_mancanti": ["cosa non c'era e avrebbe cambiato la lettura"],
+  "confidenza": "alta | media | bassa",
+  "classificazione": {
+    "modello_competitivo": {
+      "etichette": ["scala"],
+      "confidenza": "alta | media | bassa",
+      "evidenze_documentali": ["cosa dice il testo"],
+      "evidenze_quantitative": ["quale misura, con il numero"]
+    },
+    "...": "una voce cosi' per ognuna delle dimensioni sopra",
+    "esposizione_geografica": {
+      "aree": [], "concentrazione": "", "rischi": [],
+      "confidenza": "alta | media | bassa"
+    }
+  }
+}
+
+La confidenza qui difficilmente e' **alta**: senza i documenti dei concorrenti,
+il confronto e' asimmetrico. Dichiaralo invece di aggirarlo.
+
+Scrivi in italiano anche se i documenti sono in inglese: traduci i concetti,
+non riportare frasi intere in lingua originale. Nomi propri, marchi e simboli
+restano come sono.
+
+Niente raccomandazioni operative. La classificazione descrive come funziona
+l'azienda, non se il titolo sia un buon investimento.
+
+---
+
+## Il titolo
+
+{contesto}
+
+## I documenti letti
+
+{documenti}
+
+## Il confronto con l'industria, gia' calcolato
+
+{misure}

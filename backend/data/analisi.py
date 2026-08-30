@@ -8,11 +8,16 @@ finito — e con tutto in un loop solo il contesto riaccodato a ogni tentativo
 cresceva senza limite: una run e' rimasta "running" venti minuti senza una sola
 risposta HTTP nuova prima che il watchdog la marcasse "hung".
 
-Qui il conto e' rovesciato: **si calcola prima, si chiede dopo, una volta
-sola.** Il modello riceve i numeri gia' pronti e puo' soltanto sintetizzarli.
-La regola "non ricalcolare niente" del vecchio prompt diventa cosi' strutturale
-invece che raccomandata: senza strumenti da chiamare, non ha modo di inventare
-un numero.
+Qui il conto e' rovesciato: **si calcola prima, si chiede dopo.** Il modello
+riceve i numeri gia' pronti e puo' soltanto sintetizzarli. La regola "non
+ricalcolare niente" del vecchio prompt diventa cosi' strutturale invece che
+raccomandata: senza strumenti da chiamare, non ha modo di inventare un numero.
+
+Un metodo puo' chiedere piu' di una volta — il report qualitativo lo fa quattro
+volte, una per fase — ma ogni domanda e' secca e il suo materiale e' gia'
+raccolto: il contesto non cresce fra una e l'altra. Chi chiede piu' volte
+dichiara i suoi `passi`, e avanza il lavoro a ogni fase, cosi' lo Stop trova
+dove agire.
 
 **Un metodo che non ha la sua fonte primaria si FERMA, non degrada.** E' la
 regola che il PIANO fissa per l'analisi qualitativa — senza le sezioni del
@@ -22,18 +27,23 @@ principio per tutti: meglio niente che un referto costruito sul vuoto.
 import json
 import logging
 from datetime import UTC, datetime
-from pathlib import Path
 
 import config
 from core import llm, registry
 from core.db import db_read, db_session
 from core.tipi import python_puro
-from data import defeatbeta
-from domain import pannello, prospetti, scansione, segnali, spinoff, trascrizione
+from data import defeatbeta, qualitativa
+from data.materiale import (
+    AnalisiError,
+    contesto,
+    leggi_json,
+    pannello_metriche,
+    prompt,
+    segnali_fondamentali,
+)
+from domain import scansione, spinoff, trascrizione
 
 logger = logging.getLogger(__name__)
-
-PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 JOB_KIND = "analisi"
 
@@ -61,10 +71,11 @@ METODI = {
     "qualitativa": {
         "nome": "Report qualitativo a 10 sezioni",
         "natura": "quattro fasi separate del modello",
-        "pronta": False,
-        "fonte": "il TESTO dei documenti SEC, che scarichi tu e salvi in data/filings",
-        "manca": "le quattro fasi. I documenti pero' si possono gia' preparare: "
-                 "la scheda del titolo dice quali servono e con che nome salvarli",
+        "pronta": True,
+        "passi": 4,
+        "fonte": "il TESTO dei documenti SEC, che scarichi tu e salvi in data/filings. "
+                 "Senza l'ultimo 10-K non parte: la scheda del titolo dice quale "
+                 "serve e con che nome salvarlo",
     },
     "forward": {
         "nome": "Forward analysis",
@@ -96,10 +107,6 @@ METODI = {
         "manca": "gli altri metodi",
     },
 }
-
-
-class AnalisiError(ValueError):
-    """Un metodo non si puo' eseguire: manca la fonte, o il metodo non esiste."""
 
 
 def _adesso() -> str:
@@ -136,47 +143,13 @@ def _misure_tecniche(simbolo: str, run_id: str | None) -> dict:
     return {**misurato, "ultima_seduta": ultimo}
 
 
-def _contesto(simbolo: str, run_id: str | None) -> str:
-    """Chi e' questo titolo, in due righe. Serve al modello per inquadrare."""
-    profilo = defeatbeta.profile(simbolo, run_id=run_id)
-    if not profilo.available:
-        return f"{simbolo} — nessun profilo disponibile: {profilo.reason}"
-
-    riga = profilo.frame.iloc[0]
-    return (f"{simbolo} — settore {riga.get('sector')}, industria "
-            f"{riga.get('industry')}, paese {riga.get('country')}")
-
-
-def _prompt(nome: str, **pezzi) -> str:
-    """Compone un prompt dal suo file. I segnaposti si sostituiscono a mano,
-    perche' il testo contiene graffe di esempio JSON che `format` interpreterebbe."""
-    testo = (PROMPT_DIR / f"{nome}.txt").read_text(encoding="utf-8")
-    for chiave, valore in pezzi.items():
-        testo = testo.replace(f"{{{chiave}}}", valore)
-    return testo
-
-
-def _leggi_json(testo: str) -> dict:
-    """Il JSON dentro la risposta del modello, o un errore che lo dice.
-
-    Un modello puo' incorniciare il JSON in un blocco di codice: si cerca fra
-    la prima graffa e l'ultima invece di pretendere una risposta pulita.
-    """
-    inizio, fine = testo.find("{"), testo.rfind("}")
-    if inizio < 0 or fine <= inizio:
-        raise AnalisiError("il modello non ha risposto con un JSON")
-    try:
-        return json.loads(testo[inizio:fine + 1])
-    except json.JSONDecodeError as exc:
-        raise AnalisiError(f"il JSON del modello non e' leggibile: {exc}") from exc
-
-
-def _tecnica(simbolo: str, run_id: str | None) -> dict:
+def _tecnica(simbolo: str, lavoro) -> dict:
     """Calcola, chiede, e ritorna il referto col suo costo."""
+    run_id = lavoro.run_id
     misure = _misure_tecniche(simbolo, run_id)
-    sistema = _prompt("analisi_tecnica",
-                      contesto=_contesto(simbolo, run_id),
-                      misure=json.dumps(misure, indent=2, ensure_ascii=False))
+    sistema = prompt("analisi_tecnica",
+                     contesto=contesto(simbolo, run_id),
+                     misure=json.dumps(misure, indent=2, ensure_ascii=False))
 
     risposta = llm.chiedi(fase="analisi_tecnica", sistema=sistema,
                           messaggio=f"Produci la lettura tecnica di {simbolo}.",
@@ -185,84 +158,22 @@ def _tecnica(simbolo: str, run_id: str | None) -> dict:
     if risposta["rifiutata"]:
         raise AnalisiError("il modello ha rifiutato di rispondere")
 
-    return {"contenuto": {**_leggi_json(risposta["testo"]), "misure": misure},
+    return {"contenuto": {**leggi_json(risposta["testo"]), "misure": misure},
             "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
 
 
 # --- l'analisi fondamentale -------------------------------------------------
 
-# Le metriche del pannello, e la loro gemella di settore dove esiste. Il
-# confronto vale quanto il numero: "ROE del 15%" non si legge da solo.
-PANNELLO_FONDAMENTALE = {
-    "roe": "industry_roe",
-    "roic": "industry_roic",
-    "quarterly_gross_margin": "industry_quarterly_gross_margin",
-    "quarterly_net_margin": "industry_quarterly_net_margin",
-    "quarterly_operating_margin": None,
-    "quarterly_revenue_yoy_growth": None,
-    "net_debt_ttm": None,
-    "debt_to_equity": None,
-    "ttm_pe": None,
-}
-
-
-def _metrica_compressa(simbolo: str, nome: str, run_id: str | None) -> dict | None:
-    """Una metrica ridotta ai tre numeri che si leggono. `None` se non c'e'.
-
-    Una metrica che manca non ferma il pannello: le altre otto continuano a
-    dire quello che sanno, e la sua assenza finisce fra i dati mancanti.
-    """
-    try:
-        lettura = defeatbeta.metrica(simbolo, nome, run_id=run_id)
-    except defeatbeta.DefeatbetaUnavailable:
-        logger.warning("[ANALISI] metrica %s non disponibile per %s", nome, simbolo)
-        return None
-
-    if not lettura.available:
-        return None
-
-    colonne = [c for c in lettura.frame.columns if c != "symbol"]
-    righe = [{c: python_puro(r[c]) for c in colonne} for _, r in lettura.frame.iterrows()]
-    return pannello.comprimi(righe, colonne)
-
-
-def _pannello(simbolo: str, run_id: str | None) -> tuple[dict, list[str]]:
-    """Tutte le metriche del pannello, col settore accanto. E cosa non c'era."""
-    misure, mancanti = {}, []
-
-    for nome, gemella in PANNELLO_FONDAMENTALE.items():
-        titolo = _metrica_compressa(simbolo, nome, run_id)
-        if titolo is None:
-            mancanti.append(nome)
-            continue
-        settore = _metrica_compressa(simbolo, gemella, run_id) if gemella else None
-        misure[nome] = pannello.confronta(titolo, settore)
-
-    return misure, mancanti
-
-
-def _segnali_fondamentali(simbolo: str, run_id: str | None) -> dict:
-    """I cinque segnali di rischio, dagli stessi bilanci della scheda."""
-    lettura = defeatbeta.statements(simbolo, run_id=run_id)
-    if not lettura.available:
-        raise AnalisiError(f"nessun bilancio per {simbolo}: {lettura.reason}")
-
-    tabelle = {
-        nome: prospetti.tabella(lettura.frame, nome, prospetti.TRIMESTRALE)
-        for nome in prospetti.PROSPETTI
-    }
-    return segnali.tutti(tabelle)
-
-
-def _fondamentale(simbolo: str, run_id: str | None) -> dict:
+def _fondamentale(simbolo: str, lavoro) -> dict:
     """Calcola il pannello e i segnali, poi chiede al modello di leggerli.
 
     Si ferma invece di degradare se non c'e' nemmeno una metrica: una lettura
     fondamentale senza numeri non e' una lettura povera, e' una lettura
     inventata.
     """
-    rischi = _segnali_fondamentali(simbolo, run_id)
-    misure, mancanti = _pannello(simbolo, run_id)
+    run_id = lavoro.run_id
+    rischi = segnali_fondamentali(simbolo, run_id)
+    misure, mancanti = pannello_metriche(simbolo, run_id)
 
     if not misure:
         raise AnalisiError(
@@ -270,10 +181,10 @@ def _fondamentale(simbolo: str, run_id: str | None) -> dict:
             f"invece di degradare"
         )
 
-    sistema = _prompt("analisi_fondamentale",
-                      contesto=_contesto(simbolo, run_id),
-                      segnali=json.dumps(rischi, indent=2, ensure_ascii=False),
-                      metriche=json.dumps(misure, indent=2, ensure_ascii=False))
+    sistema = prompt("analisi_fondamentale",
+                     contesto=contesto(simbolo, run_id),
+                     segnali=json.dumps(rischi, indent=2, ensure_ascii=False),
+                     metriche=json.dumps(misure, indent=2, ensure_ascii=False))
 
     risposta = llm.chiedi(fase="analisi_fondamentale", sistema=sistema,
                           messaggio=f"Produci la lettura fondamentale di {simbolo}.",
@@ -282,7 +193,7 @@ def _fondamentale(simbolo: str, run_id: str | None) -> dict:
     if risposta["rifiutata"]:
         raise AnalisiError("il modello ha rifiutato di rispondere")
 
-    return {"contenuto": {**_leggi_json(risposta["testo"]),
+    return {"contenuto": {**leggi_json(risposta["testo"]),
                           "segnali": rischi, "metriche": misure,
                           "metriche_mancanti": mancanti},
             "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
@@ -327,13 +238,14 @@ def _call_leggibile(struttura: dict, con_risposte: bool) -> dict:
             "testi_troncati": troncati}
 
 
-def _earnings(simbolo: str, run_id: str | None) -> dict:
+def _earnings(simbolo: str, lavoro) -> dict:
     """Legge le ultime due call: l'ultima per intero, la precedente per le domande.
 
     Due e non una perche' la domanda che conta e' "cosa e' cambiato": le
     preoccupazioni degli analisti si spostano, e vederle spostarsi dice piu' di
     una fotografia sola.
     """
+    run_id = lavoro.run_id
     lettura = defeatbeta.transcripts(simbolo, run_id=run_id)
     if not lettura.available:
         raise AnalisiError(
@@ -362,19 +274,19 @@ def _earnings(simbolo: str, run_id: str | None) -> dict:
     prima_json = (json.dumps(precedente, indent=2, ensure_ascii=False)
                   if precedente else "non disponibile")
     messaggio = (
-        f"Titolo: {_contesto(simbolo, run_id)}\n\n"
+        f"Titolo: {contesto(simbolo, run_id)}\n\n"
         f"## La call piu' recente\n"
         f"{json.dumps(call, indent=2, ensure_ascii=False)}\n\n"
         f"## Le domande della call precedente\n{prima_json}"
     )
-    sistema = _prompt("analisi_earnings")
+    sistema = prompt("analisi_earnings")
 
     risposta = llm.chiedi(fase="analisi_earnings", sistema=sistema, messaggio=messaggio,
                           scope=simbolo, run_id=run_id)
     if risposta["rifiutata"]:
         raise AnalisiError("il modello ha rifiutato di rispondere")
 
-    return {"contenuto": {**_leggi_json(risposta["testo"]),
+    return {"contenuto": {**leggi_json(risposta["testo"]),
                           "call": call["periodo"],
                           "call_precedente": precedente["periodo"] if precedente else None,
                           "testi_troncati": call["testi_troncati"],
@@ -437,13 +349,14 @@ def _menzioni_call(simbolo: str, run_id: str | None) -> list[dict]:
     return trovate
 
 
-def _spin_off(simbolo: str, run_id: str | None) -> dict:
+def _spin_off(simbolo: str, lavoro) -> dict:
     """Cerca le menzioni, poi le fa leggere. Se non ce ne sono, non chiede niente.
 
     Non chiamare il modello quando non c'e' niente da leggere non e' solo
     risparmio: un modello a cui si chiede di analizzare il vuoto produce
     comunque una risposta, e quella risposta sembra un'analisi.
     """
+    run_id = lavoro.run_id
     notizie = _menzioni_notizie(simbolo, run_id)
     call = _menzioni_call(simbolo, run_id)
 
@@ -459,9 +372,9 @@ def _spin_off(simbolo: str, run_id: str | None) -> dict:
             "confidenza": "bassa",
         }, "modello": None, "costo_usd": 0.0}
 
-    sistema = _prompt("analisi_spinoff")
+    sistema = prompt("analisi_spinoff")
     messaggio = (
-        f"Titolo: {_contesto(simbolo, run_id)}\n\n"
+        f"Titolo: {contesto(simbolo, run_id)}\n\n"
         f"## Menzioni nelle notizie ({len(notizie)})\n"
         f"{json.dumps(notizie, indent=2, ensure_ascii=False)}\n\n"
         f"## Menzioni nelle earnings call ({len(call)})\n"
@@ -473,7 +386,7 @@ def _spin_off(simbolo: str, run_id: str | None) -> dict:
     if risposta["rifiutata"]:
         raise AnalisiError("il modello ha rifiutato di rispondere")
 
-    return {"contenuto": {**_leggi_json(risposta["testo"]),
+    return {"contenuto": {**leggi_json(risposta["testo"]),
                           "menzioni_trovate": len(notizie) + len(call),
                           "menzioni_notizie": notizie,
                           "menzioni_call": call},
@@ -481,7 +394,13 @@ def _spin_off(simbolo: str, run_id: str | None) -> dict:
 
 
 ESECUTORI = {"tecnica": _tecnica, "fondamentale": _fondamentale,
-             "earnings": _earnings, "spin_off": _spin_off}
+             "earnings": _earnings, "spin_off": _spin_off,
+             "qualitativa": qualitativa.esegui}
+
+# Quanti passi ha un metodo, quando non lo dichiara: uno. Serve alla barra di
+# avanzamento e allo Stop — un metodo che dura quattro chiamate al modello deve
+# potersi fermare fra l'una e l'altra, non solo alla fine.
+PASSI_PREDEFINITI = 1
 
 
 # --- eseguire e conservare --------------------------------------------------
@@ -516,14 +435,19 @@ def esegui(metodo: str, simbolo: str) -> dict:
     esito = {"metodo": metodo, "symbol": ambito, "run_id": None, "referto_id": None,
              "costo_usd": 0.0, "motivo": "fermata prima di completare"}
 
-    with registry.job(JOB_KIND, f"{definizione['nome']} su {ambito}", total=1) as lavoro:
+    passi = definizione.get("passi", PASSI_PREDEFINITI)
+    with registry.job(JOB_KIND, f"{definizione['nome']} su {ambito}", total=passi) as lavoro:
         esito["run_id"] = lavoro.run_id
-        referto = ESECUTORI[metodo](ambito, lavoro.run_id)
+        referto = ESECUTORI[metodo](ambito, lavoro)
         esito["referto_id"] = _salva(ambito, metodo, referto, lavoro.run_id)
         esito.update({"costo_usd": referto.get("costo_usd", 0.0),
                       "contenuto": referto["contenuto"], "motivo": "completata"})
-        lavoro.advance(detail=f"referto {esito['referto_id']}, "
-                              f"${esito['costo_usd']:.4f}")
+        dettaglio = f"referto {esito['referto_id']}, ${esito['costo_usd']:.4f}"
+        # I metodi a piu' passi hanno gia' avanzato loro, uno per fase.
+        if passi == PASSI_PREDEFINITI:
+            lavoro.advance(detail=dettaglio)
+        else:
+            lavoro.detail = dettaglio
 
     return esito
 

@@ -10,6 +10,8 @@ Due principi che questi test difendono, e che vengono dal vecchio tradash:
 2. **Un segnale porta sempre le sue misure.** Un verdetto senza i numeri
    costringe a fidarsi, ed e' invendibile alla domanda "in base a cosa?".
 """
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -17,11 +19,34 @@ import pytest
 import config
 from core import llm
 from core.db import db_read
-from data import analisi, defeatbeta, filing_locali
-from domain import pannello, segnali, spinoff, trascrizione
+from data import analisi, defeatbeta, filing_locali, materiale, qualitativa
+from domain import pannello, segnali, sezioni_filing, spinoff, tassonomia, trascrizione
 
 TRIMESTRI = ["2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
              "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]
+
+
+class _LavoroFinto:
+    """Il minimo che un esecutore usa di un lavoro: il suo run_id e i suoi passi.
+
+    Non e' un doppione di `registry.Job` per comodita': i test degli esecutori
+    non devono aprire un lavoro vero, che scriverebbe nel database.
+    """
+
+    def __init__(self):
+        self.run_id = None
+        self.passi = []
+        self.detail = None
+
+    def advance(self, detail=None):
+        self.passi.append(detail)
+
+    def check_stop(self):
+        pass
+
+
+def _lavoro_finto() -> _LavoroFinto:
+    return _LavoroFinto()
 
 
 def _prospetto(**voci) -> dict:
@@ -327,8 +352,8 @@ def test_i_metodi_non_ancora_costruiti_restano_in_elenco_e_dicono_cosa_manca():
 
 
 def test_chiedere_un_metodo_non_pronto_dice_cosa_gli_manca():
-    with pytest.raises(analisi.AnalisiError, match="quattro fasi"):
-        analisi.esegui("qualitativa", "NVDA")
+    with pytest.raises(analisi.AnalisiError, match=r"3\.295 righe"):
+        analisi.esegui("forward", "NVDA")
 
     with pytest.raises(analisi.AnalisiError, match="metodo sconosciuto"):
         analisi.esegui("oroscopo", "NVDA")
@@ -682,7 +707,7 @@ def test_una_metrica_che_manca_non_ferma_il_pannello(monkeypatch):
 
     monkeypatch.setattr(defeatbeta, "metrica", _a_meta)
 
-    misure, mancanti = analisi._pannello("X", None)
+    misure, mancanti = materiale.pannello_metriche("X", None)
 
     assert "roe" in mancanti
     assert "roic" in misure
@@ -690,13 +715,13 @@ def test_una_metrica_che_manca_non_ferma_il_pannello(monkeypatch):
 
 def test_senza_nemmeno_una_metrica_la_fondamentale_si_ferma(monkeypatch):
     """Una lettura fondamentale senza numeri non e' povera: e' inventata."""
-    monkeypatch.setattr(analisi, "_segnali_fondamentali", lambda s, r: {"segnali": {}})
+    monkeypatch.setattr(analisi, "segnali_fondamentali", lambda s, r: {"segnali": {}})
     monkeypatch.setattr(defeatbeta, "metrica", lambda s, n, run_id=None: defeatbeta.Lettura(
         frame=pd.DataFrame(), scope=s, category="metriche", source="cache",
         available=False, reason="niente"))
 
     with pytest.raises(analisi.AnalisiError, match="si ferma"):
-        analisi._fondamentale("X", None)
+        analisi._fondamentale("X", _lavoro_finto())
 
 
 # --- le trascrizioni: due meta' che si leggono in modo diverso -------------
@@ -780,7 +805,7 @@ def test_l_earnings_si_ferma_se_non_ci_sono_trascrizioni(monkeypatch):
         available=False, reason="nessuna call"))
 
     with pytest.raises(analisi.AnalisiError, match=r"6\.495 simboli"):
-        analisi._earnings("X", None)
+        analisi._earnings("X", _lavoro_finto())
 
 
 def test_l_earnings_legge_due_call_per_vedere_cosa_e_cambiato(monkeypatch):
@@ -800,7 +825,7 @@ def test_l_earnings_legge_due_call_per_vedere_cosa_e_cambiato(monkeypatch):
         available=False, reason="niente"))
     _finto(monkeypatch, _Risposta('{"lettura": "va bene", "confidenza": "media"}'))
 
-    esito = analisi._earnings("X", None)
+    esito = analisi._earnings("X", _lavoro_finto())
 
     assert esito["contenuto"]["call"] == "2027 Q2"
     assert esito["contenuto"]["call_precedente"] == "2027 Q1"
@@ -885,9 +910,370 @@ def test_senza_menzioni_non_si_chiede_niente_al_modello(monkeypatch):
     chiamato = {"si": False}
     monkeypatch.setattr(llm, "chiedi", lambda **k: chiamato.__setitem__("si", True))
 
-    esito = analisi._spin_off("AAA", None)
+    esito = analisi._spin_off("AAA", _lavoro_finto())
 
     assert chiamato["si"] is False
     assert esito["costo_usd"] == 0.0
     assert esito["contenuto"]["c_e_uno_spinoff"] == "no"
     assert esito["contenuto"]["dati_mancanti"], "dice anche cosa NON puo' sapere"
+
+
+# --- dividere un filing nelle sue sezioni ----------------------------------
+
+def _sezione(titolo: str, quante: int) -> str:
+    """Un corpo di sezione abbastanza lungo da non essere scambiato per un rimando."""
+    return "\n".join(f"<p>{titolo}: paragrafo {i}. " + "Testo di riempimento. " * 8 + "</p>"
+                     for i in range(quante))
+
+
+DIECI_K = (
+    "<html><body><h1>ANNUAL REPORT PURSUANT TO SECTION 13</h1>"
+    # L'indice: ogni Item compare qui una prima volta, e apre due righe.
+    "<table>"
+    "<tr><td>Item 1.</td><td>Business</td><td>4</td></tr>"
+    "<tr><td>Item 1A.</td><td>Risk Factors</td><td>12</td></tr>"
+    "<tr><td>Item 3.</td><td>Legal Proceedings</td><td>31</td></tr>"
+    "<tr><td>Item 7.</td><td>Management's Discussion and Analysis</td><td>35</td></tr>"
+    "<tr><td>Item 8.</td><td>Financial Statements</td><td>49</td></tr>"
+    "</table>"
+    "<div><b>Item 1.</b></div><div><b>Business</b></div>"
+    + _sezione("Cosa fa l'azienda", 12) +
+    # La trappola: un rimando a un Item successivo, in mezzo alla sezione.
+    "<p>For a discussion of these risks, see Item 1A. Risk Factors below.</p>"
+    + _sezione("Segmenti e mercati", 8) +
+    "<div><b>Item 1A.</b></div><div><b>Risk Factors</b></div>"
+    + _sezione("Un rischio", 20) +
+    "<div><b>Item 3.</b> Legal Proceedings</div>" + _sezione("Cause in corso", 4) +
+    "<div><b>Item 7.</b></div><div><b>Management's Discussion and Analysis</b></div>"
+    + _sezione("Commento del management", 15) +
+    "<div><b>Item 8.</b> Financial Statements</div>" + _sezione("Tabelle di bilancio", 40) +
+    "</body></html>"
+)
+
+DIECI_Q = (
+    "<html><body><h1>QUARTERLY REPORT</h1>"
+    "<div>PART I</div>"
+    "<div><b>Item 2.</b></div><div><b>Management's Discussion and Analysis</b></div>"
+    + _sezione("Commento del trimestre", 10) +
+    "<div>PART II</div>"
+    "<div><b>Item 1A.</b> Risk Factors</div>" + _sezione("Rischi aggiornati", 6) +
+    "</body></html>"
+)
+
+
+def _testo(html: str) -> str:
+    """Il testo come lo estrae il sistema dai file che salvi."""
+    estrattore = filing_locali._EstrattoreTesto()
+    estrattore.feed(html)
+    return filing_locali._ripulisci("\n".join(estrattore.pezzi))
+
+
+def test_un_rimando_nel_testo_non_apre_e_non_chiude_una_sezione():
+    """Il difetto misurato: «see Item 1A. Risk Factors» scritto DENTRO Business.
+
+    Senza il vincolo di inizio riga quella frase tagliava Business a un terzo e
+    faceva cominciare li' Risk Factors, che si portava dietro la coda di
+    Business. Due sezioni sbagliate per una frase.
+    """
+    testo = _testo(DIECI_K)
+
+    business, _ = sezioni_filing.estrai(testo, "business", "10-K")
+    rischi, _ = sezioni_filing.estrai(testo, "risk_factors", "10-K")
+
+    assert business.startswith("Item 1.")
+    assert "Segmenti e mercati" in business, "la sezione continua dopo il rimando"
+    assert rischi.startswith("Item 1A."), "il rimando non e' l'inizio della sezione"
+    assert "Segmenti e mercati" not in rischi, "Risk Factors non eredita Business"
+
+
+def test_l_indice_non_viene_scambiato_per_la_sezione():
+    """Nell'indice ogni Item compare per primo, e apre due righe."""
+    testo = _testo(DIECI_K)
+
+    mda, _ = sezioni_filing.estrai(testo, "mda", "10-K")
+
+    assert "Commento del management" in mda
+    assert "Tabelle di bilancio" not in mda, "la sezione finisce all'Item successivo"
+    assert len(mda) > sezioni_filing.LUNGHEZZA_MINIMA
+
+
+def test_nel_trimestrale_l_mda_sta_in_un_altro_item():
+    """In un 10-Q l'MD&A e' l'Item 2, non il 7: la mappa dipende dal documento."""
+    testo = _testo(DIECI_Q)
+
+    mda, _ = sezioni_filing.estrai(testo, "mda", "10-Q")
+    rischi, _ = sezioni_filing.estrai(testo, "risk_factors", "10-Q")
+
+    assert "Commento del trimestre" in mda
+    assert "Rischi aggiornati" in rischi
+    assert "Rischi aggiornati" not in mda
+
+
+def test_una_sezione_che_non_c_e_dice_perche():
+    """Un None muto qui diventerebbe un'analisi su una sezione vuota."""
+    estratto, motivo = sezioni_filing.estrai("un testo qualunque, senza Item",
+                                             "business", "10-K")
+
+    assert estratto is None
+    assert "Item 1" in motivo
+
+
+def test_una_sezione_non_prevista_per_quel_documento_lo_dice():
+    estratto, motivo = sezioni_filing.estrai(_testo(DIECI_Q), "business", "10-Q")
+
+    assert estratto is None
+    assert "non e' prevista" in motivo
+
+
+# --- il vocabolario chiuso della classificazione ---------------------------
+
+def test_un_etichetta_inventata_viene_scartata_e_detta():
+    """Correggerla vorrebbe dire indovinare cosa intendeva il modello."""
+    pulita, scarti = tassonomia.valida({
+        "modello_economico": {"etichette": ["ciclico", "iper_crescita"]},
+    })
+
+    assert pulita["modello_economico"]["etichette"] == ["ciclico"]
+    assert any("iper_crescita" in s for s in scarti)
+
+
+def test_una_dimensione_non_classificata_risulta_fra_gli_scarti():
+    """Una dimensione che manca deve vedersi, non sparire."""
+    _, scarti = tassonomia.valida({"modello_economico": ["ciclico"]})
+
+    assert any("stato_corrente: dimensione non classificata" in s for s in scarti)
+
+
+def test_le_etichette_si_accettano_comunque_siano_scritte():
+    """Stringa, lista o oggetto: il contenuto e' lo stesso, e rifiutare per la
+    forma perderebbe una classificazione buona."""
+    for forma in ("difensivo", ["difensivo"], {"etichette": ["difensivo"]},
+                  {"etichetta": "difensivo"}):
+        pulita, _ = tassonomia.valida({"modello_economico": forma})
+        assert pulita["modello_economico"]["etichette"] == ["difensivo"]
+
+
+def test_il_vocabolario_del_prompt_e_quello_del_codice():
+    """Un elenco copiato a mano nel prompt farebbe scartare etichette che
+    avevamo chiesto noi."""
+    leggibile = tassonomia.vocabolario_leggibile(tassonomia.DIMENSIONI_FASE1)
+
+    for etichetta in tassonomia.STATO_CORRENTE:
+        assert etichetta in leggibile
+    assert "modello_competitivo" not in leggibile, "e' della fase 2"
+
+
+# --- il report qualitativo, quattro fasi ------------------------------------
+
+class _ClienteASequenza:
+    """Un client che risponde una cosa diversa a ogni fase.
+
+    Serve perche' il report qualitativo chiede quattro volte, e con una sola
+    risposta ripetuta non si vedrebbe se le fasi ricevono materiale diverso.
+    """
+
+    def __init__(self, risposte):
+        self._risposte = list(risposte)
+        self.chiamate = []
+        self.messages = self
+
+    def create(self, **argomenti):
+        self.chiamate.append(argomenti)
+        return self._risposte[min(len(self.chiamate) - 1, len(self._risposte) - 1)]
+
+
+FASE1 = json.dumps({
+    "business_overview": "Vende schede grafiche ai datacenter.",
+    "cost_structure": "Spende soprattutto in ricerca e sviluppo.",
+    "customers_revenue_quality": "Pochi clienti molto grandi.",
+    "thesis": "La domanda di calcolo cresce.",
+    "bull_case": ["margini alti"], "bear_case": ["concentrazione clienti"],
+    "key_risks": ["export"], "confidenza": "media",
+    "classificazione": {"modello_economico": {"etichette": ["crescita_secolare"]},
+                        "stato_corrente": {"etichette": ["espansione"]},
+                        "modello_ricavi": {"etichette": ["vendita_prodotti"]}},
+})
+
+FASE2 = json.dumps({
+    "competitors": "L'azienda nomina due concorrenti nei propri documenti.",
+    "competitive_advantages": [{"advantage": "scala", "thesis": "produce di piu'"}],
+    "industry_outlook": "Il settore cresce ma è ciclico.",
+    "classificazione": {"modello_competitivo": {"etichette": ["scala"]}},
+})
+
+FASE3 = json.dumps({
+    "management_governance": "Il fondatore guida ancora l'azienda.",
+    "recent_developments": [{"event": "nuovo deposito", "confirmed": True}],
+    "five_year_narrative": "Crescita probabile, con un ciclo di mezzo.",
+    "accordo_con_fase1": "concorde",
+})
+
+FASE4 = json.dumps({
+    "citations": [
+        {"claim": "vende ai datacenter", "section": "business_overview",
+         "document_id": "0001045810-26-000021",
+         "quote": "Cosa fa l'azienda: paragrafo 0."},
+        {"claim": "un'affermazione senza riscontro", "section": "business_overview",
+         "document_id": "0001045810-26-000021",
+         "quote": "Questa frase non e' nel documento."},
+    ],
+    "senza_riscontro": [],
+})
+
+
+@pytest.fixture
+def qualitativa_pronta(indice_finto, tmp_path, monkeypatch):
+    """Documenti salvati, misure gia' calcolate, modello finto: resta il codice vero."""
+    monkeypatch.setattr(config, "FILING_DIR", tmp_path)
+    cartella = tmp_path / "NVDA"
+    cartella.mkdir()
+    (cartella / "NVDA_10-K_2026-01-25_0001045810-26-000021.html").write_text(
+        DIECI_K, encoding="utf-8")
+    (cartella / "NVDA_10-Q_2026-07-26_0001045810-26-000075.html").write_text(
+        DIECI_Q, encoding="utf-8")
+
+    monkeypatch.setattr(materiale, "pannello_metriche",
+                        lambda s, r: ({"roe": {"adesso": 0.3, "settore": 0.1}}, ["roic"]))
+    monkeypatch.setattr(materiale, "segnali_fondamentali", lambda s, r: {"F1": "ok"})
+    monkeypatch.setattr(materiale, "contesto", lambda s, r: f"{s} — settore Technology")
+    monkeypatch.setattr(defeatbeta, "officers", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame([{"symbol": "NVDA", "name": "Mr. Huang", "title": "CEO",
+                             "pay": 11543318}]),
+        scope=s, category="profile", source="cache", available=True, reason="finto"))
+
+    cliente = _ClienteASequenza([_Risposta(FASE1), _Risposta(FASE2),
+                                 _Risposta(FASE3), _Risposta(FASE4)])
+    monkeypatch.setattr(llm, "_client", lambda: cliente)
+    return cliente
+
+
+def test_le_quattro_fasi_girano_in_fila_e_il_costo_e_la_somma(qualitativa_pronta):
+    """Il referto e' l'unione delle fasi, e ognuna e' un passo del lavoro."""
+    lavoro = _lavoro_finto()
+
+    referto = qualitativa.esegui("NVDA", lavoro)
+
+    assert len(qualitativa_pronta.chiamate) == 4
+    assert len(lavoro.passi) == 4, "ogni fase avanza il lavoro: lo Stop deve trovare dove agire"
+    assert "fase 1 di 4" in lavoro.passi[0]
+
+    contenuto = referto["contenuto"]
+    for sezione in ("business_overview", "competitors", "five_year_narrative"):
+        assert contenuto[sezione], f"manca {sezione}"
+    assert referto["costo_usd"] > 0
+
+
+def test_la_classificazione_unisce_le_due_fasi_e_dichiara_cosa_manca(qualitativa_pronta):
+    """Otto dimensioni dalla fase 1, quattro dalla 2: le non classificate si vedono."""
+    referto = qualitativa.esegui("NVDA", _lavoro_finto())
+
+    classificazione = referto["contenuto"]["classificazione"]
+    assert classificazione["modello_economico"]["etichette"] == ["crescita_secolare"]
+    assert classificazione["modello_competitivo"]["etichette"] == ["scala"]
+    assert any("fase_ciclo_vita" in s
+               for s in referto["contenuto"]["classificazione_scartata"])
+
+
+def test_una_citazione_che_non_e_nel_testo_viene_scartata(qualitativa_pronta):
+    """E' cio' che distingue una citazione da una frase ricostruita a memoria."""
+    referto = qualitativa.esegui("NVDA", _lavoro_finto())
+
+    contenuto = referto["contenuto"]
+    assert len(contenuto["citations"]) == 1
+    assert contenuto["citations"][0]["claim"] == "vende ai datacenter"
+    assert len(contenuto["citazioni_scartate"]) == 1
+    assert "non compare" in contenuto["citazioni_scartate"][0]["motivo"]
+    assert contenuto["copertura"]["citazioni_scartate"] == 1
+
+
+def test_una_citazione_riavvolta_su_piu_righe_resta_valida():
+    """Un a capo in piu' non fa di una frase copiata una frase inventata."""
+    pezzi = [{"document_id": "AAA", "testo": "the Company depends\non few customers"}]
+
+    buone, scartate = qualitativa.verifica_citazioni(
+        [{"quote": "the Company depends on few customers", "document_id": "AAA"}], pezzi)
+
+    assert len(buone) == 1 and scartate == []
+
+
+def test_una_citazione_con_un_documento_mai_fornito_lo_dice():
+    pezzi = [{"document_id": "AAA", "testo": "un testo"}]
+
+    _, scartate = qualitativa.verifica_citazioni(
+        [{"quote": "un testo", "document_id": "BBB"}], pezzi)
+
+    assert "non e' fra i testi forniti" in scartate[0]["motivo"]
+
+
+def test_il_trimestrale_si_legge_solo_se_piu_recente_dell_annuale(qualitativa_pronta):
+    """Un 10-Q piu' vecchio ripeterebbe quello che il 10-K dice per esteso."""
+    referto = qualitativa.esegui("NVDA", _lavoro_finto())
+
+    letti = referto["contenuto"]["copertura"]["documenti_letti"]
+    assert any("10-Q" in d for d in letti), "il trimestrale qui e' piu' recente"
+    assert "10-Q/mda" in referto["contenuto"]["copertura"]["sezioni_lette"]
+
+
+def test_senza_il_10k_la_qualitativa_non_parte(indice_finto, tmp_path, monkeypatch):
+    """Un report costruito su cio' che il modello ricorda ha lo stesso aspetto
+    di uno costruito sui documenti: per questo si ferma invece di degradare."""
+    monkeypatch.setattr(config, "FILING_DIR", tmp_path)
+
+    with pytest.raises(qualitativa.AnalisiError, match="manca il testo dell'ultimo 10-K"):
+        qualitativa.esegui("NVDA", _lavoro_finto())
+
+
+def test_un_10k_illeggibile_dice_quali_sezioni_non_ha(indice_finto, tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "FILING_DIR", tmp_path)
+    cartella = tmp_path / "NVDA"
+    cartella.mkdir()
+    (cartella / "NVDA_10-K_2026-01-25_0001045810-26-000021.html").write_text(
+        "<html><body><p>Un documento senza nessun Item.</p></body></html>",
+        encoding="utf-8")
+
+    with pytest.raises(qualitativa.AnalisiError, match="sezioni portanti"):
+        qualitativa.esegui("NVDA", _lavoro_finto())
+
+
+def test_una_sezione_troncata_lo_dichiara_nel_prompt_e_nel_referto(
+        qualitativa_pronta, monkeypatch):
+    """Una sezione che finisce a meta' senza dirlo si legge come una sezione
+    che finisce li'."""
+    monkeypatch.setattr(config, "QUALITATIVA_SEZIONE_CARATTERI", 300)
+
+    referto = qualitativa.esegui("NVDA", _lavoro_finto())
+
+    prompt_fase1 = qualitativa_pronta.chiamate[0]["system"]
+    assert "sezione troncata a 300 caratteri su" in prompt_fase1
+    assert referto["contenuto"]["copertura"]["sezioni_troncate"], "il referto lo ripete"
+
+
+def test_la_fase_3_riceve_le_conclusioni_della_fase_1(qualitativa_pronta):
+    """Due narrative scollegate sullo stesso dato sono peggio di un disaccordo."""
+    qualitativa.esegui("NVDA", _lavoro_finto())
+
+    prompt_fase3 = qualitativa_pronta.chiamate[2]["system"]
+    assert "La domanda di calcolo cresce." in prompt_fase3
+    assert "espansione" in prompt_fase3
+
+
+def test_la_fase_competitiva_dichiara_di_non_avere_i_documenti_dei_concorrenti(
+        qualitativa_pronta):
+    """Il vecchio sistema li scaricava; questo no, e non deve fingere di si'."""
+    referto = qualitativa.esegui("NVDA", _lavoro_finto())
+
+    prompt_fase2 = qualitativa_pronta.chiamate[1]["system"]
+    assert "i documenti dei concorrenti" in prompt_fase2.lower()
+    assert any("concorrenti" in f
+               for f in referto["contenuto"]["copertura"]["fonti_non_disponibili"])
+
+
+def test_ogni_fase_e_una_chiamata_separata_e_non_eredita_le_altre(qualitativa_pronta):
+    """E' la cura del difetto che bloccava il vecchio report: il contesto non
+    cresce da una fase all'altra."""
+    qualitativa.esegui("NVDA", _lavoro_finto())
+
+    messaggi = [c["messages"][0]["content"] for c in qualitativa_pronta.chiamate]
+    assert len({m for m in messaggi}) == 4, "quattro domande diverse"
+    for chiamata in qualitativa_pronta.chiamate:
+        assert len(chiamata["messages"]) == 1, "nessuna cronologia riaccodata"
