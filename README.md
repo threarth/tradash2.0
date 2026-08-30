@@ -88,18 +88,23 @@ puo' cancellare senza danno. Il file non e' in git: **il backup e' copiarlo.**
 | 4 — Frontend, scheletro: Svelte 5 + Vite + Bootstrap CSS | **fatto** |
 | 5 — Glossario: 171 termini, sottolineatura sistematica per costruzione | **fatto** |
 | 6 — Grafici a nodi + guscio della scheda titolo | **fatto** |
-| 7 — as_of: cosa era pubblico a una data, con la base del taglio dichiarata | **in parte** |
-| 8 — Analisi: i cinque segnali deterministici, l'infrastruttura LLM, la lettura tecnica | **in parte** |
+| 7 — as_of e confronto point-in-time: cosa era pubblico a una data, e cosa e' successo dopo | **fatto** |
+| 8 — Le sette analisi, coi cinque segnali deterministici e l'infrastruttura LLM | **fatto** |
 | 9 — Scanner sul passato, fermabile, che dice in base a cosa | **fatto** |
 
-183 test Python in meno di due secondi (piu' 2 che escono davvero in rete e
+292 test Python in poco piu' di due secondi (piu' 2 che escono davvero in rete e
 girano solo se richiesti) e 11 test JavaScript sul rilevatore del glossario.
 
-**Cosa resta**, e perche': la matematica che nel vecchio sistema dipendeva dai
-suoi servizi (`point_in_time`, `capm`, `technical_features`, `feature_engine`)
-va col Blocco 8, non prima — portarla adesso vorrebbe dire portarsi dietro mezzo
-Blocco 8 travestito da `domain/`. E delle sette analisi ne gira una: le altre
-sei restano nell'elenco, ognuna con scritto cosa le manca.
+## Le chiavi e i documenti
+
+Le chiavi stanno in `backend/.env`, che non e' in git. Ne serve **una**:
+`OPENAI_API_KEY` per GPT-5.5, che e' il modello predefinito; `ANTHROPIC_API_KEY`
+se vuoi usare un modello `claude-*`. Il fornitore si sceglie dal nome del
+modello, non da un interruttore.
+
+L'analisi qualitativa vuole il **testo** dei documenti SEC, che Defeatbeta non
+ha: il sistema ti dice quali servono, con che nome e dove salvarli, e a sec.gov
+non chiede niente. La scheda del titolo li elenca alla voce «Documenti SEC».
 
 ## La regola che governa tutto
 
