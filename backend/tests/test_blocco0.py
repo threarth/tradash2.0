@@ -327,3 +327,14 @@ def test_il_file_delle_chiavi_non_puo_finire_nel_repo():
     ignorati = (Path(config.BASE_DIR).parent / ".gitignore").read_text(encoding="utf-8")
 
     assert ".env" in ignorati.split()
+
+
+def test_il_processo_dice_se_sta_servendo_codice_vecchio(client):
+    """Il server di sviluppo non si ricarica da solo, e un processo che gira con
+    codice vecchio non lo dice: un'analisi e' andata a sbattere due volte nello
+    stesso guasto, la seconda dopo che era gia' corretto sul disco."""
+    risposta = client.get("/api/ops/processo").get_json()["data"]
+
+    assert risposta["avviato_il"] and risposta["codice_del"]
+    assert isinstance(risposta["aggiornato"], bool)
+    assert "riavvialo" in risposta["nota"]

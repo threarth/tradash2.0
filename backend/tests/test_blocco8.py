@@ -1401,3 +1401,31 @@ def test_ogni_fase_e_una_chiamata_separata_e_non_eredita_le_altre(qualitativa_pr
     assert len(set(sistemi)) == 4
     for i in range(1, 4):
         assert sistemi[i - 1] not in sistemi[i], f"la fase {i + 1} eredita la {i}"
+
+
+def test_il_materiale_si_raccoglie_prima_di_spendere(qualitativa_pronta, monkeypatch):
+    """Il difetto costato due volte: il materiale della terza fase conteneva un
+    valore che `json.dumps` rifiutava, e l'analisi ci e' andata a sbattere DOPO
+    che la prima e la seconda erano state chiamate e pagate."""
+    monkeypatch.setattr(defeatbeta, "officers", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame([{"symbol": "NVDA", "name": "Mr. Huang", "pay": pd.NA}]),
+        scope=s, category="profile", source="cache", available=True, reason="finto"))
+
+    # Con `pandas.NA` nei dirigenti la raccolta deve comunque riuscire: e' il
+    # caso vero, ed e' quello che `core/tipi.py` esiste per appianare.
+    roba = qualitativa.raccogli("NVDA", None)
+
+    assert '"pay": null' in roba["dirigenti"]
+    assert qualitativa_pronta.chiamate == [], "nessuna chiamata durante la raccolta"
+
+
+def test_se_il_materiale_non_e_serializzabile_non_si_chiama_nessuno(
+        qualitativa_pronta, monkeypatch):
+    """Meglio fermarsi prima della prima chiamata che fra la seconda e la terza."""
+    monkeypatch.setattr(qualitativa, "_depositi_recenti",
+                        lambda s, r: {"non": {1, 2, 3}})
+
+    with pytest.raises(qualitativa.AnalisiError, match="Nessuna chiamata al modello"):
+        qualitativa.esegui("NVDA", _lavoro_finto())
+
+    assert qualitativa_pronta.chiamate == []

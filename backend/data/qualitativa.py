@@ -170,10 +170,10 @@ def _chiedi(fase: str, sistema: str, simbolo: str, run_id: str | None,
     return materiale.leggi_json(risposta["testo"]), risposta
 
 
-def _fase1(simbolo: str, quadro: str, pezzi: list[dict], run_id: str | None) -> tuple:
+def _fase1(simbolo: str, roba: dict, run_id: str | None) -> tuple:
     """La narrativa di fondo e le otto dimensioni che descrivono l'azienda."""
-    misure, mancanti = materiale.pannello_metriche(simbolo, run_id)
-    rischi = materiale.segnali_fondamentali(simbolo, run_id)
+    misure, mancanti, rischi = roba["misure"], roba["mancanti"], roba["rischi"]
+    quadro, pezzi = roba["quadro"], roba["pezzi"]
 
     sistema = materiale.prompt(
         "qualitativa_fase1", contesto=quadro,
@@ -189,10 +189,10 @@ def _fase1(simbolo: str, quadro: str, pezzi: list[dict], run_id: str | None) -> 
             "segnali": rischi}, risposta
 
 
-def _fase2(simbolo: str, quadro: str, pezzi: list[dict], run_id: str | None) -> tuple:
+def _fase2(simbolo: str, roba: dict, run_id: str | None) -> tuple:
     """Il posizionamento competitivo, senza i documenti dei concorrenti."""
-    misure, _ = materiale.pannello_metriche(simbolo, run_id)
-    con_settore = {nome: dati for nome, dati in misure.items()
+    quadro, pezzi = roba["quadro"], roba["pezzi"]
+    con_settore = {nome: dati for nome, dati in roba["misure"].items()
                    if dati and dati.get("settore") is not None}
 
     sistema = materiale.prompt(
@@ -231,18 +231,17 @@ def _depositi_recenti(simbolo: str, run_id: str | None) -> str:
     return json.dumps(voci, indent=2, ensure_ascii=False)
 
 
-def _fase3(simbolo: str, quadro: str, pezzi: list[dict], prima: dict,
-           run_id: str | None) -> tuple:
+def _fase3(simbolo: str, roba: dict, prima: dict, run_id: str | None) -> tuple:
     """Governance, sviluppi recenti e i cinque anni davanti."""
     conclusioni = {chiave: prima.get(chiave) for chiave in
                    ("thesis", "bull_case", "bear_case", "key_risks")}
     conclusioni["stato_corrente"] = (prima.get("classificazione") or {}).get("stato_corrente")
 
     sistema = materiale.prompt(
-        "qualitativa_fase3", contesto=quadro,
-        documenti=_testo_per_il_modello(pezzi, ("mda",)),
-        dirigenti=_dirigenti(simbolo, run_id),
-        depositi=_depositi_recenti(simbolo, run_id),
+        "qualitativa_fase3", contesto=roba["quadro"],
+        documenti=_testo_per_il_modello(roba["pezzi"], ("mda",)),
+        dirigenti=roba["dirigenti"],
+        depositi=roba["depositi"],
         fase1=json.dumps(conclusioni, indent=2, ensure_ascii=False),
     )
     return _chiedi("fase3", sistema, simbolo, run_id,
@@ -318,23 +317,64 @@ def _riepilogo(pezzi: list[dict], avvisi: list[str], scartate: list) -> dict:
     }
 
 
+def raccogli(simbolo: str, run_id: str | None) -> dict:
+    """Tutto il materiale delle quattro fasi, **prima** di spendere il primo token.
+
+    Non e' ordine: e' il difetto che ha fatto pagare due volte le stesse due
+    fasi. Il materiale della terza fase — l'elenco dei dirigenti — conteneva un
+    valore che `json.dumps` rifiutava, e l'analisi e' andata a sbattere li',
+    dopo che la prima e la seconda erano gia' state chiamate e pagate. Due
+    volte, perche' la seconda volta il server girava ancora col codice vecchio.
+
+    Raccogliere tutto prima sposta quel guasto **prima della prima chiamata**,
+    dove non costa niente. Le sole cose che non si possono preparare in anticipo
+    sono i pezzi che dipendono dalle risposte: le conclusioni della fase 1 per la
+    terza, le sezioni scritte per la quarta.
+
+    Il `json.dumps` qui sotto non e' decorativo: e' il controllo. Se qualcosa non
+    e' serializzabile, si scopre adesso.
+    """
+    pezzi, avvisi = _documenti(simbolo, run_id)
+    misure, mancanti = materiale.pannello_metriche(simbolo, run_id)
+    roba = {
+        "pezzi": pezzi,
+        "avvisi": avvisi,
+        "quadro": materiale.contesto(simbolo, run_id),
+        "misure": misure,
+        "mancanti": mancanti,
+        "rischi": materiale.segnali_fondamentali(simbolo, run_id),
+        "dirigenti": _dirigenti(simbolo, run_id),
+        "depositi": _depositi_recenti(simbolo, run_id),
+    }
+
+    try:
+        json.dumps(roba, ensure_ascii=False)
+    except TypeError as exc:
+        raise AnalisiError(
+            f"il materiale per l'analisi di {simbolo} non e' utilizzabile: {exc}. "
+            f"Nessuna chiamata al modello e' stata fatta"
+        ) from exc
+
+    return roba
+
+
 def esegui(simbolo: str, lavoro) -> dict:
     """Le quattro fasi, in fila, dentro un lavoro che si puo' fermare fra l'una
     e l'altra. Ritorna il referto completo col costo di tutte e quattro."""
     run_id = lavoro.run_id
-    pezzi, avvisi = _documenti(simbolo, run_id)
-    quadro = materiale.contesto(simbolo, run_id)
+    roba = raccogli(simbolo, run_id)
+    pezzi, avvisi = roba["pezzi"], roba["avvisi"]
     costo = 0.0
 
-    prima, risposta = _fase1(simbolo, quadro, pezzi, run_id)
+    prima, risposta = _fase1(simbolo, roba, run_id)
     costo += risposta["costo_usd"]
     lavoro.advance(detail="fase 1 di 4: narrativa di fondo")
 
-    seconda, risposta = _fase2(simbolo, quadro, pezzi, run_id)
+    seconda, risposta = _fase2(simbolo, roba, run_id)
     costo += risposta["costo_usd"]
     lavoro.advance(detail="fase 2 di 4: posizionamento competitivo")
 
-    terza, risposta = _fase3(simbolo, quadro, pezzi, prima, run_id)
+    terza, risposta = _fase3(simbolo, roba, prima, run_id)
     costo += risposta["costo_usd"]
     lavoro.advance(detail="fase 3 di 4: governance e prospettive")
 
