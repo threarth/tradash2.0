@@ -25,6 +25,7 @@
         "call", "call_precedente", "testi_troncati", "caratteri_originali",
         "confidenza", "classificazione", "classificazione_scartata",
         "citations", "citazioni_scartate", "senza_riscontro", "copertura",
+        "citazioni_non_prodotte",
         "menzioni_trovate", "menzioni_notizie", "menzioni_call",
         "dcf",  // ha un suo blocco qui sotto: la griglia va letta come tabella
     ]);
@@ -151,6 +152,17 @@
     </div>
 {/if}
 
+<!-- Se la fase delle citazioni fallisce, il report resta: le altre tre sono
+     gia' scritte e gia' pagate. Ma il perche' si vede. -->
+{#if contenuto?.citazioni_non_prodotte}
+    <div class="mt-3 small text-warning">
+        <span class="fw-semibold">Citazioni non prodotte.</span>
+        <Testo testo={contenuto.citazioni_non_prodotte} />
+        Le sezioni qui sopra sono state scritte, ma nessuna frase del documento
+        e' stata verificata a sostegno.
+    </div>
+{/if}
+
 {#if citazioni.length}
     <details class="mt-3">
         <summary class="fw-semibold">
@@ -257,6 +269,16 @@
             <div class="text-warning">
                 {copertura.citazioni_scartate} citazioni scartate: non si trovano
                 alla lettera nel documento indicato.
+            </div>
+        {/if}
+
+        <!-- Il tetto si dichiara sempre: un elenco che si ferma a 24 senza
+             dirlo si legge come «erano ventiquattro». -->
+        {#if copertura.citazioni_massime_chieste}
+            <div>
+                Al modello se ne chiedono al massimo
+                {copertura.citazioni_massime_chieste}: oltre, la risposta viene
+                tagliata e si perdono tutte.
             </div>
         {/if}
         {#each copertura.fonti_non_disponibili ?? [] as fonte, i (i)}
