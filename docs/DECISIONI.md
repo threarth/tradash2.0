@@ -394,6 +394,76 @@ dice anche quello invece di far finta di niente.
 
 ---
 
+## Il frontend (Blocco 4)
+
+**Un solo processo in uso reale.** Flask serve il build di Vite dalla cartella
+`dist`: in sviluppo si tengono aperti Vite e Flask perche' Vite ricarica a
+caldo, ma quando si usa davvero c'e' solo Flask. E' la ragione per cui SvelteKit
+resta fuori — porterebbe il suo router, ma anche un processo Node che gira da
+solo, contro la regola 1. Il router se lo scrive: trenta righe, e il tasto
+"indietro" del browser funziona.
+
+**L'inviluppo si scarta in un punto solo.** `{success, data, error}` viene
+aperto in `lib/api.js`, che ritorna `data` oppure solleva con il messaggio che
+il backend ha scritto. Scartarlo in venti punti sarebbero venti modi di
+sbagliare, e l'errore mostrato all'utente sarebbe "qualcosa e' andato storto"
+invece del motivo vero.
+
+**La regola 5 ha una meta' a video.** Il backend decide `available`, `reason` e
+`action`; se il frontend li ignora e mostra una tabella vuota, il lavoro fatto
+nel backend non serve a niente. Per questo c'e' un componente unico che li
+rende, e uno per i valori: una cella senza dato mostra "n/d" con il perche' nel
+titolo, non uno spazio bianco che si legge come zero.
+
+**Bootstrap senza il suo JavaScript.** Il tema e' `data-bs-theme` piu'
+`localStorage`, e viene applicato in `index.html` PRIMA che la pagina sia
+disegnata: farlo a componente montato fa lampeggiare il chiaro sullo scuro a
+ogni caricamento.
+
+**Se il build non c'e', la pagina lo dice** col comando da lanciare. Un 404 muto
+su `/` manderebbe a cercare un errore di rotte che non esiste.
+
+---
+
+## La watchlist si guarda come il thematic-equity-monitor
+
+Richiesta dell'utente (30/08): lo stile di `dashboard.html` del monitor — temi,
+sottoambiti, profili e maturity — ma **editabile per ticker**. Nel monitor la
+classificazione la scriveva un LLM dentro un file e la dashboard era una vista
+immodificabile; qui la stessa forma, con ogni scheda che si apre e si corregge,
+perche' quei quattro attributi sono giudizi di chi guarda.
+
+Da li' arrivano due scale gia' collaudate, copiate coi loro valori e la loro
+legenda: **profilo** (CORE / EMERGING / OPTIONALITY — quanto del valore e' gia'
+provato) e **maturity** (CONCEPT → DEVELOPMENT → DEMONSTRATED → CONTRACTED →
+OPERATIONAL → SCALED). Sono in CHECK nello schema: un valore inventato non entra
+in tabella per poi comparire in un filtro sei mesi dopo.
+
+**E da li' arriva la revisione del tag singolo.** Il monitor tiene `themes` come
+lista perche' un titolo puo' stare in piu' temi; la regola del 27/08 ne
+ammetteva uno solo, e il piano di allora annotava gia' AMD come il caso che non
+sapeva rappresentare. Adesso e' una relazione molti-a-molti, e il filtro per
+tema dice "contiene", non "e' uguale a".
+
+### Il giro esporta → classifica altrove → importa
+
+Serve a non classificare cinquanta titoli a mano. L'applicazione compone il
+**prompt** da dare a un LLM e ci mette dentro i valori ammessi e **i temi che
+esistono gia'**: senza quelli l'LLM ne inventa di paralleli, e l'import si
+riempie di doppioni che dicono la stessa cosa con parole diverse.
+
+L'esportato e l'importato hanno la **stessa forma** — un formato per uscire e
+un altro per rientrare sarebbero due occasioni di sbagliare — e l'import crea i
+temi che non trova, perche' rifiutare una classificazione perche' i nomi sono
+nuovi vorrebbe dire ricopiarli a mano prima di poterla usare. Crea anche
+l'ambito padre quando serve, **e lo dichiara**: un padre nato di soppiatto e'
+esattamente il genere di cosa che un resoconto deve nominare.
+
+Verificato dal vivo su sette titoli veri: dieci temi creati su due livelli,
+profilo e maturity assegnati, zero perdite nel giro di andata e ritorno.
+
+---
+
 ## Un test lasciava vivo il proprio thread
 
 Trovato dall'avviso di pytest su un'eccezione in un thread: il test delle route

@@ -5,17 +5,32 @@ niente servizi che partono da soli.
 
 ## Comandi
 
+### Backend
+
 ```bash
 cd backend
 uv venv --python 3.13
 uv pip install --python .venv/bin/python -r requirements-dev.txt
 
-.venv/bin/python -m pytest -q       # la suite (41 test, rete spenta)
+.venv/bin/python -m pytest -q       # la suite (108 test, rete spenta)
+.venv/bin/python -m pytest -q -m network   # i test che escono davvero
 .venv/bin/ruff check .              # il linter
-.venv/bin/python app.py             # server di sviluppo su :5001
+.venv/bin/python app.py             # server su :5001, serve anche la SPA
 .venv/bin/python manage.py check    # dove sta il database e cosa contiene
 .venv/bin/python manage.py rebuild  # lo ricostruisce (chiede conferma a mano)
 ```
+
+### Frontend
+
+```bash
+cd frontend
+pnpm install
+pnpm build     # produce dist/, che Flask serve: un solo processo
+pnpm dev       # sviluppo con ricarica a caldo su :5173, /api va a Flask
+```
+
+In uso reale gira **solo Flask**: niente SvelteKit, quindi niente processo Node
+accanto. In sviluppo si tengono aperti tutti e due perche' Vite ricarica a caldo.
 
 `requirements.txt` contiene solo cio' che serve a far girare l'applicazione;
 `requirements-dev.txt` aggiunge gli strumenti di sviluppo. Chi installa per
@@ -42,6 +57,13 @@ La separazione e' strutturale, non una convenzione:
 **Niente migrazioni.** Lo schema sta tutto in `backend/core/schema.sql` e si
 applica a ogni avvio: aggiungere una tabella vuol dire scrivere il `CREATE`
 li' dentro. Il database e' una vista ricostruibile, non un archivio da salvare.
+Quando una tabella cambia forma, `ensure_schema()` se ne accorge e dice di
+lanciare `manage.py rebuild` invece di lasciar passare un errore di SQLite.
+
+**Con un'eccezione: la watchlist.** E' l'unica cosa che non si ricostruisce, e
+per questo la sua fonte di verita' e' `backend/data/watchlist.json`, leggibile e
+correggibile a mano. SQLite ne tiene solo una copia di lavoro, che il rebuild
+puo' cancellare senza danno. Il file non e' in git: **il backup e' copiarlo.**
 
 ## Documenti
 
@@ -58,8 +80,15 @@ li' dentro. Il database e' una vista ricostruibile, non un archivio da salvare.
 
 | Blocco | Stato |
 |---|---|
-| 0 — Fondamenta (registro lavori, log chiamate, freschezza, schema, isolamento test) | **fatto**, 41 test verdi |
-| 1-9 | da fare |
+| 0 — Fondamenta (registro lavori, log chiamate, freschezza, schema, isolamento test) | **fatto** |
+| 1 — Defeatbeta, punto unico di lettura con provenienza misurata | **fatto** |
+| 2 — Universo derivato: 11.256 titoli, costruzione fermabile | **fatto** |
+| 3 — Watchlist e tag: verita' in un file, temi multipli, profilo e maturity | **fatto** |
+| 4 — Frontend, scheletro: Svelte 5 + Vite + Bootstrap CSS | **fatto** |
+| 5-9 | da fare |
+
+108 test verdi in meno di due secondi, piu' 2 che escono davvero in rete e
+girano solo se richiesti.
 
 ## La regola che governa tutto
 

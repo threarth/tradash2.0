@@ -226,11 +226,21 @@ correzione viene raccolta.
 mentre lavori e nessun `checkout` puo' sovrascriverti la watchlist. Il backup e'
 copiare il file.
 
-Le regole della tassonomia sono decisioni gia' prese il 27/08 sul vecchio
-sistema, riportate qui: **un solo tag per titolo**, **due livelli**, il
-**sotto-ambito implica il padre** (chi guarda "Semiconductor" vede anche
-"Semiconductor / Memory"), e **cancellare un tag non cancella titoli** — i
-membri tornano senza tag.
+Le regole della tassonomia: **due livelli**, il **sotto-ambito implica il
+padre** (chi guarda "Semiconductor" vede anche "Semiconductor / Memory"), e
+**cancellare un tag non cancella titoli** — i membri lo perdono e basta.
+
+**Rivisto il 30/08: un titolo puo' stare in PIU' temi.** Il tag singolo scelto
+il 27/08 costringeva a mettere AMD o nei semiconduttori o nell'infrastruttura
+per l'AI, e quella scelta non era recuperabile — il piano di allora lo
+annotava gia' come limite. Ogni titolo porta inoltre due attributi con valori
+chiusi, presi dal thematic-equity-monitor: **profilo** (CORE / EMERGING /
+OPTIONALITY) e **maturity** (CONCEPT → DEVELOPMENT → DEMONSTRATED →
+CONTRACTED → OPERATIONAL → SCALED).
+
+E c'e' il giro **esporta → classifica altrove → importa**: l'applicazione
+compone il prompt da dare a un LLM, portandosi dietro i valori ammessi e i temi
+gia' esistenti, e reimporta il JSON classificato creando i temi mancanti.
 
 *Verifica passata dal vivo: tassonomia a due livelli col terzo rifiutato;
 aggiunta di `"nvda, mu; tsm, ZZQX, no@buono, MU"` che rende quattro esiti
@@ -241,8 +251,25 @@ capitalizzazione; la copia SQLite cancellata e riallineata da sola alla
 rilettura; la freschezza chiesta per categoria che distingue `price` da
 `profile`; lo storico che conserva l'aggiunta anche dopo la rimozione.*
 
-**Blocco 4 — Frontend, scheletro.** Vite + Svelte + Bootstrap CSS, tema
-chiaro/scuro, layout, chiamate API con l'inviluppo `{success, data, error}`.
+**Blocco 4 — Frontend, scheletro. FATTO il 2026-08-30, 108 test verdi.**
+Vite 8 + Svelte 5 + Bootstrap 5.3 (solo CSS), tema chiaro/scuro, layout,
+chiamate API con l'inviluppo `{success, data, error}` scartato in un punto solo.
+
+Tre pagine: **Universo** (stato, copertura dichiarata, filtri), **Watchlist**
+(schede nello stile del thematic-equity-monitor, editabili) e **Operazioni**,
+che e' la regola 1 resa visibile — cosa sta girando, il pulsante per fermarlo,
+la cronologia dei lavori e il registro delle chiamate con la provenienza.
+
+**Flask serve anche il build**, cosi' in uso reale il processo resta uno. Se il
+build non c'e', la risposta lo dice col comando da lanciare invece di un 404
+muto. Il router e' trenta righe: SvelteKit porterebbe il suo, ma anche un
+processo Node accanto a Flask.
+
+*Verifica passata dal vivo, col server vero: `/`, `/watchlist` e `/operazioni`
+servite dalla SPA e `/api/inventata` che resta un 404 parlante; universo
+ricostruito da zero in 5 s dalla pagina; sette titoli aggiunti con gli scarti
+dichiarati; il giro completo prompt → JSON classificato → import, che ha creato
+dieci temi su due livelli e assegnato profilo e maturity a tutti e sette.*
 
 **Blocco 5 — Glossario.** Backend gia' pronto (copiato). Frontend in Svelte:
 rilevatore keyword, hover, pannello laterale, toggle globale persistito.
