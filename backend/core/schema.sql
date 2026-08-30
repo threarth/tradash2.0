@@ -134,13 +134,36 @@ CREATE TABLE IF NOT EXISTS watchlist_tags (
 
 CREATE INDEX IF NOT EXISTS idx_watchlist_tags_parent ON watchlist_tags (parent);
 
--- I titoli osservati. Un solo tag per titolo, che puo' essere un ambito oppure
--- un sotto-ambito: chi filtra su un ambito vede anche i titoli dei suoi figli.
+-- I titoli osservati, con gli attributi con cui li si orienta.
+--
+-- `profilo` e `maturity` hanno valori enumerati copiati dal thematic-equity-
+-- monitor, dove la scala e' gia' collaudata: il profilo dice quanto del valore
+-- e' gia' provato, la maturity a che punto e' arrivato il business. Sono in
+-- CHECK perche' un valore inventato non deve entrare in tabella e comparire in
+-- un filtro sei mesi dopo.
 CREATE TABLE IF NOT EXISTS watchlist (
     symbol   TEXT    NOT NULL PRIMARY KEY,
-    tag      TEXT             REFERENCES watchlist_tags (name) ON DELETE SET NULL,
+    profilo  TEXT             CHECK (profilo IS NULL OR profilo IN
+                                     ('CORE', 'EMERGING', 'OPTIONALITY')),
+    maturity TEXT             CHECK (maturity IS NULL OR maturity IN
+                                     ('CONCEPT', 'DEVELOPMENT', 'DEMONSTRATED',
+                                      'CONTRACTED', 'OPERATIONAL', 'SCALED')),
     favorite INTEGER NOT NULL DEFAULT 0 CHECK (favorite IN (0, 1)),
     added_at TEXT    NOT NULL
 ) STRICT;
 
-CREATE INDEX IF NOT EXISTS idx_watchlist_tag ON watchlist (tag);
+CREATE INDEX IF NOT EXISTS idx_watchlist_profilo  ON watchlist (profilo);
+CREATE INDEX IF NOT EXISTS idx_watchlist_maturity ON watchlist (maturity);
+
+-- A quali temi appartiene un titolo. Una tabella a parte perche' i temi sono
+-- PIU' di uno: AMD sta nei semiconduttori e nell'infrastruttura per l'AI, e il
+-- tag singolo del primo modello costringeva a sceglierne uno solo, senza poter
+-- tornare indietro. Ogni riga e' una coppia (titolo, etichetta), e l'etichetta
+-- puo' essere un ambito oppure un sotto-ambito.
+CREATE TABLE IF NOT EXISTS watchlist_membri (
+    symbol TEXT NOT NULL REFERENCES watchlist (symbol) ON DELETE CASCADE,
+    tag    TEXT NOT NULL REFERENCES watchlist_tags (name) ON DELETE CASCADE,
+    PRIMARY KEY (symbol, tag)
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_watchlist_membri_tag ON watchlist_membri (tag);

@@ -11,6 +11,7 @@ tabelle e le ricrea. Non viene mai chiamato in automatico — solo da `manage.py
 e solo dopo una conferma battuta a mano.
 """
 import logging
+import sqlite3
 from pathlib import Path
 
 from core.db import db_read, db_session
@@ -31,10 +32,28 @@ def _schema_sql() -> str:
     return SCHEMA_PATH.read_text(encoding="utf-8")
 
 
+class SchemaDaRicostruire(RuntimeError):
+    """Lo schema dichiarato non combacia con le tabelle che esistono.
+
+    Qui non ci sono migrazioni per scelta: quando una tabella cambia forma —
+    una colonna rinominata, una aggiunta — la procedura e' ricostruire il
+    database, che e' una vista. Questo errore esiste per dirlo con parole
+    proprie invece di lasciare passare un messaggio di SQLite che nomina una
+    colonna e non spiega cosa farne.
+    """
+
+
 def ensure_schema() -> None:
     """Applica lo schema. Idempotente: si puo' chiamare a ogni avvio."""
-    with db_session() as conn:
-        conn.executescript(_schema_sql())
+    try:
+        with db_session() as conn:
+            conn.executescript(_schema_sql())
+    except sqlite3.OperationalError as exc:
+        raise SchemaDaRicostruire(
+            f"lo schema in {SCHEMA_PATH.name} non combacia con il database "
+            f"({exc}). Qui non ci sono migrazioni: ricostruisci con "
+            f"`python manage.py rebuild`. La watchlist non si perde, sta in un file."
+        ) from exc
     logger.info("[SCHEMA] applicato da %s", SCHEMA_PATH.name)
 
 

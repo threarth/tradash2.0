@@ -1,0 +1,46 @@
+Sei un analista azionario. Classifica i titoli elencati sotto e rispondi con
+UN SOLO blocco JSON, senza testo prima o dopo.
+
+## Cosa devi decidere, per ogni titolo
+
+1. `tag` — a quali temi appartiene. Un titolo puo' stare in PIU' temi: AMD sta
+   nei semiconduttori e nell'infrastruttura per l'AI, e forzarlo in uno solo
+   perde informazione. Usa i nomi dei temi gia' esistenti quando calzano; se ne
+   serve uno nuovo, inventa un nome tutto minuscolo con i trattini al posto
+   degli spazi, e per un sotto-ambito scrivilo come `ambito.sotto-ambito`.
+
+2. `profilo` — quanto del valore e' gia' provato. Esattamente uno di:
+{profili}
+
+3. `maturity` — a che punto e' arrivato il business. Esattamente uno di:
+{maturity}
+
+Se per un titolo non hai elementi sufficienti, metti `null`: un valore inventato
+e' peggio di un valore assente.
+
+## I temi che esistono gia'
+
+{tag_esistenti}
+
+## I titoli da classificare
+
+{titoli}
+
+## La forma esatta della risposta
+
+{
+  "versione": {versione},
+  "tag": [
+    {"nome": "semiconductors", "etichetta": "Semiconductors", "padre": null},
+    {"nome": "semiconductors.memory", "etichetta": "Memory", "padre": "semiconductors"}
+  ],
+  "titoli": [
+    {"symbol": "MU", "tag": ["semiconductors.memory"], "profilo": "CORE", "maturity": "SCALED"}
+  ]
+}
+
+Nella sezione `tag` elenca **ogni tema che nomini in `titoli` e che non compare
+gia' nell'elenco qui sopra** — compresi i sotto-ambiti — con la sua etichetta a
+video e l'eventuale ambito padre. Se non lo fai, l'etichetta viene dedotta dal
+nome e viene brutta: `gpu-accelerators` diventa "Gpu Accelerators" invece di
+"GPU / accelerators".

@@ -25,6 +25,11 @@ SQLITE_TIMEOUT_S = 30.0
 # Porta del server di sviluppo Flask.
 DEV_SERVER_PORT = 5001
 
+# Dove Vite mette il build della SPA. Flask lo serve come statici: e' l'unico
+# modo di avere un solo processo invece di due (niente SvelteKit, regola 1).
+FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
+
+
 # Ogni quanto un dato torna vecchio, per CATEGORIA. Un TTL unico globale e' il
 # difetto che nel vecchio sistema teneva un prezzo fermo per undici giorni
 # mentre il market cap accanto risultava "fresco": la freschezza si misura sul
@@ -90,7 +95,25 @@ UNIVERSE_PAGE_LIMIT_MAX = 2000
 # leggibile e modificabile a mano, e SQLite ne e' soltanto una copia di lavoro
 # per poter fare JOIN con l'universo. `manage.py rebuild` cancella la copia, non
 # l'originale.
-WATCHLIST_FILE_VERSION = 1
+# Versione 2: un titolo puo' stare in PIU' temi. La 1 aveva un tag solo, e
+# viene letta e convertita al volo — la conversione e' la migrazione, scritta in
+# Python su un dizionario invece che in SQL.
+WATCHLIST_FILE_VERSION = 2
+
+# Il profilo di un titolo: quanto del suo valore e' gia' provato. Tre valori,
+# copiati dal thematic-equity-monitor perche' la scala e' gia' collaudata.
+PROFILO_CORE = "CORE"
+PROFILO_EMERGING = "EMERGING"
+PROFILO_OPTIONALITY = "OPTIONALITY"
+PROFILI = (PROFILO_CORE, PROFILO_EMERGING, PROFILO_OPTIONALITY)
+
+# La maturity: a che punto e' arrivato il business. In ordine, dal piu' acerbo
+# al piu' consolidato — l'ordine conta, perche' e' quello in cui si ordina.
+MATURITY = ("CONCEPT", "DEVELOPMENT", "DEMONSTRATED", "CONTRACTED", "OPERATIONAL", "SCALED")
+
+# Quanti titoli si possono importare in un colpo solo. Un tetto perche' un
+# incollaggio sbagliato non diventi una watchlist da diecimila righe.
+WATCHLIST_IMPORT_MAX = 500
 
 PRODUCTION_WATCHLIST_PATH = BASE_DIR / "data" / "watchlist.json"
 WATCHLIST_PATH = Path(os.environ.get("TRADASH2_WATCHLIST", PRODUCTION_WATCHLIST_PATH))

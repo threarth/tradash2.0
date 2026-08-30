@@ -13,14 +13,21 @@ comando cancella la copia, non l'originale. E se apri il JSON con un editor e
 cambi qualcosa, la copia si riallinea da sola al primo uso — il confronto e'
 sulla data di modifica del file.
 
-**Le regole della tassonomia**, decise il 27/08/2026 e riportate qui:
+**Le regole della tassonomia:**
 
-* un titolo ha **un solo tag**;
 * i tag hanno **due livelli**: ambito e sotto-ambito, niente terzo livello;
-* il tag di un titolo puo' essere l'uno o l'altro, e **il sotto-ambito implica
-  il padre**: chi guarda "Semiconductor" vede anche i titoli di
-  "Semiconductor / Memory";
-* cancellare un tag **non cancella titoli**: i membri tornano senza tag.
+* un titolo puo' stare in **piu' temi** (decisione del 30/08/2026, che rivede il
+  tag singolo scelto il 27/08): AMD sta nei semiconduttori e nell'infrastruttura
+  per l'AI, e con un'etichetta sola quella scelta non era recuperabile;
+* il tag di un titolo puo' essere un ambito o un sotto-ambito, e **il
+  sotto-ambito implica il padre**: chi guarda "Semiconductor" vede anche i
+  titoli di "Semiconductor / Memory";
+* cancellare un tag **non cancella titoli**: i membri lo perdono e basta.
+
+Oltre ai temi, ogni titolo porta due attributi con valori chiusi, copiati dal
+thematic-equity-monitor dove la scala e' gia' collaudata: **profilo** (quanto
+del valore e' gia' provato) e **maturity** (a che punto e' arrivato il
+business).
 
 Ogni modifica lascia una riga in `data/watchlist_events.jsonl`, append-only:
 cresce in fondo e non si corregge mai.
@@ -32,6 +39,7 @@ import os
 import re
 import threading
 from datetime import UTC, datetime
+from pathlib import Path
 
 import config
 from core import freshness
@@ -54,6 +62,8 @@ SEPARATORE_LIVELLI = "."
 EVENTO_AGGIUNTI = "titoli_aggiunti"
 EVENTO_RIMOSSI = "titoli_rimossi"
 EVENTO_TAG_ASSEGNATO = "tag_assegnato"
+EVENTO_ATTRIBUTI = "attributi_cambiati"
+EVENTO_IMPORTATI = "titoli_importati"
 EVENTO_PREFERITO = "preferito_cambiato"
 EVENTO_TAG_CREATO = "tag_creato"
 EVENTO_TAG_ELIMINATO = "tag_eliminato"
@@ -95,6 +105,24 @@ def _vuoto() -> dict:
             "tag": [], "titoli": []}
 
 
+def _converti_da_v1(contenuto: dict) -> dict:
+    """Porta un file della versione 1 al modello a piu' temi.
+
+    E' la migrazione descritta in `docs/DECISIONI.md`: scritta in Python su un
+    dizionario invece che in SQL, e per questo testabile. Nella versione 1 il
+    tag era una stringa sola o `None`; qui diventa una lista, e i due attributi
+    nuovi partono vuoti perche' inventarli sarebbe peggio che lasciarli vuoti.
+    """
+    for titolo in contenuto.get("titoli", []):
+        vecchio_tag = titolo.pop("tag", None)
+        titolo["tag"] = [vecchio_tag] if vecchio_tag else []
+        titolo.setdefault("profilo", None)
+        titolo.setdefault("maturity", None)
+    contenuto["versione"] = config.WATCHLIST_FILE_VERSION
+    logger.info("[WATCHLIST] file della versione 1 convertito al modello a piu' temi")
+    return contenuto
+
+
 def _carica() -> dict:
     """Legge la watchlist dal file. Se non esiste, e' vuota — non e' un errore.
 
@@ -112,6 +140,8 @@ def _carica() -> dict:
         ) from exc
 
     versione = contenuto.get("versione")
+    if versione == 1:
+        return _converti_da_v1(contenuto)
     if versione != config.WATCHLIST_FILE_VERSION:
         raise WatchlistError(
             f"la watchlist dichiara la versione {versione}, questo codice legge la "
@@ -163,8 +193,10 @@ def _sincronizza(stato: dict) -> None:
     fallire la cancellazione a cascata con `FOREIGN KEY constraint failed`.
     """
     tag_ordinati = sorted(stato["tag"], key=lambda t: (t.get("padre") is not None, t["nome"]))
+    nomi_validi = {t["nome"] for t in tag_ordinati}
 
     with db_session() as conn:
+        conn.execute("DELETE FROM watchlist_membri")
         conn.execute("DELETE FROM watchlist")
         conn.execute("DELETE FROM watchlist_tags")
         conn.executemany(
@@ -173,9 +205,18 @@ def _sincronizza(stato: dict) -> None:
              for t in tag_ordinati],
         )
         conn.executemany(
-            "INSERT INTO watchlist (symbol, tag, favorite, added_at) VALUES (?, ?, ?, ?)",
-            [(t["symbol"], t.get("tag"), 1 if t.get("preferito") else 0, t["aggiunto_il"])
+            "INSERT INTO watchlist (symbol, profilo, maturity, favorite, added_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            [(t["symbol"], t.get("profilo"), t.get("maturity"),
+              1 if t.get("preferito") else 0, t["aggiunto_il"])
              for t in stato["titoli"]],
+        )
+        # Un'etichetta scomparsa dal file (corretto a mano) non deve far
+        # fallire l'intera sincronizzazione: si scarta la sola appartenenza.
+        conn.executemany(
+            "INSERT INTO watchlist_membri (symbol, tag) VALUES (?, ?)",
+            [(t["symbol"], nome) for t in stato["titoli"]
+             for nome in t.get("tag", []) if nome in nomi_validi],
         )
 
     _vista["impronta"] = _impronta(stato)
@@ -290,10 +331,15 @@ def tag_elimina(nome: str, cascata: bool = False) -> dict:
 
         da_togliere = {nome, *figli}
         stato["tag"] = [tag for tag in stato["tag"] if tag["nome"] not in da_togliere]
-        liberati = [t["symbol"] for t in stato["titoli"] if t.get("tag") in da_togliere]
+
+        # Il titolo perde l'etichetta cancellata e tiene le altre: con piu' temi
+        # per titolo, azzerarli tutti butterebbe via classificazioni sane.
+        liberati = []
         for titolo in stato["titoli"]:
-            if titolo.get("tag") in da_togliere:
-                titolo["tag"] = None
+            rimasti = [t for t in titolo.get("tag", []) if t not in da_togliere]
+            if len(rimasti) != len(titolo.get("tag", [])):
+                liberati.append(titolo["symbol"])
+                titolo["tag"] = rimasti
         _salva(stato)
 
     _registra_evento(EVENTO_TAG_ELIMINATO, tag=nome, con_figli=figli, liberati=liberati)
@@ -310,10 +356,10 @@ def tag_elenco() -> list[dict]:
     with db_read() as conn:
         righe = conn.execute("""
             SELECT t.name, t.label, t.parent, t.order_index,
-                   (SELECT COUNT(*) FROM watchlist w WHERE w.tag = t.name) AS diretti,
-                   (SELECT COUNT(*) FROM watchlist w
-                     WHERE w.tag = t.name
-                        OR w.tag IN (SELECT f.name FROM watchlist_tags f WHERE f.parent = t.name)
+                   (SELECT COUNT(*) FROM watchlist_membri m WHERE m.tag = t.name) AS diretti,
+                   (SELECT COUNT(DISTINCT m.symbol) FROM watchlist_membri m
+                     WHERE m.tag = t.name
+                        OR m.tag IN (SELECT f.name FROM watchlist_tags f WHERE f.parent = t.name)
                    ) AS totale
             FROM watchlist_tags t
             ORDER BY COALESCE(t.parent, t.name), t.parent IS NOT NULL, t.order_index, t.name
@@ -370,7 +416,17 @@ def _sconosciuti(simboli: list[str]) -> tuple[list[str], str | None]:
     return [s for s in simboli if s not in noti], None
 
 
-def aggiungi(grezzo: str | list[str], tag: str | None = None) -> dict:
+def _nuovo_titolo(simbolo: str, tag: list[str], istante: str) -> dict:
+    """Un titolo appena aggiunto: temi eventuali, attributi ancora da decidere.
+
+    `profilo` e `maturity` nascono vuoti apposta: sono giudizi, e inventarli al
+    posto di chi guarda sarebbe peggio che lasciarli in bianco.
+    """
+    return {"symbol": simbolo, "tag": list(tag), "profilo": None, "maturity": None,
+            "preferito": False, "aggiunto_il": istante}
+
+
+def aggiungi(grezzo: str | list[str], tag: str | list[str] | None = None) -> dict:
     """Aggiunge titoli alla watchlist, dicendo di ognuno che fine ha fatto.
 
     Quattro esiti distinti, mai un silenzio: aggiunti, gia' presenti, scartati
@@ -378,11 +434,12 @@ def aggiungi(grezzo: str | list[str], tag: str | None = None) -> dict:
     nell'universo.
     """
     validi, scartati = parse_symbols(grezzo)
+    etichette = [tag] if isinstance(tag, str) else list(tag or [])
 
     with _lucchetto:
         stato = _assicura_vista()
-        if tag is not None:
-            _trova_tag(stato, tag)
+        for nome in etichette:
+            _trova_tag(stato, nome)
 
         sconosciuti, avvertimento = _sconosciuti(validi) if validi else ([], None)
         presenti = {t["symbol"] for t in stato["titoli"]}
@@ -390,15 +447,12 @@ def aggiungi(grezzo: str | list[str], tag: str | None = None) -> dict:
         da_aggiungere = [s for s in validi if s not in presenti and s not in sconosciuti]
 
         istante = _adesso()
-        stato["titoli"].extend(
-            {"symbol": s, "tag": tag, "preferito": False, "aggiunto_il": istante}
-            for s in da_aggiungere
-        )
+        stato["titoli"].extend(_nuovo_titolo(s, etichette, istante) for s in da_aggiungere)
         if da_aggiungere:
             _salva(stato)
 
     if da_aggiungere:
-        _registra_evento(EVENTO_AGGIUNTI, simboli=da_aggiungere, tag=tag)
+        _registra_evento(EVENTO_AGGIUNTI, simboli=da_aggiungere, tag=etichette)
     return {"aggiunti": da_aggiungere, "gia_presenti": gia_presenti,
             "scartati": scartati, "sconosciuti": sconosciuti, "avvertimento": avvertimento}
 
@@ -434,18 +488,72 @@ def rimuovi(simboli: list[str]) -> dict:
     return {"rimossi": rimossi, "non_presenti": sorted(richiesti - presenti)}
 
 
-def assegna_tag(simboli: list[str], tag: str | None) -> dict:
-    """Assegna (o toglie, con `None`) il tag a piu' titoli in un colpo solo."""
-    if tag is not None:
-        _trova_tag(_carica(), tag)
+def aggiungi_tag(simboli: list[str], tag: str) -> dict:
+    """Aggiunge un tema a piu' titoli. Chi ce l'ha gia' non lo prende due volte."""
+    _trova_tag(_carica(), tag)
 
     def _cambia(_stato, titolo):
-        titolo["tag"] = tag
+        if tag not in titolo["tag"]:
+            titolo["tag"].append(tag)
 
     toccati = _modifica(simboli, _cambia)
     if toccati:
-        _registra_evento(EVENTO_TAG_ASSEGNATO, simboli=toccati, tag=tag)
+        _registra_evento(EVENTO_TAG_ASSEGNATO, simboli=toccati, tag=tag, aggiunto=True)
     return {"aggiornati": toccati, "tag": tag}
+
+
+def togli_tag(simboli: list[str], tag: str) -> dict:
+    """Toglie un tema da piu' titoli, senza toccare gli altri temi che hanno."""
+    def _cambia(_stato, titolo):
+        titolo["tag"] = [nome for nome in titolo["tag"] if nome != tag]
+
+    toccati = _modifica(simboli, _cambia)
+    if toccati:
+        _registra_evento(EVENTO_TAG_ASSEGNATO, simboli=toccati, tag=tag, aggiunto=False)
+    return {"aggiornati": toccati, "tag": tag}
+
+
+def _valida_attributo(valore: str | None, ammessi: tuple, nome: str) -> str | None:
+    """Un valore fuori dall'elenco e' un errore d'uso, non un dato da accettare."""
+    if valore in (None, ""):
+        return None
+    if valore not in ammessi:
+        raise WatchlistError(
+            f"{nome} {valore!r} non e' fra i valori ammessi: {', '.join(ammessi)}"
+        )
+    return valore
+
+
+def imposta_attributi(simbolo: str, tag=..., profilo=..., maturity=...) -> dict:
+    """Cambia i temi e/o gli attributi di UN titolo. E' l'editor della scheda.
+
+    I parametri non passati restano come sono: `...` distingue "non toccare" da
+    "svuota", che con `None` sarebbero la stessa cosa.
+    """
+    simbolo_pulito = simbolo.strip().upper()
+
+    with _lucchetto:
+        stato = _assicura_vista()
+        titolo = next((t for t in stato["titoli"] if t["symbol"] == simbolo_pulito), None)
+        if titolo is None:
+            raise WatchlistError(f"{simbolo_pulito} non e' in watchlist")
+
+        if tag is not ...:
+            etichette = [tag] if isinstance(tag, str) else list(tag or [])
+            for nome in etichette:
+                _trova_tag(stato, nome)
+            titolo["tag"] = etichette
+        if profilo is not ...:
+            titolo["profilo"] = _valida_attributo(profilo, config.PROFILI, "profilo")
+        if maturity is not ...:
+            titolo["maturity"] = _valida_attributo(maturity, config.MATURITY, "maturity")
+
+        _salva(stato)
+        aggiornato = dict(titolo)
+
+    _registra_evento(EVENTO_ATTRIBUTI, simbolo=simbolo_pulito, tag=aggiornato["tag"],
+                     profilo=aggiornato["profilo"], maturity=aggiornato["maturity"])
+    return aggiornato
 
 
 def preferito(simboli: list[str], valore: bool) -> dict:
@@ -461,39 +569,79 @@ def preferito(simboli: list[str], valore: bool) -> dict:
 
 # --- leggere ----------------------------------------------------------------
 
-def elenco(tag: str | None = None, solo_preferiti: bool = False) -> list[dict]:
-    """I titoli osservati, con quello che l'universo sa di loro.
+def _temi_per_simbolo(conn) -> dict[str, list[dict]]:
+    """Le etichette di ogni titolo, con nome, etichetta a video e ambito padre.
 
-    Il filtro per tag comprende i sotto-ambiti: chiedere "Semiconductor"
-    significa chiedere anche "Semiconductor / Memory". L'unione con l'universo
-    e' una LEFT JOIN: un titolo resta visibile anche se l'universo non e' stato
-    ancora costruito.
+    Una query sola per tutti: chiederle titolo per titolo sarebbe la N+1 che
+    rende lenta una pagina senza che nessuno capisca perche'.
     """
-    _assicura_vista()
+    righe = conn.execute("""
+        SELECT m.symbol, m.tag, t.label, t.parent
+        FROM watchlist_membri m
+        JOIN watchlist_tags t ON m.tag = t.name
+        ORDER BY t.parent IS NOT NULL, t.name
+    """).fetchall()
+
+    per_simbolo: dict[str, list[dict]] = {}
+    for riga in righe:
+        per_simbolo.setdefault(riga["symbol"], []).append(
+            {"nome": riga["tag"], "etichetta": riga["label"], "padre": riga["parent"]}
+        )
+    return per_simbolo
+
+
+def _filtri_elenco(tag, profilo, maturity, solo_preferiti) -> tuple[str, list]:
+    """Le condizioni della ricerca, tutte parametrizzate.
+
+    Il filtro per tema dice "CONTIENE", non "e' uguale a": un titolo con piu'
+    temi deve comparire sotto ciascuno. E comprende i sotto-ambiti, perche'
+    chiedere "Semiconductor" significa chiedere anche "Semiconductor / Memory".
+    """
     condizioni: list[str] = []
     parametri: list = []
 
     if tag:
-        condizioni.append(
-            "(w.tag = ? OR w.tag IN (SELECT name FROM watchlist_tags WHERE parent = ?))"
-        )
+        condizioni.append("""
+            EXISTS (SELECT 1 FROM watchlist_membri m
+                     WHERE m.symbol = w.symbol
+                       AND (m.tag = ?
+                            OR m.tag IN (SELECT name FROM watchlist_tags WHERE parent = ?)))
+        """)
         parametri.extend([tag, tag])
+    if profilo:
+        condizioni.append("w.profilo = ?")
+        parametri.append(profilo)
+    if maturity:
+        condizioni.append("w.maturity = ?")
+        parametri.append(maturity)
     if solo_preferiti:
         condizioni.append("w.favorite = 1")
 
-    dove = f"WHERE {' AND '.join(condizioni)}" if condizioni else ""
+    return (f"WHERE {' AND '.join(condizioni)}" if condizioni else ""), parametri
+
+
+def elenco(tag: str | None = None, solo_preferiti: bool = False,
+           profilo: str | None = None, maturity: str | None = None) -> list[dict]:
+    """I titoli osservati, coi loro temi e con quello che l'universo sa di loro.
+
+    L'unione con l'universo e' una LEFT JOIN: un titolo resta visibile anche se
+    l'universo non e' stato ancora costruito.
+    """
+    _assicura_vista()
+    dove, parametri = _filtri_elenco(tag, profilo, maturity, solo_preferiti)
+
     with db_read() as conn:
         righe = conn.execute(f"""
-            SELECT w.symbol, w.tag, w.favorite, w.added_at,
-                   e.label AS tag_label, e.parent AS tag_parent,
+            SELECT w.symbol, w.profilo, w.maturity, w.favorite, w.added_at,
                    u.sector, u.industry, u.market_cap, u.last_close, u.last_close_date
             FROM watchlist w
-            LEFT JOIN watchlist_tags e ON w.tag = e.name
             LEFT JOIN universe u ON w.symbol = u.symbol
             {dove}
             ORDER BY u.market_cap DESC NULLS LAST, w.symbol
         """, parametri).fetchall()
-    return [dict(r) for r in righe]
+        temi = _temi_per_simbolo(conn)
+
+    return [{**dict(r), "temi": temi.get(r["symbol"], [])} for r in righe]
 
 
 def simboli() -> list[str]:
@@ -537,3 +685,166 @@ def eventi(limit: int = config.WATCHLIST_EVENTS_LIMIT_DEFAULT) -> list[dict]:
         except json.JSONDecodeError:
             logger.warning("[WATCHLIST] riga di storico illeggibile, saltata")
     return letti
+
+
+# --- portare dentro e portare fuori ----------------------------------------
+#
+# Il giro previsto: si esporta la watchlist, si incolla in un LLM insieme al
+# prompt che questo modulo compone, e si reimporta il JSON classificato. Per
+# questo l'esportato e l'importato hanno la STESSA forma: un formato per uscire
+# e un altro per rientrare sarebbero due occasioni di sbagliare.
+
+PROMPT_CLASSIFICAZIONE = Path(__file__).resolve().parent.parent / "prompts" / \
+    "watchlist_classificazione.txt"
+
+
+def esporta() -> dict:
+    """La watchlist in una forma portabile, pronta da incollare altrove."""
+    stato = _assicura_vista()
+    return {
+        "versione": config.WATCHLIST_FILE_VERSION,
+        "esportato_il": _adesso(),
+        "tag": [{"nome": t["nome"], "etichetta": t["etichetta"], "padre": t.get("padre")}
+                for t in stato["tag"]],
+        "titoli": [{"symbol": t["symbol"], "tag": t.get("tag", []),
+                    "profilo": t.get("profilo"), "maturity": t.get("maturity")}
+                   for t in stato["titoli"]],
+    }
+
+
+def prompt_classificazione(simboli_richiesti: list[str] | None = None) -> str:
+    """Il testo da incollare in un LLM perche' classifichi i titoli.
+
+    Porta con se' i valori ammessi e i temi che esistono gia': senza, l'LLM ne
+    inventa di paralleli e l'import si riempie di doppioni che dicono la stessa
+    cosa con parole diverse.
+    """
+    stato = _assicura_vista()
+    da_classificare = simboli_richiesti or [t["symbol"] for t in stato["titoli"]]
+    if not da_classificare:
+        raise WatchlistError("non c'e' niente da classificare: la watchlist e' vuota")
+
+    esistenti = "\n".join(
+        f"- `{t['nome']}` — {t['etichetta']}"
+        + (f" (sotto-ambito di {t['padre']})" if t.get("padre") else "")
+        for t in stato["tag"]
+    ) or "- (nessuno: creali tu)"
+
+    modello = PROMPT_CLASSIFICAZIONE.read_text(encoding="utf-8")
+    # Sostituzione mirata: il testo contiene graffe di esempio JSON, quindi
+    # `str.format` lo tratterebbe come segnaposti e fallirebbe.
+    for segnaposto, valore in (
+        ("{profili}", "\n".join(f"   - {v}" for v in config.PROFILI)),
+        ("{maturity}", "\n".join(f"   - {v}" for v in config.MATURITY)),
+        ("{tag_esistenti}", esistenti),
+        ("{titoli}", "\n".join(f"- {s}" for s in da_classificare)),
+        ("{versione}", str(config.WATCHLIST_FILE_VERSION)),
+    ):
+        modello = modello.replace(segnaposto, valore)
+    return modello
+
+
+def _assicura_tag(stato: dict, definizioni: list[dict], slug: str) -> list[str]:
+    """Crea il tema se manca, ricavandone padre ed etichetta. Ritorna cosa ha creato.
+
+    L'import crea i temi che non esistono: e' il punto di importare una
+    classificazione, e rifiutarla perche' i nomi sono nuovi vorrebbe dire
+    ricopiarli a mano prima di poterla usare.
+
+    Ritorna la LISTA dei creati e non un si'/no perche' creare un sotto-ambito
+    puo' voler dire creare anche il suo ambito, e un padre nato di soppiatto e'
+    proprio il genere di cosa che il resoconto deve nominare.
+    """
+    if any(t["nome"] == slug for t in stato["tag"]):
+        return []
+
+    dichiarato = next((d for d in definizioni if d.get("nome") == slug), {})
+    padre = dichiarato.get("padre")
+    if padre is None and SEPARATORE_LIVELLI in slug:
+        padre = slug.split(SEPARATORE_LIVELLI, maxsplit=1)[0]
+
+    creati = _assicura_tag(stato, definizioni, padre) if padre else []
+
+    etichetta = dichiarato.get("etichetta") or \
+        slug.rsplit(SEPARATORE_LIVELLI, maxsplit=1)[-1].replace("-", " ").title()
+    stato["tag"].append({"nome": slug, "etichetta": etichetta, "padre": padre, "ordine": 100})
+    return [*creati, slug]
+
+
+def _applica_importato(stato: dict, voce: dict, definizioni: list[dict], esito: dict) -> None:
+    """Porta una voce importata dentro lo stato, dichiarando cosa e' successo."""
+    simbolo = str(voce.get("symbol", "")).strip().upper()
+    profilo = _valida_attributo(voce.get("profilo"), config.PROFILI, "profilo")
+    maturity = _valida_attributo(voce.get("maturity"), config.MATURITY, "maturity")
+
+    etichette = [str(nome) for nome in (voce.get("tag") or [])]
+    for slug in etichette:
+        esito["tag_creati"].extend(_assicura_tag(stato, definizioni, slug))
+
+    titolo = next((t for t in stato["titoli"] if t["symbol"] == simbolo), None)
+    if titolo is None:
+        titolo = _nuovo_titolo(simbolo, [], _adesso())
+        stato["titoli"].append(titolo)
+        esito["aggiunti"].append(simbolo)
+    else:
+        esito["aggiornati"].append(simbolo)
+
+    titolo["tag"] = etichette
+    titolo["profilo"] = profilo
+    titolo["maturity"] = maturity
+
+
+def importa(dati: dict) -> dict:
+    """Carica una classificazione prodotta altrove, dicendo di ognuno che fine ha fatto.
+
+    Un titolo gia' in watchlist viene aggiornato; uno nuovo entra, purche' esista
+    nell'universo. Quello che non si puo' accettare non sparisce: torna indietro
+    con il motivo.
+    """
+    voci = dati.get("titoli")
+    if not isinstance(voci, list):
+        raise WatchlistError("il JSON non contiene un elenco 'titoli'")
+    if len(voci) > config.WATCHLIST_IMPORT_MAX:
+        raise WatchlistError(
+            f"{len(voci)} titoli superano il tetto di {config.WATCHLIST_IMPORT_MAX}"
+        )
+
+    definizioni = dati.get("tag") or []
+    esito = {"aggiunti": [], "aggiornati": [], "tag_creati": [],
+             "scartati": [], "sconosciuti": [], "rifiutati": []}
+
+    with _lucchetto:
+        stato = _assicura_vista()
+        presenti = {t["symbol"] for t in stato["titoli"]}
+        ammessi = _simboli_importabili(voci, presenti, esito)
+
+        for voce in voci:
+            simbolo = str(voce.get("symbol", "")).strip().upper()
+            if simbolo not in ammessi:
+                continue
+            try:
+                _applica_importato(stato, voce, definizioni, esito)
+            except WatchlistError as problema:
+                esito["rifiutati"].append({"symbol": simbolo, "motivo": str(problema)})
+
+        _salva(stato)
+
+    _registra_evento(EVENTO_IMPORTATI, aggiunti=esito["aggiunti"],
+                     aggiornati=esito["aggiornati"], tag_creati=esito["tag_creati"])
+    return esito
+
+
+def _simboli_importabili(voci: list[dict], presenti: set[str], esito: dict) -> set[str]:
+    """Quali simboli dell'importazione si possono accettare, scartando gli altri.
+
+    La verifica sull'universo si fa in una volta sola per tutti: farla titolo
+    per titolo sarebbe una query per riga su un elenco che puo' averne 500.
+    """
+    grezzi = [str(v.get("symbol", "")) for v in voci]
+    validi, scartati = parse_symbols(grezzi)
+    esito["scartati"].extend(scartati)
+
+    nuovi = [s for s in validi if s not in presenti]
+    sconosciuti, _ = _sconosciuti(nuovi) if nuovi else ([], None)
+    esito["sconosciuti"].extend(sconosciuti)
+    return set(validi) - set(sconosciuti)

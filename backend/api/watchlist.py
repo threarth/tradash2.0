@@ -32,8 +32,12 @@ def elenco():
         "titoli": watchlist.elenco(
             tag=request.args.get("tag"),
             solo_preferiti=request.args.get("preferiti", "").strip() == "1",
+            profilo=request.args.get("profilo"),
+            maturity=request.args.get("maturity"),
         ),
         "tag": watchlist.tag_elenco(),
+        "profili": config.PROFILI,
+        "maturity": config.MATURITY,
     })
 
 
@@ -59,21 +63,73 @@ def rimuovi():
 
 @bp.patch("")
 def modifica():
-    """Cambia tag e/o preferito su piu' titoli in un colpo solo."""
+    """Azioni in blocco: aggiunge o toglie un tema, accende o spegne il preferito."""
     corpo = request.get_json(silent=True) or {}
     simboli = list(_simboli_richiesti(corpo))
     esito = {}
     try:
-        if "tag" in corpo:
-            esito["tag"] = watchlist.assegna_tag(simboli, corpo["tag"])
+        if corpo.get("aggiungi_tag"):
+            esito["aggiunto"] = watchlist.aggiungi_tag(simboli, corpo["aggiungi_tag"])
+        if corpo.get("togli_tag"):
+            esito["tolto"] = watchlist.togli_tag(simboli, corpo["togli_tag"])
         if "preferito" in corpo:
             esito["preferito"] = watchlist.preferito(simboli, bool(corpo["preferito"]))
     except WatchlistError as exc:
         return fail(str(exc))
 
     if not esito:
-        return fail("niente da cambiare: serve 'tag' oppure 'preferito'")
+        return fail("niente da cambiare: serve 'aggiungi_tag', 'togli_tag' o 'preferito'")
     return ok(esito)
+
+
+@bp.patch("/<simbolo>")
+def attributi(simbolo: str):
+    """L'editor della scheda: temi, profilo e maturity di UN titolo.
+
+    Cio' che non arriva nel corpo non viene toccato: mandare `null` significa
+    svuotare, non mandare il campo significa lasciarlo com'e'.
+    """
+    corpo = request.get_json(silent=True) or {}
+    non_toccare = ...
+    try:
+        return ok(watchlist.imposta_attributi(
+            simbolo,
+            tag=corpo.get("tag", non_toccare),
+            profilo=corpo.get("profilo", non_toccare),
+            maturity=corpo.get("maturity", non_toccare),
+        ))
+    except WatchlistError as exc:
+        return fail(str(exc))
+
+
+@bp.get("/esporta")
+def esporta():
+    """La watchlist in forma portabile, da incollare in un LLM o da tenere da parte."""
+    return ok(watchlist.esporta())
+
+
+@bp.get("/prompt")
+def prompt():
+    """Il testo gia' pronto da dare a un LLM perche' classifichi i titoli."""
+    grezzo = request.args.get("simboli", "").strip()
+    richiesti = [s for s in grezzo.replace(",", " ").split()] if grezzo else None
+    try:
+        return ok({"prompt": watchlist.prompt_classificazione(richiesti),
+                   "profili": config.PROFILI, "maturity": config.MATURITY})
+    except WatchlistError as exc:
+        return fail(str(exc))
+
+
+@bp.post("/importa")
+def importa():
+    """Carica una classificazione prodotta altrove, dicendo di ognuno che fine ha fatto."""
+    corpo = request.get_json(silent=True)
+    if not isinstance(corpo, dict):
+        return fail("serve un oggetto JSON con dentro 'titoli'")
+    try:
+        return ok(watchlist.importa(corpo))
+    except WatchlistError as exc:
+        return fail(str(exc))
 
 
 @bp.get("/tag")
