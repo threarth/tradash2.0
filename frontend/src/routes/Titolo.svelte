@@ -21,6 +21,7 @@
     import PannelloIndicatori from "../components/PannelloIndicatori.svelte";
     import Ricostruzione from "../components/Ricostruzione.svelte";
     import Segnali from "../components/Segnali.svelte";
+    import Simulatore from "../components/Simulatore.svelte";
     import Testo from "../components/Testo.svelte";
     import Valore from "../components/Valore.svelte";
     import { api } from "../lib/api.js";
@@ -157,6 +158,17 @@
         <hr class="my-4" />
         <h2 class="h6">Analisi</h2>
         <Analisi {simbolo} />
+
+        <hr class="my-4" />
+        <h2 class="h6">Cosa si sarebbe vissuto tenendolo</h2>
+        <p class="small text-secondary">
+            Non e' un backtest di strategia: e' una posizione sola, comprata un
+            giorno e tenuta fino a oggi. La domanda non e' quanto si sarebbe
+            guadagnato — quello lo dice il grafico — ma cosa si sarebbe passato
+            nel mezzo. In dollari: non abbiamo una fonte per i cambi, quindi
+            l'effetto valuta qui non c'e' e non viene stimato.
+        </p>
+        <Simulatore {simbolo} />
 
         <hr class="my-4" />
         <h2 class="h6">Come si vedeva questo titolo a una data passata</h2>

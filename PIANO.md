@@ -553,6 +553,31 @@ filing non producono un'analisi povera: non ne producono nessuna. L'avvio si
 ferma. Gli altri metodi leggono dati gia' calcolati e usano i filing come
 complemento facoltativo — bloccarli sarebbe sbagliato.
 
+**Aggiunta al Blocco 9 — Simulatore psicologico. FATTO il 2026-08-31.**
+
+Ripreso dal vecchio tradash su richiesta. Non e' un backtest di strategia:
+posizione sola, comprata un giorno e tenuta fino a oggi, e la domanda non e'
+«quanto avrei guadagnato» ma **«cosa avrei passato»**. Sono due domande diverse
+e la seconda si dimentica sempre.
+
+Misurato su NVDA con 10.000 dollari dal 2022-01-03: **+622%**, e nel mezzo una
+discesa del **62,7%** con 343 sedute — il 29% del tempo — sotto il prezzo
+pagato. Dal 2020: +3.527%, con un -66,4% attraversato.
+
+La tabella ha i **mesi in colonna e i giorni in riga**, rossa e verde per segno
+e intensita'. Ogni cella porta il giorno della settimana perche' quello cambia
+da un mese all'altro, e senza si legge la griglia credendo che le righe siano
+settimane. Le celle vuote non sono zeri: sono borsa chiusa o giorni che quel
+mese non ha.
+
+Il cursore sposta il **giorno d'acquisto**, e con lui tutte le variazioni. Un
+interruttore sceglie come leggerle: giorno su giorno e' quello che si sarebbe
+sentito, dal giorno d'acquisto e' quello che si sarebbe ricordato.
+
+**Niente effetto cambio**, e lo dice: il vecchio simulatore aveva la doppia
+valuta con i cambi storici, ma Defeatbeta non porta i tassi e questo sistema non
+ha un secondo fornitore. Meglio dichiararlo che stimarlo.
+
 **Blocco 9 — Scanner sul passato. FATTO il 2026-08-30, 158 test verdi.**
 Solo su Defeatbeta, con la cache dei byte che rende gratis la seconda passata,
 e ogni scansione dentro il registro: si vede in `/api/ops/active` e si ferma.

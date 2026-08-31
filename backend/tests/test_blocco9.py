@@ -10,7 +10,7 @@ la ragione per cui e' stato trovato.
 import json
 import threading
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pandas as pd
 import pytest
@@ -19,7 +19,7 @@ import config
 from core import registry
 from core.db import db_read, db_session
 from data import defeatbeta, forward, scanner, verdetto
-from domain import dcf, drawdown, scansione
+from domain import dcf, drawdown, scansione, simulatore
 
 TIMEOUT_S = 5.0
 
@@ -423,3 +423,108 @@ def test_un_testo_lunghissimo_di_un_referto_viene_tagliato(monkeypatch):
 
     lungo = next(r for r in scelti if r["metodo"] == "tecnica")["contenuto"]["lettura"]
     assert lungo.endswith("[…]") and len(lungo) < 100
+
+
+# --- il simulatore psicologico ---------------------------------------------
+#
+# La domanda a cui risponde non e' «quanto avrei guadagnato» ma «cosa avrei
+# passato»: sono due domande diverse, e la seconda si dimentica sempre.
+
+def _salita(prezzi: list[float], da: str = "2026-01-01") -> list[dict]:
+    """Barre giornaliere consecutive con le chiusure date."""
+    inizio = date.fromisoformat(da)
+    return [{"timestamp": (inizio + timedelta(days=i)).isoformat(), "close": p}
+            for i, p in enumerate(prezzi)]
+
+
+def test_la_prima_seduta_non_ha_una_variazione_pari_a_zero():
+    """Zero vorrebbe dire «non si e' mossa», e non e' quello che sappiamo."""
+    sedute = simulatore.variazioni(_salita([100, 110]))
+
+    assert sedute[0]["variazione"] is None
+    assert sedute[1]["variazione"] == pytest.approx(0.1)
+
+
+def test_ogni_seduta_porta_il_suo_giorno_della_settimana():
+    """Il 5 e' lunedi' a marzo e giovedi' ad aprile: senza, si legge la griglia
+    credendo che le righe siano settimane."""
+    sedute = simulatore.variazioni(_salita([100, 101, 102], da="2026-03-05"))
+
+    assert [s["giorno_settimana"] for s in sedute] == ["G", "V", "S"]
+
+
+def test_la_griglia_mette_i_mesi_in_colonna_e_i_giorni_in_riga():
+    prezzi = _salita([100 + i for i in range(70)], da="2026-01-30")
+    griglia = simulatore.griglia(simulatore.variazioni(prezzi))
+
+    assert [m["chiave"] for m in griglia["mesi"]] == ["2026-01", "2026-02", "2026-03", "2026-04"]
+    assert griglia["giorni"] == list(range(1, 32))
+    assert griglia["celle"]["2026-02"][14]["data"] == "2026-02-14"
+    # Febbraio 2026 ha 28 giorni: la casella 30 non esiste, e non e' uno zero.
+    assert 30 not in griglia["celle"]["2026-02"]
+    assert griglia["mesi"][1]["giorni_del_mese"] == 28
+
+
+def test_dal_punto_misura_dalla_partenza_e_non_dal_giorno_prima():
+    """Giorno su giorno e' quello che si sente; dal punto e' quello che si ricorda."""
+    sedute = simulatore.variazioni(_salita([100, 110, 121]))
+
+    dal_via = simulatore.dal_punto(sedute)
+
+    assert [s["variazione"] for s in dal_via] == pytest.approx([0.0, 0.1, 0.21])
+
+
+def test_le_sedute_prima_del_riferimento_restano_ma_senza_variazione():
+    """Toglierle nasconderebbe che il periodo scelto comincia piu' tardi."""
+    sedute = simulatore.variazioni(_salita([100, 110, 121]))
+
+    dal_via = simulatore.dal_punto(sedute, riferimento="2026-01-02")
+
+    assert dal_via[0]["variazione"] is None
+    assert dal_via[1]["variazione"] == pytest.approx(0.0)
+    assert dal_via[2]["variazione"] == pytest.approx(0.1)
+
+
+def test_il_peggio_attraversato_non_e_la_perdita_finale():
+    """E' la discesa dal massimo raggiunto FINO AD ALLORA: il numero che si
+    guardava mentre stava succedendo, non quello del consuntivo."""
+    # Sale a 200, crolla a 100, risale a 210: finisce in guadagno, ma nel mezzo
+    # ha dimezzato.
+    sedute = simulatore.variazioni(_salita([100] * 5 + [200] * 5 + [100] * 5 + [210] * 5))
+
+    e = simulatore.esperienza(sedute, 10_000)
+
+    assert e["rendimento"] == pytest.approx(1.1), "finisce a +110%"
+    assert e["discesa_peggiore"] == pytest.approx(-0.5), "ma ha attraversato un -50%"
+
+
+def test_il_tempo_in_perdita_e_una_misura_a_se():
+    """Nessun rendimento annuo racconta quanti giorni si e' stati sotto."""
+    sedute = simulatore.variazioni(_salita([100] + [80] * 10 + [130] * 9))
+
+    e = simulatore.esperienza(sedute, 10_000)
+
+    assert e["giorni_sotto_il_prezzo_pagato"] == 10
+    assert e["quota_del_tempo_in_perdita"] == pytest.approx(0.5)
+    assert e["rendimento"] == pytest.approx(0.3), "e intanto il consuntivo e' +30%"
+
+
+def test_con_pochissime_sedute_non_c_e_niente_da_rivivere():
+    e = simulatore.esperienza(simulatore.variazioni(_salita([100, 101, 102])), 10_000)
+
+    assert e["available"] is False
+    assert "20 sedute" in e["reason"] and e["action"]
+
+
+def test_la_rotta_del_simulatore_rifiuta_un_capitale_impossibile(client):
+    for valore in ("0", "-100", "molti"):
+        risposta = client.get(f"/api/titolo/NVDA/simulatore?capitale={valore}")
+        assert risposta.status_code == 400, valore
+        assert "capitale" in risposta.get_json()["error"]
+
+
+def test_la_rotta_del_simulatore_rifiuta_una_base_inventata(client):
+    risposta = client.get("/api/titolo/NVDA/simulatore?base=lunare")
+
+    assert risposta.status_code == 400
+    assert "giorno" in risposta.get_json()["error"]

@@ -222,6 +222,11 @@ QUALITATIVA_DEPOSITI_RECENTI = 12
 # scelte che quaranta tagliate a meta' di una parentesi.
 QUALITATIVA_CITAZIONI_MASSIME = 24
 
+# Il capitale di partenza del simulatore psicologico, quando non lo si dice.
+# Diecimila e' una cifra che si legge a colpo d'occhio: le variazioni in dollari
+# si traducono a mente in percentuali.
+SIMULATORE_CAPITALE_PREDEFINITO = 10_000.0
+
 # Il verdetto legge i referti degli altri metodi. Quanto se ne manda di ognuno,
 # e da quanti giorni un referto va segnalato come vecchio: mettere insieme una
 # lettura di tre mesi fa e una di stamattina produce una sintesi coerente e

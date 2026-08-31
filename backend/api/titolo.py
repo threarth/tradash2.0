@@ -21,7 +21,7 @@ from core.db import db_read
 from core.tipi import python_puro
 from data import defeatbeta, depositi, filing_locali, grafici, materiale, ricostruzione
 from data.grafici import GraficiError
-from domain import indicators, prospetti, publication_dates
+from domain import indicators, prospetti, publication_dates, simulatore
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,25 @@ bp = Blueprint("titolo", __name__, url_prefix="/api/titolo")
 SEZIONI_FUTURE: dict[str, dict] = {}
 
 ACTION_SEZIONE_FUTURA = "questa sezione arriva con il blocco {blocco} del piano"
+
+# Come si leggono le variazioni nel simulatore: la giornata, o la strada fatta
+# dal giorno d'acquisto. La prima e' quello che si sente, la seconda quello che
+# si ricorda.
+BASE_GIORNO = "giorno"
+BASE_PERIODO = "periodo"
+
+
+def _capitale(grezzo: str | None) -> tuple[float, str | None]:
+    """Il capitale investito, validato. Ritorna (valore, errore)."""
+    if not grezzo:
+        return config.SIMULATORE_CAPITALE_PREDEFINITO, None
+    try:
+        valore = float(grezzo)
+    except ValueError:
+        return 0.0, f"capitale non e' un numero: {grezzo!r}"
+    if valore <= 0:
+        return 0.0, "il capitale dev'essere maggiore di zero"
+    return valore, None
 
 
 def _profilo(simbolo: str) -> dict:
@@ -358,6 +377,52 @@ def ricostruzione_point_in_time(simbolo: str):
     if not esito["available"]:
         return fail(esito["reason"], HTTP_NOT_FOUND)
     return ok(esito)
+
+
+@bp.get("/<simbolo>/simulatore")
+def simulatore_psicologico(simbolo: str):
+    """Cosa si sarebbe vissuto comprando questo titolo un certo giorno.
+
+    Non e' un backtest di strategia: non c'e' nessuna strategia. C'e' una
+    posizione sola, e la domanda non e' «quanto avrei guadagnato» ma «cosa avrei
+    passato» — quanto e' sceso nel mezzo, quanto tempo e' stato in perdita.
+
+    Parametri: `da` (giorno d'acquisto), `capitale`, e `base` — «giorno» per la
+    variazione giorno su giorno, «periodo» per quella dal giorno d'acquisto.
+    """
+    quando, errore = _as_of(request.args.get("da"))
+    if errore:
+        return fail(errore.replace("as_of", "da"))
+
+    capitale, errore = _capitale(request.args.get("capitale"))
+    if errore:
+        return fail(errore)
+
+    base = request.args.get("base", BASE_GIORNO)
+    if base not in (BASE_GIORNO, BASE_PERIODO):
+        return fail(f"base sconosciuta: {base!r}. Ci sono: {BASE_GIORNO}, {BASE_PERIODO}")
+
+    lettura = defeatbeta.prices(simbolo)
+    if not lettura.available:
+        return fail(lettura.reason, HTTP_NOT_FOUND)
+
+    tutte = simulatore.variazioni(_barre(lettura.frame))
+    dentro = [s for s in tutte if quando is None or s["data"] >= quando]
+    if not dentro:
+        return fail(f"nessuna seduta dal {quando}: il primo prezzo che Defeatbeta "
+                    f"ha per {simbolo.strip().upper()} e' del "
+                    f"{tutte[0]['data'] if tutte else '?'}", HTTP_NOT_FOUND)
+
+    mostrate = simulatore.dal_punto(dentro) if base == BASE_PERIODO else dentro
+
+    return ok({
+        "symbol": simbolo.strip().upper(), "da": quando, "base": base,
+        "capitale": capitale,
+        "griglia": simulatore.griglia(mostrate),
+        "esperienza": simulatore.esperienza(dentro, capitale),
+        "prima_seduta_disponibile": tutte[0]["data"] if tutte else None,
+        "source": lettura.source,
+    })
 
 
 @bp.get("/<simbolo>/filing-da-salvare")

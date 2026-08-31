@@ -111,6 +111,8 @@ export const api = {
         chiama(`/titolo/${encodeURIComponent(simbolo)}/segnali${query({ as_of: asOf })}`),
     ricostruzione: (simbolo, asOf) =>
         chiama(`/titolo/${encodeURIComponent(simbolo)}/ricostruzione${query({ as_of: asOf })}`),
+    simulatore: (simbolo, da, capitale, base) =>
+        chiama(`/titolo/${encodeURIComponent(simbolo)}/simulatore${query({ da, capitale, base })}`),
     titoloGrafico: (simbolo) => chiama(`/titolo/${encodeURIComponent(simbolo)}/grafico`),
     titoloSalvaGrafico: (simbolo, configurazione) =>
         chiama(`/titolo/${encodeURIComponent(simbolo)}/grafico`,

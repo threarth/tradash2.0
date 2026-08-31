@@ -92,7 +92,7 @@ puo' cancellare senza danno. Il file non e' in git: **il backup e' copiarlo.**
 | 8 — Le sette analisi, coi cinque segnali deterministici e l'infrastruttura LLM | **fatto** |
 | 9 — Scanner sul passato, fermabile, che dice in base a cosa | **fatto** |
 
-292 test Python in poco piu' di due secondi (piu' 2 che escono davvero in rete e
+307 test Python in poco piu' di due secondi (piu' 2 che escono davvero in rete e
 girano solo se richiesti) e 11 test JavaScript sul rilevatore del glossario.
 
 ## Le chiavi e i documenti
