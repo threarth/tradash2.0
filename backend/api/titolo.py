@@ -21,7 +21,13 @@ from core.db import db_read
 from core.tipi import python_puro
 from data import defeatbeta, depositi, filing_locali, grafici, materiale, ricostruzione
 from data.grafici import GraficiError
-from domain import indicators, prospetti, publication_dates, simulatore
+from domain import (
+    indicators,
+    prospetti,
+    publication_dates,
+    salute,
+    simulatore,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -377,6 +383,44 @@ def ricostruzione_point_in_time(simbolo: str):
     if not esito["available"]:
         return fail(esito["reason"], HTTP_NOT_FOUND)
     return ok(esito)
+
+
+@bp.get("/<simbolo>/salute")
+def salute_finanziaria(simbolo: str):
+    """Figure di bilancio e rapporti di solidita'. **Nessun punteggio.**
+
+    Nel vecchio sistema questa sezione produceva un Health Score 0-100 con
+    etichetta: era un secondo verdetto sulla stessa azienda, parallelo a quello
+    della qualita' fondamentale e non riconciliato con esso. Qui ci sono i dati;
+    il giudizio lo da' l'analisi fondamentale, ed e' uno solo.
+
+    Con `as_of` si ricostruisce sui soli bilanci che a quella data erano gia'
+    stati depositati, come i segnali.
+    """
+    quando, errore = _as_of(request.args.get("as_of"))
+    if errore:
+        return fail(errore)
+
+    lettura = defeatbeta.statements(simbolo)
+    if not lettura.available:
+        return fail(lettura.reason, HTTP_NOT_FOUND)
+
+    mappa_depositi = depositi.mappa(simbolo)
+    tutti = prospetti.periodi(lettura.frame)
+    visibili = _periodi_visibili(mappa_depositi, tutti, quando, trimestrale=True)
+    tabelle = {
+        nome: prospetti.tabella(lettura.frame, nome, prospetti.TRIMESTRALE, visibili)
+        for nome in prospetti.PROSPETTI
+    }
+
+    return ok({
+        "symbol": simbolo.strip().upper(), "as_of": quando,
+        **salute.quadro(tabelle),
+        "base_del_taglio": publication_dates.truncation_basis(
+            mappa_depositi, visibili if visibili is not None else tutti, True
+        ) if quando else None,
+        "source": lettura.source,
+    })
 
 
 @bp.get("/<simbolo>/simulatore")

@@ -20,7 +20,15 @@ import config
 from core import llm
 from core.db import db_read
 from data import analisi, defeatbeta, filing_locali, materiale, qualitativa
-from domain import pannello, segnali, sezioni_filing, spinoff, tassonomia, trascrizione
+from domain import (
+    pannello,
+    salute,
+    segnali,
+    sezioni_filing,
+    spinoff,
+    tassonomia,
+    trascrizione,
+)
 
 TRIMESTRI = ["2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
              "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]
@@ -1498,3 +1506,85 @@ def test_ricalcolare_due_volte_non_cambia_niente(monkeypatch):
     llm.chiedi(fase="p", sistema="s", messaggio="m", modello="claude-opus-5")
 
     assert llm.ricalcola_costi()["righe_aggiornate"] == 0
+
+
+# --- la salute finanziaria: i dati, senza un secondo verdetto ---------------
+
+def _tabelle_salute(**voci) -> dict:
+    """I tre prospetti nella forma che `domain/prospetti.py` produce."""
+    vuoto = {"voci": {}, "periodi": []}
+    return {"income_statement": voci.get("conto", vuoto),
+            "balance_sheet": voci.get("patrimoniale", vuoto),
+            "cash_flow": voci.get("cassa", vuoto)}
+
+
+def test_un_rapporto_col_denominatore_a_zero_non_esiste():
+    """Non da' un numero enorme: da' un rapporto che non si puo' fare, e dirlo
+    e' diverso dal mostrare infinito."""
+    valori = {"ebit_ttm": 100.0, "oneri_finanziari_ttm": 0.0,
+              "debito_totale": 50.0, "patrimonio_netto": None,
+              "attivo_totale": 200.0, "passivo_totale": 100.0,
+              "debito_netto": 10.0, "ebitda_ttm": 5.0}
+
+    r = salute.rapporti(valori)
+
+    assert r["copertura_interessi"]["valore"] is None
+    assert "zero" in r["copertura_interessi"]["reason"]
+    assert r["debito_su_patrimonio"]["valore"] is None
+    assert "manca" in r["debito_su_patrimonio"]["reason"]
+    assert r["copertura_attivi"]["valore"] == pytest.approx(2.0)
+
+
+def test_la_salute_non_produce_nessun_punteggio():
+    """Nel vecchio sistema questa sezione dava un Health Score 0-100 con
+    etichetta: un SECONDO verdetto sulla stessa azienda, parallelo a quello
+    della fondamentale e non riconciliato con esso."""
+    quadro = salute.quadro(_tabelle_salute())
+
+    testo = json.dumps(quadro, ensure_ascii=False).lower()
+    for parola in ("score", "punteggio", "voto", "ottima", "critica"):
+        assert parola not in testo or parola == "punteggio", parola
+    assert "Nessun punteggio" in quadro["nota"]
+    assert quadro["figure_mancanti"], "senza bilanci, le figure mancano tutte"
+
+
+def test_la_storia_del_debito_porta_anche_i_due_numeri_che_lo_fanno():
+    """Il rapporto puo' scendere perche' il debito cala o perche' il patrimonio
+    sale, e sono due storie diverse."""
+    patrimoniale = {"voci": {
+        "total_debt": {"2026-01-31": 100.0, "2026-04-30": 100.0},
+        "stockholders_equity": {"2026-01-31": 500.0, "2026-04-30": 1000.0},
+    }}
+
+    storia = salute.storia_del_debito(patrimoniale)
+
+    assert [r["debito_su_patrimonio"] for r in storia] == [0.2, 0.1]
+    assert storia[1]["debito"] == 100.0, "il debito non e' calato"
+    assert storia[1]["patrimonio"] == 1000.0, "e' il patrimonio a essere salito"
+
+
+def test_il_ponte_verso_la_cassa_chiude_col_residuo():
+    """«Altro» tiene dentro investimenti e imposte: si calcola per differenza e
+    si dichiara, perche' se e' grande e' proprio quello da guardare."""
+    conto = {"voci": {"net_income": {"2026-04-30": 100.0}}}
+    cassa = {"voci": {"free_cash_flow": {"2026-04-30": 60.0},
+                      "depreciation_and_amortization": {"2026-04-30": 10.0},
+                      "stock_based_compensation": {"2026-04-30": 5.0},
+                      "change_in_working_capital": {"2026-04-30": -15.0}}}
+
+    ponte = salute.dall_utile_alla_cassa(conto, cassa)
+
+    riga = ponte[0]
+    assert riga["altro"] == pytest.approx(-40.0)
+    assert riga["utile"] + riga["ammortamenti"] + riga["azioni_ai_dipendenti"] \
+        + riga["circolante"] + riga["altro"] == pytest.approx(riga["cassa_libera"])
+    assert riga["conversione"] == pytest.approx(0.6)
+
+
+def test_senza_utile_positivo_la_conversione_non_si_calcola():
+    """Cassa su una perdita non e' una percentuale di conversione: e' un segno
+    diviso un altro segno."""
+    conto = {"voci": {"net_income": {"2026-04-30": -50.0}}}
+    cassa = {"voci": {"free_cash_flow": {"2026-04-30": 20.0}}}
+
+    assert salute.dall_utile_alla_cassa(conto, cassa)[0]["conversione"] is None

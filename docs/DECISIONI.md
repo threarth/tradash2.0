@@ -932,3 +932,47 @@ E' la misura che giustifica le due correzioni fatte subito dopo: raccogliere
 tutto il materiale **prima** di spendere il primo token, e non far perdere alla
 quarta fase le tre gia' pagate. Non erano rifiniture: erano i due terzi del
 conto.
+
+
+---
+
+## Due verdetti sulla stessa azienda erano uno di troppo
+
+La sezione «salute» del vecchio tradash produceva un **Health Score 0-100** con
+etichetta OTTIMA/BUONA/MODERATA/DEBOLE/CRITICA, calcolato da quattro
+sotto-punteggi con pesi e scale proprie. Accanto, il Fundamental Quality Service
+dava il suo giudizio sulla stessa azienda. **Due numeri diversi, nessuno dei due
+derivabile dall'altro**, e chi leggeva doveva scegliere a quale credere.
+
+Il vecchio sistema l'aveva gia' tolto, e qui non e' tornato: restano le figure
+di bilancio e i quattro rapporti di solidita', che sono cio' che la sezione deve
+mostrare. Il giudizio appartiene all'analisi fondamentale, ed e' uno solo.
+
+Un rapporto che non si puo' calcolare vale `None` e porta il motivo. Un
+denominatore a zero non da' un rapporto infinito: da' un rapporto che non
+esiste, e mostrare un numero enorme al suo posto sarebbe peggio che non mostrare
+niente.
+
+E la storia del debito porta **tutti e tre i numeri**, non solo il rapporto: un
+debito su patrimonio che scende puo' voler dire che il debito cala o che il
+patrimonio sale, e sono due storie diverse. Misurato su NVDA: da 0,088 a 0,063 in
+due trimestri col debito che **saliva** da 10,5 a 12,3 miliardi — era il
+patrimonio a correre.
+
+---
+
+## Un indice e un elenco di sezioni sono due elenchi che divergono
+
+Il navigatore laterale della scheda titolo non ha un elenco suo. Ogni sezione si
+registra quando compare e si toglie quando sparisce, e il navigatore mostra
+quello che c'e' davvero.
+
+L'alternativa — un elenco di voci nel navigatore e uno di sezioni nella pagina —
+e' la stessa forma di difetto del vocabolario degli indicatori: due posti da
+tenere allineati, e prima o poi si aggiunge una sezione senza aggiungerla
+all'indice, oppure la si nomina e il collegamento non porta da nessuna parte.
+
+Le sezioni si richiudono, e quelle **di consultazione partono chiuse** — i
+depositi SEC, le notizie, il simulatore, la ricostruzione: aperte spingono in
+fondo alla pagina tutto quello che viene dopo. Lo stato si ricorda nel browser,
+perche' chi chiude i depositi SEC li vuole chiusi anche domani.
