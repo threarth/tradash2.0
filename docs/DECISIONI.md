@@ -902,3 +902,33 @@ Il tetto e' una richiesta nel prompt, non un limite imposto dal codice, e il
 modello puo' superarlo di poco. Si dichiarano tutte e due le cifre invece di
 troncare l'elenco: tagliare la venticinquesima nasconderebbe che il modello non
 ha rispettato il tetto.
+
+---
+
+## Il conto vero della prima giornata con un modello
+
+Listino di gpt-5.5 riferito dall'utente il 31/08/2026 da una ricerca sul web —
+**non letto dal cruscotto ne' da un'API**, e questo sta scritto anche in
+`config.py` accanto ai numeri: 5,00 dollari per milione di token in ingresso,
+30,00 in uscita. La chiave normale non ha il permesso `api.usage.read`, quindi
+la strada automatica non c'era.
+
+`manage.py costi` ha ricalcolato tutte e tredici le chiamate gia' registrate
+senza rifarne nessuna, ed e' venuto fuori il conto:
+
+| | |
+|---|---|
+| totale della giornata | **$4,74** su 13 chiamate |
+| il referto qualitativo riuscito (4 fasi) | **$1,53** |
+| buttato nei tre giri falliti | **$3,18** su 8 chiamate |
+| la lettura tecnica | $0,03 |
+
+**Due terzi della spesa sono finiti nei tentativi falliti**, e conviene guardare
+dove: 1,22 dollari in due fasi 1 e due fasi 2 rifatte da capo per un
+`pandas.NA`, e 0,73 dollari in una sola risposta tagliata dal tetto di token —
+la piu' cara della giornata, e completamente persa.
+
+E' la misura che giustifica le due correzioni fatte subito dopo: raccogliere
+tutto il materiale **prima** di spendere il primo token, e non far perdere alla
+quarta fase le tre gia' pagate. Non erano rifiniture: erano i due terzi del
+conto.

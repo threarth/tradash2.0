@@ -263,15 +263,24 @@ LLM_TOKEN_PER_FASE = {
 # Prezzo per milione di token, per calcolare il costo di ogni chiamata. Da
 # aggiornare quando cambiano i listini: un costo calcolato su prezzi vecchi e'
 # peggio di nessun costo, perche' sembra un dato.
-# **I modelli OpenAI non sono qui, e non e' una dimenticanza.** Non ho un
-# listino verificato per gpt-5.5 e le sue varianti, e scriverne uno a memoria
-# darebbe la cosa peggiore possibile: un numero in dollari che sembra misurato.
-# Finche' mancano, `speso_totale()` dichiara quante chiamate non sanno quanto
-# sono costate, invece di sommarci zero in silenzio.
+# Da dove viene ogni riga, perche' un prezzo senza provenienza e' un numero in
+# dollari che sembra misurato:
+#
+# - I modelli Anthropic: listino pubblico noto.
+# - **gpt-5.5: riferito dall'utente il 31/08/2026 da una ricerca sul web**, non
+#   letto dal cruscotto ne' da un'API. E' il dato migliore che abbiamo e va
+#   benissimo per l'ordine di grandezza; se un giorno il conto non tornasse col
+#   consuntivo OpenAI, si comincia a guardare da qui.
+#
+# Un modello che non e' in questa tabella non prende un costo inventato: prende
+# zero, e `speso_totale()` dichiara quante chiamate non sanno quanto sono
+# costate. Il listino si puo' aggiungere DOPO — `manage.py costi` ricalcola le
+# chiamate gia' registrate, perche' i token sono salvati riga per riga.
 LLM_PREZZI = {
     "claude-opus-5": {"ingresso": 5.00, "uscita": 25.00},
     "claude-sonnet-5": {"ingresso": 2.00, "uscita": 10.00},
     "claude-haiku-4-5": {"ingresso": 1.00, "uscita": 5.00},
+    "gpt-5.5": {"ingresso": 5.00, "uscita": 30.00},
 }
 TOKEN_PER_MILIONE = 1_000_000
 
