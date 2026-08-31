@@ -455,7 +455,33 @@ su diciotto.
   schema a farlo rispettare. E **25 citazioni verificate alla lettera nel testo,
   zero scartate**, prese da tutti e due i documenti.
 
-Le altre cinque analisi non sono ancora state eseguite con un modello vero.
+**E poi tutte e sette, lo stesso giorno.** Il listino di ogni referto su NVDA:
+
+| analisi | ingresso | uscita | costo |
+|---|---:|---:|---:|
+| qualitativa (4 fasi) | 140.831 | 27.439 | $1,5273 |
+| verdetto | 15.350 | 3.900 | $0,1938 |
+| earnings | 12.314 | 2.328 | $0,1314 |
+| fondamentale | 2.294 | 1.552 | $0,0580 |
+| forward | 2.186 | 1.507 | $0,0561 |
+| tecnica | 838 | 873 | $0,0304 |
+| spin-off | 1.261 | 697 | $0,0272 |
+
+Cosa hanno prodotto, in una riga ciascuna:
+
+- **fondamentale**: ha trovato da sola il ROE al 33,1% **sotto** l'industria al
+  59,7% pur con margini sopra — la lettura che il vecchio sistema non sapeva
+  produrre per undici ticker su diciotto.
+- **earnings**: guidance, cosa e' cambiato dalla call precedente, e le
+  **reticenze** — le domande a cui il management non ha risposto con un numero.
+- **spin-off**: tre menzioni, **nessuno spin-off**, e il perche' di ognuna —
+  compreso «agents *spin off* sub-agents» detto in call in senso tecnico.
+- **forward**: ha letto la griglia di sensibilita' e l'ha citata — 52,48 al 20%
+  di crescita contro 175,75 al 50% — concludendo che il prezzo equo basso e'
+  «costruito dentro l'ipotesi», non una prova che il mercato abbia torto.
+- **verdetto**: **sei contraddizioni**, ognuna con cosa la scioglierebbe. Fra
+  queste, da solo, lo stesso paradosso ROE/margini della fondamentale, e il
+  bilancio leggero contro 279 miliardi di impegni ecosistemici.
 
 *Cosa e' costato arrivarci, e non va dimenticato:* tre giri falliti prima di
 questo, 143.000 token in ingresso buttati, e tre difetti veri che nessun mock
