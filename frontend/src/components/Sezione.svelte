@@ -11,6 +11,16 @@
     depositi SEC, le notizie — partono chiuse, perche' altrimenti spingono in
     fondo alla pagina tutto quello che viene dopo. Le altre partono aperte.
 
+    **Una sezione chiusa non fa il suo lavoro**, e non e' un dettaglio: alla
+    prima versione il contenuto restava montato e soltanto nascosto, quindi ogni
+    sezione chiedeva comunque i suoi dati e disegnava le sue tabelle. Il collapse
+    risparmiava spazio e non fatica — l'opposto della regola che dice di non fare
+    lavoro pesante all'apertura di una pagina.
+
+    Aperta una volta, pero', il contenuto **resta montato**: richiuderla e
+    riaprirla non deve ricominciare da capo, e chi apre e chiude per confrontare
+    due sezioni non deve pagare due volte.
+
     Lo stato di apertura si ricorda nel browser: chi chiude i depositi SEC li
     vuole chiusi anche domani, e riaprirli a ogni visita e' una piccola noia
     ripetuta molte volte.
@@ -46,8 +56,13 @@
 
     let apertaOra = $state(chiuse().has(id) ? false : aperta);
 
+    // Se e' mai stata aperta. Finche' e' falso il contenuto non esiste affatto:
+    // niente richieste al backend, niente tabelle da disegnare.
+    let mostrata = $state(apertaOra);
+
     function cambia() {
         apertaOra = !apertaOra;
+        if (apertaOra) mostrata = true;
         ricorda(!apertaOra);
     }
 
@@ -85,11 +100,15 @@
         </div>
     </div>
 
-    <div id={`${id}-corpo`} hidden={!apertaOra}>
-        {@render children?.()}
-    </div>
+    {#if mostrata}
+        <div id={`${id}-corpo`} hidden={!apertaOra}>
+            {@render children?.()}
+        </div>
+    {/if}
 
     {#if !apertaOra}
-        <p class="small text-secondary mb-0">chiusa — premi il titolo per aprirla</p>
+        <p class="small text-secondary mb-0">
+            chiusa — premi il titolo per aprirla{mostrata ? "" : ": i dati si chiedono allora"}
+        </p>
     {/if}
 </section>
