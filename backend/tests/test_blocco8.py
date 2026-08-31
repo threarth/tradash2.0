@@ -388,13 +388,16 @@ def test_le_chiamate_senza_listino_si_dichiarano(monkeypatch):
                 "anthropic": _ClienteFinto(_RispostaAnthropic("va bene", 1000, 500))}
     monkeypatch.setattr(llm, "_client", doppioni.get)
 
-    llm.chiedi(fase="p", sistema="s", messaggio="m", modello="gpt-5.5")
+    # Un modello che il listino non ha davvero: e' il caso normale il giorno che
+    # ne esce uno nuovo, e il test non deve dipendere da quali sono in tabella
+    # oggi — altrimenti si spacca il giorno che se ne aggiunge uno.
+    llm.chiedi(fase="p", sistema="s", messaggio="m", modello=MODELLO_SENZA_LISTINO)
     llm.chiedi(fase="p", sistema="s", messaggio="m", modello="claude-opus-5")
 
     speso = llm.speso_totale()
     assert speso["chiamate"] == 2
     assert speso["chiamate_senza_listino"] == 1
-    assert speso["modelli_senza_listino"] == ["gpt-5.5"]
+    assert speso["modelli_senza_listino"] == [MODELLO_SENZA_LISTINO]
     assert speso["token_senza_listino"] == 1500
     assert speso["costo_usd"] > 0, "quella con listino conta comunque"
 
@@ -1182,6 +1185,11 @@ def test_il_vocabolario_del_prompt_e_quello_del_codice():
 
 # --- il report qualitativo, quattro fasi ------------------------------------
 
+# Un nome che il listino non contiene e non conterra': i test sul costo ignoto
+# non devono dipendere da quali modelli sono in tabella oggi.
+MODELLO_SENZA_LISTINO = "gpt-mai-visto"
+
+
 class _ClienteASequenza:
     """Un client che risponde una cosa diversa a ogni fase.
 
@@ -1469,11 +1477,11 @@ def test_il_listino_si_puo_applicare_dopo(monkeypatch):
     quelle chiamate restano a costo zero. I token pero' sono salvati: il costo
     si recupera dopo, senza rifare una sola chiamata."""
     _finto(monkeypatch, _Risposta("va bene", entrata=1_000_000, uscita=1_000_000))
-    llm.chiedi(fase="p", sistema="s", messaggio="m", modello="gpt-5.5")
+    llm.chiedi(fase="p", sistema="s", messaggio="m", modello=MODELLO_SENZA_LISTINO)
 
     assert llm.speso_totale()["costo_usd"] == 0.0
 
-    monkeypatch.setitem(config.LLM_PREZZI, "gpt-5.5",
+    monkeypatch.setitem(config.LLM_PREZZI, MODELLO_SENZA_LISTINO,
                         {"ingresso": 2.0, "uscita": 8.0})
     esito = llm.ricalcola_costi()
 

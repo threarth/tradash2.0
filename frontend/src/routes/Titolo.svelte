@@ -18,6 +18,7 @@
     import Fondamentali from "../components/Fondamentali.svelte";
     import Grafico from "../components/Grafico.svelte";
     import Metriche from "../components/Metriche.svelte";
+    import PannelloIndicatori from "../components/PannelloIndicatori.svelte";
     import Ricostruzione from "../components/Ricostruzione.svelte";
     import Segnali from "../components/Segnali.svelte";
     import Testo from "../components/Testo.svelte";
@@ -100,11 +101,26 @@
         {:else if grafico.errore}
             <Errore errore={grafico.errore} riprova={grafico.ricarica} />
         {:else if grafico.dato}
-            <Grafico barre={grafico.dato.barre} serie={grafico.dato.serie}
-                     configurazione={grafico.dato.configurazione} />
-            <p class="small text-secondary mt-2">
-                {grafico.dato.barre.length} sedute · dati arrivati da {grafico.dato.source}
-            </p>
+            <!-- Il grafico e il pannello degli indicatori stanno accanto: il
+                 pannello serve MENTRE si guarda il grafico, e in fondo alla
+                 pagina costringerebbe a scorrere avanti e indietro per vedere
+                 l'effetto di ogni modifica. -->
+            <div class="row g-3">
+                <div class="col-12 col-xl-9">
+                    <Grafico barre={grafico.dato.barre} serie={grafico.dato.serie}
+                             configurazione={grafico.dato.configurazione} />
+                    <p class="small text-secondary mt-2">
+                        {grafico.dato.barre.length} sedute mostrate ·
+                        {grafico.dato.sedute_calcolate} usate per calcolare gli
+                        indicatori · dati arrivati da {grafico.dato.source}
+                    </p>
+                </div>
+                <div class="col-12 col-xl-3">
+                    <PannelloIndicatori {simbolo}
+                                        configurazione={grafico.dato.configurazione}
+                                        salvata={grafico.ricarica} />
+                </div>
+            </div>
         {/if}
 
         <hr class="my-4" />

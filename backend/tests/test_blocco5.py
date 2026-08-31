@@ -41,7 +41,6 @@ SENZA_GLOSSARIO = {
                                "sottolinearle li' dentro sarebbe un rimando a se stesse",
     "SchedaTitolo.svelte": "la prosa dei dati passa da Valore e da Assente",
     "Universo.svelte": "la prosa dei dati passa da Valore e da Assente",
-    "Grafico.svelte": "disegna una tela con lightweight-charts: dentro non c'e' testo",
     "Watchlist.svelte": "la prosa dei dati passa da Valore, Assente e SchedaTitolo",
 }
 
