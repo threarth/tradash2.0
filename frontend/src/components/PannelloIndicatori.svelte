@@ -13,6 +13,8 @@
     grafico per ogni cifra digitata dentro un periodo.
 -->
 <script>
+    import { untrack } from "svelte";
+
     import Assente from "./Assente.svelte";
     import Errore from "./Errore.svelte";
     import Testo from "./Testo.svelte";
@@ -23,23 +25,36 @@
 
     let { simbolo, configurazione = { nodes: [] }, salvata } = $props();
 
+    /** Una copia staccata della configurazione che arriva da fuori.
+     *
+     * `$state.snapshot` e non `structuredClone`: quello che arriva qui e' gia'
+     * dentro uno `$state` del chiamante, quindi e' un **proxy** — e i proxy non
+     * si clonano. `structuredClone` moriva con «could not be cloned», e la
+     * pagina non si montava piu'. Lo snapshot toglie il proxy e restituisce
+     * oggetti veri, che e' esattamente cio' che serve a una copia di lavoro.
+     */
+    const copiaDi = (arrivata) => $state.snapshot(arrivata ?? []);
+
     // Copia di lavoro: si tocca questa, e solo Salva la manda al backend.
-    let nodi = $state(structuredClone(configurazione.nodes ?? []));
+    let nodi = $state(copiaDi(configurazione.nodes));
     let daAggiungere = $state("ema");
     let inCorso = $state(false);
     let errore = $state(null);
 
     // Se il grafico viene ricaricato da fuori (cambio titolo), si riparte da li'.
-    let ultimaVista = $state(JSON.stringify(configurazione.nodes ?? []));
+    let ultimaVista = $state(JSON.stringify(copiaDi(configurazione.nodes)));
     $effect(() => {
-        const arrivata = JSON.stringify(configurazione.nodes ?? []);
-        if (arrivata !== ultimaVista) {
+        const arrivata = JSON.stringify(copiaDi(configurazione.nodes));
+        // `ultimaVista` si legge senza tracciarlo: e' scritto anche dal
+        // salvataggio, e tracciarlo farebbe rigirare questo effetto ogni volta
+        // che si salva, per concludere che non e' cambiato niente.
+        if (arrivata !== untrack(() => ultimaVista)) {
             ultimaVista = arrivata;
-            nodi = structuredClone(configurazione.nodes ?? []);
+            nodi = copiaDi(configurazione.nodes);
         }
     });
 
-    const modificato = $derived(JSON.stringify(nodi) !== ultimaVista);
+    const modificato = $derived(JSON.stringify($state.snapshot(nodi)) !== ultimaVista);
 
     const nome = (nodo) => KIND_META[nodo.kind]?.label ?? nodo.kind;
     const parametri = (nodo) => KIND_META[nodo.kind]?.params ?? [];
@@ -62,8 +77,9 @@
         inCorso = true;
         errore = null;
         try {
-            await api.titoloSalvaGrafico(simbolo, { nodes: nodi });
-            ultimaVista = JSON.stringify(nodi);
+            const daMandare = $state.snapshot(nodi);
+            await api.titoloSalvaGrafico(simbolo, { nodes: daMandare });
+            ultimaVista = JSON.stringify(daMandare);
             await salvata?.();
         } catch (problema) {
             errore = problema;

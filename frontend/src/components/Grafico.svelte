@@ -26,6 +26,7 @@
       torna al punto di partenza a ogni tocco costringe a rifare la strada.
 -->
 <script>
+    import { untrack } from "svelte";
     import {
         CandlestickSeries, HistogramSeries, LineSeries, createChart, createSeriesMarkers
     } from "lightweight-charts";
@@ -46,9 +47,16 @@
     let tipo = $state("candele");
     let griglia = $state(true);
 
-    // Il punto fissato e la barra sotto il cursore. Non sono dipendenze
+    // Il punto fissato e la barra sotto il cursore. Non devono essere dipendenze
     // dell'effetto che costruisce il grafico: se lo fossero, ogni movimento del
-    // mouse lo ricostruirebbe.
+    // mouse — e ogni ctrl+click — lo ricostruirebbe.
+    //
+    // Per `sottoIlCursore` basta non leggerlo li' dentro. Per `fissato` no: il
+    // segnaposto va messo anche quando il grafico si ricostruisce per altri
+    // motivi, quindi l'effetto DEVE chiamare la funzione che lo legge — e va
+    // chiamata dentro `untrack`, altrimenti fissare un punto ricostruisce tutto.
+    // Il commento che diceva "non sono dipendenze" era falso finche' non e'
+    // arrivato quell'untrack: una proprieta' dichiarata e non posseduta.
     let fissato = $state(null);
     let sottoIlCursore = $state(null);
 
@@ -198,13 +206,17 @@
             : candele);
 
         segnaposti = createSeriesMarkers(serieCandele, []);
-        aggiornaSegnaposto();
+        untrack(aggiornaSegnaposto);
 
         for (const nodo of sovrapposti) disegnaNodo(prezzo, nodo);
         grafici.push(prezzo);
 
         for (const pannello of pannelli) {
-            const contenitore = contenitoriPannelli[pannello.id];
+            // I contenitori arrivano da `bind:this`, che li SCRIVE dentro uno
+            // stato che questo effetto legge: tracciarli vorrebbe dire che ogni
+            // aggancio di un pannello fa ricostruire tutti i grafici, uno alla
+            // volta, a ogni disegno.
+            const contenitore = untrack(() => contenitoriPannelli[pannello.id]);
             if (!contenitore) continue;
             const sotto = creaGrafico(contenitore, ALTEZZA_PANNELLO);
             // Il proprietario del pannello, piu' gli overlay che gli stanno sopra:
