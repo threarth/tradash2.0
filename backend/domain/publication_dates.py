@@ -191,20 +191,3 @@ def truncation_basis(depositi: dict, report_dates, is_quarterly: bool = True) ->
         "note": _BASIS_NOTES.get(prevalente) if prevalente else
                 "nessun periodo su cui pronunciarsi",
     }
-
-
-def visible_frame(frame, depositi: dict, as_of, is_quarterly: bool = True):
-    """Prospetto ridotto ai soli periodi gia' DEPOSITATI ad `as_of`.
-
-    Serve dove i dati non passano dal motore delle feature ma vengono letti
-    direttamente dal DataFrame — e' il caso delle proiezioni forward, che
-    calcolano i propri ancoraggi storici sui prospetti interi. Senza questo
-    taglio l'analisi "ricostruita" produceva lo STESSO fair value a qualunque
-    data, perche' i numeri di partenza erano sempre quelli di oggi.
-    """
-    if frame is None or getattr(frame, "empty", True) or not as_of:
-        return frame
-    quando = _as_iso(as_of)
-    visibili = [periodo for periodo in frame.index
-                if was_public(depositi, periodo, quando, is_quarterly)]
-    return frame.loc[visibili]

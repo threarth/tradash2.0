@@ -488,12 +488,6 @@ def etichetta(nome: str) -> str:
     return voce[0] if voce else nome.replace("_", " ")
 
 
-def spiegazione(nome: str) -> str | None:
-    """Che cosa e' questa voce, in una riga. `None` se non la conosciamo."""
-    voce = VOCI.get(nome)
-    return voce[1] if voce else None
-
-
 def etichette(nomi) -> dict[str, str]:
     """Le etichette di un insieme di voci, pronte da mandare al frontend."""
     return {nome: etichetta(nome) for nome in nomi}

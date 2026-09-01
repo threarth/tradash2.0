@@ -368,7 +368,7 @@ def test_una_voce_sconosciuta_torna_col_suo_nome_e_non_sparisce():
     """Un dizionario incompleto non deve peggiorare niente: senza traduzione si
     vede quello che si vedeva prima."""
     assert voci.etichetta("voce_mai_vista") == "voce mai vista"
-    assert voci.spiegazione("voce_mai_vista") is None
+    assert "voce_mai_vista" not in voci.VOCI
 
 
 def test_il_nome_originale_resta_accanto_a_quello_italiano(client, monkeypatch):

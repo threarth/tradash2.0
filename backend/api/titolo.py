@@ -484,7 +484,10 @@ def filing_da_salvare(simbolo: str):
     salvarli e in quale cartella: il riconoscimento avviene sul numero di
     protocollo, quindi un nome diverso va bene purche' quel numero ci sia.
     """
-    return ok(filing_locali.stato(simbolo))
+    try:
+        return ok(filing_locali.stato(simbolo))
+    except filing_locali.FilingError as exc:
+        return fail(str(exc))
 
 
 # --- le metriche gia' calcolate --------------------------------------------

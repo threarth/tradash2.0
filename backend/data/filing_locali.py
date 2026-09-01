@@ -115,9 +115,45 @@ def nome_atteso(simbolo: str, voce: dict, estensione: str = ".html") -> str:
             f"_{voce['accession_number']}{estensione}")
 
 
+# Che forma ha un simbolo accettabile. E' la stessa regola che usa il punto di
+# lettura di Defeatbeta, e qui serve a una cosa in piu': **impedire di uscire
+# dalla cartella dei documenti.**
+#
+# Trovato durante una ricognizione: `cartella("../../../etc")` costruiva un
+# percorso FUORI da `data/filings`. Non era raggiungibile dalle rotte — Werkzeug
+# normalizza il percorso e la rotta non combacia piu' — ma quella e' una
+# proprieta' di un'altra libreria, e una difesa che dipende dal comportamento di
+# un pezzo che non controlliamo non e' una difesa. Adesso il rifiuto e' qui.
+SIMBOLO_AMMESSO = re.compile(r"^[A-Z][A-Z0-9.\-]{0,14}$")
+
+
+class FilingError(ValueError):
+    """Il simbolo non ha la forma di un simbolo: non si va a cercare niente."""
+
+
 def cartella(simbolo: str) -> Path:
-    """Dove vanno i documenti di un titolo. Una cartella per titolo, e basta."""
-    return config.FILING_DIR / simbolo.strip().upper()
+    """Dove vanno i documenti di un titolo. Una cartella per titolo, e basta.
+
+    Solleva se il simbolo non ha la forma di un simbolo: un nome con dentro
+    `..` o una barra non e' un titolo, e trattarlo come tale vorrebbe dire
+    leggere file che non c'entrano niente — e, per l'analisi qualitativa,
+    MANDARLI a un modello.
+    """
+    ambito = (simbolo or "").strip().upper()
+    if not SIMBOLO_AMMESSO.match(ambito):
+        raise FilingError(
+            f"{simbolo!r} non ha la forma di un simbolo: la cartella dei "
+            f"documenti si apre solo per un titolo"
+        )
+
+    dove = config.FILING_DIR / ambito
+    # La cintura oltre alle bretelle: che il percorso RISOLTO stia dentro il
+    # perimetro non dipende da quanto e' scritta bene l'espressione qui sopra.
+    # Se un giorno quella si allarga per far passare un simbolo nuovo, questo
+    # controllo regge lo stesso.
+    if not dove.resolve().is_relative_to(config.FILING_DIR.resolve()):
+        raise FilingError(f"{simbolo!r} porterebbe fuori da {config.FILING_DIR}")
+    return dove
 
 
 def _periodici(simbolo: str, run_id: str | None) -> list[dict]:

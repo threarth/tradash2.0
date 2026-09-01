@@ -976,3 +976,70 @@ Le sezioni si richiudono, e quelle **di consultazione partono chiuse** — i
 depositi SEC, le notizie, il simulatore, la ricostruzione: aperte spingono in
 fondo alla pagina tutto quello che viene dopo. Lo stato si ricorda nel browser,
 perche' chi chiude i depositi SEC li vuole chiusi anche domani.
+
+---
+
+## Ricognizione del 01/09/2026: cosa e' uscito, e cosa no
+
+Passate tutte le 140 righe dell'inventario e le 21.000 righe di codice, con
+attenzione a tre domande: puo' uscire qualcosa verso il web, parte qualcosa da
+solo, e ci sono numeri inventati.
+
+### Quello che NON c'e', verificato e non promesso
+
+- **Nessuna libreria di rete** nel codice di produzione: ne' `requests`, ne'
+  `urllib`, ne' `httpx`, ne' `socket`. Le uniche due porte sono
+  `core/llm.py` (OpenAI/Anthropic) e `data/defeatbeta.py` (DuckDB verso
+  HuggingFace), entrambe con import ritardato.
+- **Nessun URL letterale** nel codice di produzione. `sec.gov` compare solo in
+  stringhe costruite per te da aprire a mano, e in commenti che spiegano perche'
+  non ci chiediamo niente.
+- **Il frontend chiama solo `/api`.** Un `fetch` solo, in tutto il progetto, e
+  punta a una costante `"/api"`. I link a sec.gov sono `<a href>`: si aprono se
+  ci clicchi tu.
+- **Niente parte da solo.** I due thread che esistono — scanner e costruzione
+  dell'universo — partono da una POST e da nient'altro, e stanno nel registro
+  dei lavori, quindi si vedono e si fermano. Nessuna GET fa lavoro.
+- **La watchlist non esce mai.** Nessun modulo che parla col modello la importa.
+  Il prompt di classificazione viene RESTITUITO a te da incollare altrove, non
+  spedito.
+- **Nessuna credenziale nel sorgente**, e watchlist, grafici, `.env`, database e
+  documenti SEC non sono in git.
+- **Nessuna query SQL costruita con valori esterni**: le uniche interpolazioni
+  sono nomi di tabella e di colonna che vengono da elenchi chiusi nel codice.
+
+### Cosa esce davvero, quando premi un pulsante
+
+Verso il modello: le misure sui prezzi, il pannello di metriche, i segnali, il
+TESTO delle sezioni dei filing che hai salvato tu, l'elenco dei dirigenti,
+l'indice dei depositi, le trascrizioni delle call, i titoli delle notizie, e i
+referti gia' prodotti. Tutto dato pubblico di mercato. Niente di personale,
+niente percorsi di file, niente watchlist.
+
+### I quattro difetti trovati, e chiusi
+
+1. **Si poteva costruire un percorso fuori dalla cartella dei documenti.**
+   `cartella("../../../etc")` usciva da `data/filings`. Non era raggiungibile
+   dalle rotte — Werkzeug normalizza il percorso e la rotta non combacia — ma
+   quella e' una proprieta' di un'altra libreria, e una difesa che dipende da un
+   pezzo che non controlliamo non e' una difesa. Contava doppio: quei file, se
+   letti, sarebbero finiti dentro un prompt. Ora il simbolo si valida qui, e in
+   piu' si verifica che il percorso RISOLTO stia dentro il perimetro — cosi' la
+   difesa regge anche se un giorno l'espressione si allarga.
+2. **Nel DCF, cassa e debito mancanti diventavano zero.** Un debito assente
+   sarebbe stato letto come «azienda senza debiti» e il prezzo equo ne sarebbe
+   uscito piu' alto, senza che niente lo segnalasse. Su F il debito vale 163
+   miliardi. Adesso un ingresso che manca ferma il calcolo dicendo QUALE.
+3. **`domain/statements_math.py`, 62 righe orfane.** Copiato dal vecchio
+   sistema, importato da nessuno, e il suo docstring descriveva
+   `FundamentalsService` e `fundamental_quality/_context` — moduli che qui non
+   esistono. Tolto: il codice morto che spiega un'architettura inesistente e'
+   peggio del codice morto.
+4. **Due funzioni mai chiamate**: `publication_dates.visible_frame` e
+   `voci.spiegazione`. Tolte.
+
+### Un falso allarme, annotato perche' sembra un difetto
+
+`cartella("NON..VALIDO")` produce una cartella dal nome strano DENTRO il
+perimetro: i punti non sono separatori. Un test lo dice, col percorso risolto a
+dimostrarlo — altrimenti qualcuno lo "corregge" un'altra volta.

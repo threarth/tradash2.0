@@ -1588,3 +1588,32 @@ def test_senza_utile_positivo_la_conversione_non_si_calcola():
     cassa = {"voci": {"free_cash_flow": {"2026-04-30": 20.0}}}
 
     assert salute.dall_utile_alla_cassa(conto, cassa)[0]["conversione"] is None
+
+
+def test_la_cartella_dei_documenti_non_si_puo_far_uscire_dal_perimetro():
+    """Trovato in ricognizione: `cartella("../../../etc")` costruiva un percorso
+    FUORI da data/filings. Non era raggiungibile dalle rotte perche' Werkzeug
+    normalizza il percorso — ma quella e' una proprieta' di un'altra libreria, e
+    una difesa che dipende da un pezzo che non controlliamo non e' una difesa.
+
+    Conta doppio qui: quei file, se letti, finirebbero dentro un prompt.
+    """
+    for cattivo in ("../../../etc", "NVDA/../..", "..", "", "/etc/passwd", "a" * 40):
+        with pytest.raises(filing_locali.FilingError):
+            filing_locali.cartella(cattivo)
+
+    for buono in ("NVDA", "brk.b", " AAPL "):
+        assert str(filing_locali.cartella(buono)).startswith(str(config.FILING_DIR))
+
+    # `NON..VALIDO` NON e' un traversal: i punti non sono separatori, e' una
+    # cartella dal nome strano dentro il perimetro. Il test lo dice perche' a
+    # occhio sembra pericoloso e non lo e' — e il percorso risolto lo dimostra.
+    dentro = filing_locali.cartella("NON..VALIDO").resolve()
+    assert dentro.is_relative_to(config.FILING_DIR.resolve())
+
+
+def test_un_simbolo_impossibile_non_diventa_un_500(client):
+    """Il rifiuto deve arrivare come messaggio, non come guasto."""
+    risposta = client.get("/api/titolo/..%2E/filing-da-salvare")
+
+    assert risposta.status_code in (400, 404)

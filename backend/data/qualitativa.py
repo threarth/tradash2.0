@@ -106,7 +106,12 @@ def _documenti(simbolo: str, run_id: str | None) -> tuple[list[dict], list[str]]
     L'annuale sempre; il trimestrale solo se e' piu' recente, perche' altrimenti
     ripete quello che il 10-K dice per esteso.
     """
-    disponibili = [v for v in filing_locali.richiesti(simbolo, run_id) if v["presente"]]
+    try:
+        richiesti = filing_locali.richiesti(simbolo, run_id)
+    except filing_locali.FilingError as exc:
+        raise AnalisiError(str(exc)) from exc
+
+    disponibili = [v for v in richiesti if v["presente"]]
     annuale = next((v for v in disponibili if v["form_type"] == FORMA_ANNUALE), None)
 
     if annuale is None:

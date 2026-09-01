@@ -528,3 +528,23 @@ def test_la_rotta_del_simulatore_rifiuta_una_base_inventata(client):
 
     assert risposta.status_code == 400
     assert "giorno" in risposta.get_json()["error"]
+
+
+def test_un_ingresso_mancante_del_dcf_non_diventa_zero(monkeypatch):
+    """Prima cassa e debito ripiegavano su 0,0: un debito assente sarebbe stato
+    letto come «azienda senza debiti», e il prezzo equo ne sarebbe uscito piu'
+    alto senza che niente lo segnalasse. Su F il debito vale 163 miliardi."""
+    completo = {"dcf_template": {"base_fcf": 100.0, "growth_rate_1_5y": 0.1,
+                                 "growth_rate_terminal": 0.03, "discount_rate": 0.1},
+                "dcf_value": {"cash": 10.0, "total_debt": 5.0,
+                              "shares_outstanding": 100.0, "current_price": 1.0}}
+
+    for assente, nome_atteso in (("cash", "cassa"), ("total_debt", "debito totale"),
+                                 ("shares_outstanding", "azioni in circolazione")):
+        rotto = {**completo, "dcf_value": {k: v for k, v in completo["dcf_value"].items()
+                                           if k != assente}}
+        monkeypatch.setattr(defeatbeta, "dcf", lambda s, run_id=None, d=rotto: defeatbeta.Dato(
+            dato=d, scope=s, category="dcf", source="cache", available=True, reason="finto"))
+
+        with pytest.raises(forward.AnalisiError, match=nome_atteso):
+            forward.misure("X", None)

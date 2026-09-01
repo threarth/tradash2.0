@@ -53,7 +53,16 @@ TOLLERANZA_PREZZO = 0.01
 
 
 def _ipotesi(calcolo: dict) -> dict | None:
-    """Gli ingressi del DCF, estratti dal risultato della libreria."""
+    """Gli ingressi del DCF, estratti dal risultato della libreria.
+
+    **Nessun ingresso mancante diventa zero.** Prima cassa e debito ripiegavano
+    su 0,0: un debito assente sarebbe stato letto come «azienda senza debiti», e
+    il prezzo equo ne sarebbe uscito piu' alto senza che niente lo segnalasse.
+    Su F il debito vale 163 miliardi — sbagliarlo non e' un dettaglio.
+
+    Sui titoli provati la libreria li fornisce sempre; ma un ripiego che non si
+    vede aspetta solo il caso in cui non li fornisce.
+    """
     modello = calcolo.get("dcf_template") or {}
     valore = calcolo.get("dcf_value") or {}
 
@@ -62,8 +71,8 @@ def _ipotesi(calcolo: dict) -> dict | None:
         "crescita_vicina": modello.get("growth_rate_1_5y"),
         "crescita_terminale": modello.get("growth_rate_terminal"),
         "sconto": modello.get("discount_rate"),
-        "cassa": valore.get("cash") or 0.0,
-        "debito": valore.get("total_debt") or 0.0,
+        "cassa": valore.get("cash"),
+        "debito": valore.get("total_debt"),
         "azioni": valore.get("shares_outstanding"),
     }
     manca = [nome for nome, dato in ingressi.items() if dato is None]
@@ -138,9 +147,21 @@ def misure(simbolo: str, run_id: str | None) -> dict:
 
     ingressi = _ipotesi(lettura.dato)
     if ingressi is None:
+        modello = lettura.dato.get("dcf_template") or {}
+        valore = lettura.dato.get("dcf_value") or {}
+        assenti = [nome for nome, dove in (
+            ("flusso di cassa base", modello.get("base_fcf")),
+            ("crescita vicina", modello.get("growth_rate_1_5y")),
+            ("crescita terminale", modello.get("growth_rate_terminal")),
+            ("tasso di sconto", modello.get("discount_rate")),
+            ("cassa", valore.get("cash")),
+            ("debito totale", valore.get("total_debt")),
+            ("azioni in circolazione", valore.get("shares_outstanding")),
+        ) if dove is None]
         raise AnalisiError(
-            f"il DCF di {simbolo} e' incompleto: mancano ingressi della formula, "
-            f"e un prezzo equo calcolato a pezzi non e' un prezzo equo"
+            f"il DCF di {simbolo} e' incompleto: manca {', '.join(assenti)}. "
+            f"Un prezzo equo calcolato a pezzi non e' un prezzo equo, e un "
+            f"ingresso dato per zero varrebbe meno di niente"
         )
 
     nostro = dcf.prezzo_equo(ingressi)
