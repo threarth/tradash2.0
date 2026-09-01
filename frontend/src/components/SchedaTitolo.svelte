@@ -7,6 +7,8 @@
     posto giusto per correggerli e' quello in cui li stai guardando.
 -->
 <script>
+    import { untrack } from "svelte";
+
     import Pillola from "./Pillola.svelte";
     import Valore from "./Valore.svelte";
 
@@ -40,8 +42,13 @@
     // import, per esempio. Riallinearsi a ogni ricarica dell'elenco — che
     // avviene anche solo cliccando una stella — cancellerebbe invece le
     // modifiche che qualcuno sta scrivendo in un'altra scheda aperta.
+    // `firmaAdottata` si legge senza tracciarla: e' scritta da questo stesso
+    // effetto, e tracciarla lo fa ripartire per concludere che non c'e' niente
+    // da fare. Qui converge grazie alla guardia — ma e' la stessa forma del
+    // ciclo infinito che ha bloccato la scheda titolo, e una guardia e' l'unica
+    // cosa che separa le due.
     $effect(() => {
-        if (firmaSalvata !== firmaAdottata) {
+        if (firmaSalvata !== untrack(() => firmaAdottata)) {
             firmaAdottata = firmaSalvata;
             temiScelti = titolo.temi.map((t) => t.nome);
             profiloScelto = titolo.profilo ?? "";

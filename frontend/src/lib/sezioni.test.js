@@ -53,23 +53,69 @@ describe("l'elenco delle sezioni", () => {
     // effetti, e contare quante volte girano — **non si puo' scrivere qui**:
     // vitest carica `svelte` nella sua build da server, dove `$effect` esiste
     // ma non esegue nulla. Un test cosi' passerebbe senza aver provato niente,
-    // che e' il modo peggiore di avere un test. Provato: due condizioni di
+    // che e' il modo peggiore di avere un test. Provate due condizioni di
     // risoluzione diverse, nessuna delle due lo fa girare.
     //
-    // Allora si verifica la DIFESA invece del comportamento, e lo si dice.
-    // E' la stessa scelta che il backend fa per i rami `if TESTING`: si legge
-    // il sorgente. Non dimostra che il ciclo non c'e'; dimostra che chi lo
+    // Allora si verifica la DIFESA invece del comportamento, e lo si dice. E'
+    // la stessa scelta che il backend fa per i rami `if TESTING`: si legge il
+    // sorgente. Non dimostra che il ciclo non c'e'; dimostra che chi lo
     // impediva e' ancora al suo posto.
+    //
+    // La prima versione di questo test contava tutte le letture e pretendeva
+    // che fossero tutte untracked. Era troppo grossa: `get aperte()` LEGGE
+    // tracciato, e deve — serve a disegnare i due comandi, e se non fosse
+    // reattiva resterebbero grigi per sempre. La regola vera e' piu' stretta e
+    // riguarda solo chi SCRIVE.
 
-    it("legge l'elenco senza tracciarlo, o il ciclo torna", async () => {
+    it("ogni riscrittura dell'elenco parte da una lettura non tracciata", async () => {
+        const righe = (await leggiSorgente()).split("\n");
+
+        // Una riscrittura che non RILEGGE l'elenco e' innocua — `= []` non
+        // crea nessuna dipendenza. Il pericolo e' solo leggere e riscrivere.
+        const rilettureRiscritte = righe
+            .map((r) => r.split(/this\.elenco\s*=/)[1])
+            .filter((destra) => destra !== undefined && destra.includes("this.elenco"));
+
+        expect(rilettureRiscritte.length).toBeGreaterThan(0);
+        for (const destra of rilettureRiscritte) {
+            expect(destra, `qui l'elenco si rilegge tracciato: ${destra.trim()}`)
+                .toMatch(/untrack/);
+        }
+
+        // E il caso che passa dall'aiutante: `senzaDiMe()` esiste per questo.
+        expect(await leggiSorgente()).toMatch(/senzaDiMe = \(\) => untrack/);
+    });
+
+    it("dentro la classe la sezione attiva si legge sempre non tracciata", async () => {
         const sorgente = await leggiSorgente();
 
-        expect(sorgente).toContain("import { untrack }");
-        // Ogni lettura di `this.elenco` e di `this.attiva` dentro i metodi che
-        // poi li riscrivono deve passare da untrack.
-        const letture = sorgente.match(/this\.(elenco|attiva)(?![\s]*=)/g) ?? [];
-        const dentroUntrack = sorgente.match(/untrack\(\(\) => this\.(elenco|attiva)/g) ?? [];
+        const letture = sorgente.match(/this\.attiva(?!\s*=)/g) ?? [];
+        const protette = sorgente.match(/untrack\(\(\) => this\.attiva\)/g) ?? [];
         expect(letture.length).toBeGreaterThan(0);
-        expect(dentroUntrack.length).toBe(letture.length);
+        expect(protette.length).toBe(letture.length);
+    });
+
+    it("i due comandi complessivi sanno quante sezioni sono aperte", () => {
+        let aperta = false;
+        sezioni.registra("prezzo", "Prezzo", (v) => { aperta = v; });
+        sezioni.segnalaStato("prezzo", false);
+
+        expect(sezioni.aperte).toBe(0);
+
+        sezioni.tutte(true);
+        expect(aperta).toBe(true);
+
+        sezioni.segnalaStato("prezzo", true);
+        expect(sezioni.aperte).toBe(1);
+    });
+
+    it("il menu laterale gira l'interruttore della sezione, non lo indovina", () => {
+        const visti = [];
+        sezioni.registra("salute", "Salute", (v) => visti.push(v));
+        sezioni.segnalaStato("salute", true);
+
+        sezioni.cambia("salute");
+
+        expect(visti).toEqual([false]);
     });
 });

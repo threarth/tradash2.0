@@ -11,9 +11,21 @@
 
     E la base del taglio si mostra sempre: reale o stimata non sono la stessa
     cosa, e due risultati costruiti sulle due basi non sono confrontabili.
+
+    ## Dalla tabella al grafico
+
+    Ottantadue voci per venti trimestri sono un archivio, non una lettura: la
+    domanda «questa voce sta salendo?» si risponde a occhio solo se le cifre
+    sono poche e vicine. Si scelgono le righe e si vede la forma.
+
+    Due modi di scegliere, perche' rispondono a due gesti diversi: il **click**
+    su una riga la aggiunge o la toglie — e' il gesto di chi sta gia' leggendo
+    la tabella; il **tasto destro** apre un menu, che e' il gesto di chi ha in
+    mente una voce e vuole vederla subito da sola.
 -->
 <script>
     import Assente from "./Assente.svelte";
+    import GraficoVoci from "./GraficoVoci.svelte";
     import Riquadro from "./Riquadro.svelte";
     import Testo from "./Testo.svelte";
     import { api } from "../lib/api.js";
@@ -47,6 +59,40 @@
         periodicita;
         dati.ricarica();
     });
+
+    // Le voci da graficare, e il menu del tasto destro. Le scelte sono per
+    // prospetto: passando dal conto economico allo stato patrimoniale le voci
+    // scelte non hanno piu' senso, e tenerle vorrebbe dire mostrare un grafico
+    // di righe che non sono nella tabella che si sta guardando.
+    let scelte = $state([]);
+    let menu = $state(null);
+
+    $effect(() => {
+        prospettoScelto;
+        scelte = [];
+        menu = null;
+    });
+
+    function segna(voce) {
+        scelte = scelte.includes(voce)
+            ? scelte.filter((v) => v !== voce)
+            : [...scelte, voce];
+    }
+
+    function apriMenu(evento, voce) {
+        evento.preventDefault();
+        menu = { voce, x: evento.clientX, y: evento.clientY };
+    }
+
+    function soloQuesta(voce) {
+        scelte = [voce];
+        menu = null;
+    }
+
+    function aggiungi(voce) {
+        if (!scelte.includes(voce)) scelte = [...scelte, voce];
+        menu = null;
+    }
 
     /** I numeri grandi in forma leggibile, senza perdere il segno. */
     function breve(valore) {
@@ -119,6 +165,24 @@
                          : "Defeatbeta non ha questo prospetto per il titolo"}
                      azione={d.as_of ? "prova una data piu' recente" : null} />
         {:else}
+            {#if scelte.length}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small fw-semibold">
+                            {scelte.length} voci sul grafico
+                        </span>
+                        <button class="btn btn-sm btn-link p-0"
+                                onclick={() => (scelte = [])}>togli tutte</button>
+                    </div>
+                    <GraficoVoci voci={prospetto.voci} periodi={prospetto.periodi}
+                                 {scelte} />
+                </div>
+            {:else}
+                <p class="small text-secondary">
+                    <Testo testo="Premi una riga per metterla sul grafico, o tasto destro per il menu. Piu' righe si confrontano fra loro." />
+                </p>
+            {/if}
+
             <div class="table-responsive">
                 <table class="table table-sm table-hover">
                     <thead>
@@ -131,8 +195,15 @@
                     </thead>
                     <tbody>
                         {#each Object.entries(prospetto.voci) as [voce, valori] (voce)}
-                            <tr>
-                                <td><Testo testo={voce.replaceAll("_", " ")} /></td>
+                            <tr class="riga" class:table-active={scelte.includes(voce)}
+                                onclick={() => segna(voce)}
+                                oncontextmenu={(e) => apriMenu(e, voce)}>
+                                <td>
+                                    <span class="text-secondary me-1">
+                                        {scelte.includes(voce) ? "◉" : "○"}
+                                    </span>
+                                    <Testo testo={voce.replaceAll("_", " ")} />
+                                </td>
                                 {#each prospetto.periodi.slice(0, 8) as periodo (periodo)}
                                     <td class="numerico">{breve(valori[periodo])}</td>
                                 {/each}
@@ -144,3 +215,37 @@
         {/if}
     {/snippet}
 </Riquadro>
+
+<!-- Il menu del tasto destro. Si chiude a qualunque click o tasto: un menu che
+     resta aperto dopo che hai guardato altrove e' un menu che devi chiudere. -->
+{#if menu}
+    <div class="menu-voce shadow" style={`left: ${menu.x}px; top: ${menu.y}px`}>
+        <div class="small text-secondary px-2 pt-1">
+            <Testo testo={menu.voce.replaceAll("_", " ")} />
+        </div>
+        <button class="dropdown-item small" onclick={() => soloQuesta(menu.voce)}>
+            Grafica solo questa
+        </button>
+        <button class="dropdown-item small" onclick={() => aggiungi(menu.voce)}>
+            Aggiungi al grafico
+        </button>
+    </div>
+{/if}
+
+<svelte:window onclick={() => (menu = null)} onkeydown={() => (menu = null)} />
+
+<style>
+    .riga {
+        cursor: pointer;
+    }
+
+    .menu-voce {
+        position: fixed;
+        z-index: 1080;
+        min-width: 12rem;
+        background: var(--bs-tertiary-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+</style>

@@ -60,15 +60,22 @@
     // niente richieste al backend, niente tabelle da disegnare.
     let mostrata = $state(apertaOra);
 
-    function cambia() {
-        apertaOra = !apertaOra;
+    /** Apre o chiude. Senza argomento, gira l'interruttore. */
+    function cambia(voluta = !apertaOra) {
+        if (voluta === apertaOra) return;
+        apertaOra = voluta;
         if (apertaOra) mostrata = true;
         ricorda(!apertaOra);
     }
 
     // La sezione si annuncia al navigatore quando compare, e si toglie quando
-    // sparisce: cosi' l'indice non nomina mai una sezione che non c'e'.
-    $effect(() => sezioni.registra(id, titolo));
+    // sparisce: cosi' l'indice non nomina mai una sezione che non c'e'. Gli
+    // passa anche il proprio interruttore, cosi' il menu laterale e i comandi
+    // «apri tutto»/«chiudi tutto» possono agire senza sapere niente di qui.
+    $effect(() => sezioni.registra(id, titolo, cambia));
+
+    // E gli dice se e' aperta, perche' il menu lo mostri.
+    $effect(() => sezioni.segnalaStato(id, apertaOra));
 
     // Quale sezione si sta guardando: la piu' alta fra quelle visibili.
     $effect(() => {
@@ -89,7 +96,8 @@
         <div>
             <h2 class="h6 mb-1">
                 <button class="btn btn-link p-0 text-reset text-decoration-none fw-semibold"
-                        onclick={cambia} aria-expanded={apertaOra} aria-controls={`${id}-corpo`}>
+                        onclick={() => cambia()} aria-expanded={apertaOra}
+                        aria-controls={`${id}-corpo`}>
                     <span class="text-secondary me-1">{apertaOra ? "▾" : "▸"}</span>
                     <Testo testo={titolo} />
                 </button>
@@ -107,8 +115,12 @@
     {/if}
 
     {#if !apertaOra}
-        <p class="small text-secondary mb-0">
-            chiusa — premi il titolo per aprirla{mostrata ? "" : ": i dati si chiedono allora"}
-        </p>
+        <!-- Tutta la riga apre, non solo il titolo: una sezione chiusa e' una
+             riga sottile, e centrare due parole e' piu' difficile che centrare
+             una fascia. -->
+        <button class="btn btn-link btn-sm p-0 text-secondary text-decoration-none w-100 text-start"
+                onclick={() => cambia()}>
+            chiusa — premi per aprirla{mostrata ? "" : ": i dati si chiedono allora"}
+        </button>
     {/if}
 </section>

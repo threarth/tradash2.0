@@ -20,7 +20,10 @@
     - **Il punto fissato con ctrl+click.** Serve a rispondere a «quanto ha fatto
       DA LI'», che a occhio non si risponde affatto. Il vecchio usava
       shift+click; qui e' ctrl+click perche' shift+trascina e' gia' lo zoom
-      della libreria.
+      della libreria. **Per toglierlo non serve ricentrare il giorno esatto**:
+      un ctrl+click vicino basta, e vicino vuol dire dentro una manciata di
+      sedute — su cinque anni di grafico una seduta e' meno di un pixel, e
+      chiedere di ricolpirla e' chiedere una cosa che non riesce.
     - **Lo zoom non si perde** quando si cambia tipo di grafico o si accende la
       griglia: l'intervallo visibile viene salvato e rimesso. Un grafico che
       torna al punto di partenza a ogni tocco costringe a rifare la strada.
@@ -40,6 +43,12 @@
     const ALTEZZA_PANNELLO = 130;
 
     const TIPI = { candele: "Candele", linea: "Linea" };
+
+    // Quanto vicino deve cadere un ctrl+click per togliere il punto fissato,
+    // contato in sedute. Su un grafico di cinque anni una seduta vale meno di
+    // un pixel: pretendere di ricolpirla esatta vorrebbe dire che il punto non
+    // si toglie piu' col click, ma solo col pulsante.
+    const SEDUTE_DI_TOLLERANZA = 3;
 
     let contenitorePrezzo;
     let contenitoriPannelli = $state({});
@@ -168,8 +177,17 @@
         }]);
     }
 
+    /** Se questo istante e' abbastanza vicino al punto fissato da valere «quello». */
+    function vicinoAlFissato(tempo) {
+        if (fissato === null) return false;
+        const qui = candele.findIndex((c) => c.time === tempo);
+        const li = candele.findIndex((c) => c.time === fissato);
+        if (qui < 0 || li < 0) return false;
+        return Math.abs(qui - li) <= SEDUTE_DI_TOLLERANZA;
+    }
+
     function fissa(tempo) {
-        fissato = fissato === tempo ? null : tempo;
+        fissato = vicinoAlFissato(tempo) ? null : tempo;
         aggiornaSegnaposto();
     }
 
@@ -317,11 +335,13 @@
 
 <div bind:this={contenitorePrezzo} class="grafico"></div>
 
-{#if fissato === null}
-    <p class="small text-secondary mt-1 mb-0">
+<p class="small text-secondary mt-1 mb-0">
+    {#if fissato === null}
         <Testo testo="Ctrl+click su un giorno per fissarlo: da li' in poi la riga sopra dice di quanto si e' mosso il prezzo." />
-    </p>
-{/if}
+    {:else}
+        <Testo testo="Per togliere il punto fissato: ctrl+click li' vicino, oppure il pulsante qui sopra." />
+    {/if}
+</p>
 
 {#each pannelli as pannello (pannello.id)}
     <div class="mt-2">

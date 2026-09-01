@@ -34,15 +34,44 @@ class Sezioni {
     elenco = $state([]);
     attiva = $state(null);
 
+    // Le richieste di apertura e chiusura che arrivano da FUORI la sezione — dal
+    // menu laterale, o dai due comandi complessivi. Ogni sezione la legge e si
+    // regola; il numero cambia a ogni comando cosi' anche «chiudi tutto» due
+    // volte di fila arriva due volte.
+    comando = $state(null);
+
     /** Una sezione entra nella pagina. Ritorna la funzione che la toglie. */
-    registra(id, titolo) {
+    registra(id, titolo, apri) {
         const senzaDiMe = () => untrack(() => this.elenco.filter((s) => s.id !== id));
 
-        this.elenco = [...senzaDiMe(), { id, titolo }];
+        this.elenco = [...senzaDiMe(), { id, titolo, apri, aperta: false }];
         return () => {
             this.elenco = senzaDiMe();
             if (untrack(() => this.attiva) === id) this.attiva = null;
         };
+    }
+
+    /** Una sezione dice se in questo momento e' aperta o chiusa. */
+    segnalaStato(id, aperta) {
+        this.elenco = untrack(() => this.elenco.map(
+            (s) => (s.id === id && s.aperta !== aperta ? { ...s, aperta } : s)
+        ));
+    }
+
+    /** Apre o chiude una sezione da fuori: dal menu laterale. */
+    cambia(id) {
+        const sezione = untrack(() => this.elenco.find((s) => s.id === id));
+        sezione?.apri?.(!sezione.aperta);
+    }
+
+    /** Apre o chiude tutte quante. */
+    tutte(aperte) {
+        for (const sezione of untrack(() => this.elenco)) sezione.apri?.(aperte);
+    }
+
+    /** Quante sono aperte adesso: serve ai due comandi per sapere cosa offrire. */
+    get aperte() {
+        return this.elenco.filter((s) => s.aperta).length;
     }
 
     /** Quale sezione e' sotto gli occhi adesso. */
