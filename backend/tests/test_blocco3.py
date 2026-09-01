@@ -523,3 +523,37 @@ def test_la_rotta_del_prompt_accetta_i_simboli_separati_come_capita(client, univ
         risposta = client.get(f"/api/watchlist/prompt?simboli={grezzo}").get_json()["data"]
         assert "- PLTR" in risposta["prompt"], grezzo
         assert "- CRWD" in risposta["prompt"], grezzo
+
+
+def test_la_freschezza_si_chiede_solo_per_i_dati_di_un_titolo(client):
+    """«universe mai preso per AVGO» sembra un buco e non lo e': l'universo e'
+    un dato globale, e la sua freschezza non riguarda un simbolo."""
+    risposta = client.get("/api/watchlist/da-aggiornare/universe")
+
+    assert risposta.status_code == 400
+    assert "dato globale" in risposta.get_json()["error"]
+
+
+def test_una_categoria_inventata_elenca_quelle_vere(client):
+    risposta = client.get("/api/watchlist/da-aggiornare/oroscopo")
+
+    assert risposta.status_code == 400
+    assert "price" in risposta.get_json()["error"]
+
+
+def test_l_elenco_delle_categorie_lo_decide_il_backend(client):
+    """Quali riguardino un titolo e quali siano globali e' una proprieta' dei
+    dati, non una scelta di chi disegna la pagina."""
+    dati = client.get("/api/watchlist/da-aggiornare").get_json()["data"]
+
+    nomi = [c["nome"] for c in dati["categorie"]]
+    assert "price" in nomi
+    assert "universe" not in nomi and "treasury_yield" not in nomi
+    assert all(c["ttl_s"] > 0 for c in dati["categorie"])
+
+
+def test_ogni_categoria_dichiarata_per_titolo_ha_un_ttl():
+    """Una categoria senza TTL prenderebbe quello cortissimo di ripiego, e
+    risulterebbe vecchia sempre."""
+    for nome in config.FRESHNESS_CATEGORIE_PER_TITOLO:
+        assert nome in config.FRESHNESS_TTL_S, nome

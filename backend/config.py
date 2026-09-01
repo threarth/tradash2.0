@@ -89,6 +89,14 @@ FRESHNESS_TTL_S: dict[str, int] = {
     "dcf": 1 * SECONDS_PER_DAY,            # idem: e' un calcolo sopra i bilanci
 }
 
+# Quali categorie riguardano UN TITOLO. Le altre — l'universo, il rendimento del
+# Tesoro — sono dati globali: chiederne la freschezza «per AVGO» produrrebbe la
+# frase «universe mai preso per AVGO», che sembra un buco e non lo e'.
+FRESHNESS_CATEGORIE_PER_TITOLO = (
+    "price", "profile", "statements", "earning_calendar", "sec_filings",
+    "transcripts", "news", "metriche", "dcf",
+)
+
 # TTL usato quando una categoria non e' in tabella. Volutamente cortissimo: una
 # categoria non dichiarata deve dare fastidio, non passare inosservata.
 FRESHNESS_TTL_UNKNOWN_S = 5 * SECONDS_PER_MINUTE

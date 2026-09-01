@@ -90,6 +90,9 @@ export const api = {
     tagElimina: (nome, cascata) =>
         chiama(`/watchlist/tag/${encodeURIComponent(nome)}${query({ cascata: cascata ? 1 : "" })}`,
             { method: "DELETE" }),
+    categorieFreschezza: () => chiama("/watchlist/da-aggiornare"),
+    daAggiornare: (categoria) =>
+        chiama(`/watchlist/da-aggiornare/${encodeURIComponent(categoria)}`),
     storico: (limit) => chiama(`/watchlist/storico${query({ limit })}`),
 
     // --- scheda di un titolo ---
@@ -137,6 +140,7 @@ export const api = {
 
     // --- lavori e chiamate: la regola 1 vista dal frontend ---
     lavoriAttivi: () => chiama("/ops/active"),
+    processo: () => chiama("/ops/processo"),
     lavoriStorici: () => chiama("/ops/history"),
     fermaLavoro: (runId) => chiama(`/ops/stop/${encodeURIComponent(runId)}`, { method: "POST" }),
     chiamate: (filtri) => chiama(`/calls${query(filtri)}`),

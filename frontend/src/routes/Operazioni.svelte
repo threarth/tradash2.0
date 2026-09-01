@@ -24,16 +24,18 @@
     let storici = $state([]);
     let chiamate = $state([]);
     let riepilogo = $state(null);
+    let processo = $state(null);
     let errore = $state(null);
     let caricato = $state(false);
 
     async function aggiorna() {
         try {
-            [attivi, storici, chiamate, riepilogo] = await Promise.all([
+            [attivi, storici, chiamate, riepilogo, processo] = await Promise.all([
                 api.lavoriAttivi(),
                 api.lavoriStorici(),
                 api.chiamate({ limit: CHIAMATE_MOSTRATE }),
-                api.chiamateRiepilogo()
+                api.chiamateRiepilogo(),
+                api.processo()
             ]);
             errore = null;
         } catch (problema) {
@@ -72,6 +74,18 @@
 
 {#if errore}
     <Errore {errore} riprova={aggiorna} />
+{/if}
+
+<!-- Il server di sviluppo non si ricarica da solo, e un processo che serve
+     codice vecchio non lo dice: un'analisi e' andata a sbattere due volte nello
+     stesso guasto, la seconda dopo che era gia' corretto sul disco. Qui si vede
+     prima di perderci del tempo. -->
+{#if processo && !processo.aggiornato}
+    <div class="alert alert-warning py-2 small">
+        <strong>Questo server sta servendo codice vecchio.</strong>
+        E' partito il {processo.avviato_il}, ma i sorgenti sono stati modificati
+        il {processo.codice_del}. <Testo testo={processo.nota} />
+    </div>
 {/if}
 
 <h2 class="h6 text-secondary">In corso</h2>

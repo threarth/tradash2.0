@@ -10,6 +10,7 @@
     import { onMount } from "svelte";
 
     import Assente from "../components/Assente.svelte";
+    import Freschezza from "../components/Freschezza.svelte";
     import ImportExport from "../components/ImportExport.svelte";
     import Legenda from "../components/Legenda.svelte";
     import Riquadro from "../components/Riquadro.svelte";
@@ -227,5 +228,15 @@
                 <ImportExport onImportato={watchlist.ricarica} />
             </div>
         </div>
+
+        <hr class="my-4" />
+        <h2 class="h6">Cosa e' ormai vecchio</h2>
+        <p class="small text-secondary">
+            La freschezza si guarda per categoria e non in blocco: il prezzo di
+            un titolo puo' essere da rinfrescare mentre il suo profilo va
+            benissimo, e chiedere tutto insieme vorrebbe dire riscaricare ogni
+            volta anche cio' che non serve.
+        </p>
+        <Freschezza />
     {/snippet}
 </Riquadro>

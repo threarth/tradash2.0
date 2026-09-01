@@ -164,9 +164,32 @@ def tag_elimina(nome: str):
 @bp.get("/da-aggiornare/<categoria>")
 def da_aggiornare(categoria: str):
     """Quali titoli osservati hanno quel dato ormai vecchio, e da quanto."""
-    if categoria not in config.FRESHNESS_TTL_S:
-        return fail(f"categoria sconosciuta: {categoria!r}")
-    return ok({"categoria": categoria, "titoli": watchlist.da_aggiornare(categoria)})
+    if categoria not in config.FRESHNESS_CATEGORIE_PER_TITOLO:
+        globale = categoria in config.FRESHNESS_TTL_S
+        return fail(
+            f"«{categoria}» e' un dato globale, non di un titolo: chiederne la "
+            f"freschezza per simbolo non ha senso" if globale
+            else f"categoria sconosciuta: {categoria!r}. Ci sono: "
+                 f"{', '.join(config.FRESHNESS_CATEGORIE_PER_TITOLO)}"
+        )
+    return ok({"categoria": categoria,
+               "ttl_s": config.FRESHNESS_TTL_S[categoria],
+               "osservati": len(watchlist.simboli()),
+               "titoli": watchlist.da_aggiornare(categoria)})
+
+
+@bp.get("/da-aggiornare")
+def categorie_da_aggiornare():
+    """Di quali dati si puo' chiedere la freschezza, e ogni quanto scadono.
+
+    L'elenco lo decide il backend e non lo indovina l'interfaccia: quali
+    categorie riguardino un titolo e quali siano globali e' una proprieta' dei
+    dati, non una scelta di chi disegna.
+    """
+    return ok({"categorie": [
+        {"nome": nome, "ttl_s": config.FRESHNESS_TTL_S[nome]}
+        for nome in config.FRESHNESS_CATEGORIE_PER_TITOLO
+    ]})
 
 
 @bp.get("/storico")
