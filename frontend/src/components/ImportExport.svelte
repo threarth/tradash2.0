@@ -9,6 +9,19 @@
 
     L'esportato e l'importato hanno la STESSA forma: un formato per uscire e un
     altro per rientrare sarebbero due occasioni di sbagliare.
+
+    ## Per quali titoli
+
+    Il caso utile non e' riclassificare quelli che hai gia': e' classificarne di
+    **nuovi**, prima di aggiungerli. Il backend accettava una lista di simboli
+    fin dall'inizio e questa interfaccia non gliela passava mai — quindi si
+    poteva chiedere il prompt solo per la watchlist com'e', che e' il caso meno
+    interessante dei due. Adesso c'e' la casella.
+
+    I simboli scritti qui NON vengono controllati prima: il controllo sta
+    all'import, dove un simbolo che l'universo non conosce finisce fra gli
+    «sconosciuti» col suo nome. Controllarli anche qui vorrebbe dire due posti
+    che decidono la stessa cosa, e prima o poi decidono diverso.
 -->
 <script>
     import { api } from "../lib/api.js";
@@ -16,7 +29,15 @@
 
     let { onImportato } = $props();
 
+    let daClassificare = $state("");
     let daImportare = $state("");
+
+    /** I simboli scritti nella casella, separati da spazi o virgole. */
+    const simboli = $derived(
+        daClassificare.trim()
+            ? daClassificare.toUpperCase().split(/[\s,]+/).filter(Boolean)
+            : null
+    );
     let esito = $state(null);
     let testoCopiato = $state("");
 
@@ -36,7 +57,7 @@
     async function preparaPrompt() {
         esito = null;
         try {
-            const risposta = await api.prompt();
+            const risposta = await api.prompt(simboli?.join(","));
             anteprima = risposta.prompt;
             await copia(risposta.prompt, "Prompt");
         } catch (problema) {
@@ -80,6 +101,22 @@
         <p class="small text-secondary">
             Copia il prompt, incollalo in un LLM, riporta qui il JSON che risponde.
             Il prompt porta con se' i valori ammessi e i temi che esistono gia'.
+        </p>
+
+        <label class="form-label small mb-1" for="da-classificare">
+            Titoli da classificare
+        </label>
+        <input id="da-classificare" class="form-control form-control-sm mb-1"
+               bind:value={daClassificare}
+               placeholder="PLTR CRWD SNOW — vuoto: tutti quelli gia' in watchlist" />
+        <p class="small text-secondary">
+            {#if simboli}
+                Il prompt chiedera' di classificare {simboli.length}
+                {simboli.length === 1 ? "titolo" : "titoli"}: {simboli.join(", ")}.
+                <Testo testo="Non serve che siano gia' in watchlist: e' proprio questo il caso in cui serve." />
+            {:else}
+                <Testo testo="Vuoto: il prompt riguarda i titoli che hai gia' in watchlist. Scrivi qui i simboli nuovi per farteli classificare prima di aggiungerli." />
+            {/if}
         </p>
 
         <div class="d-flex gap-2 flex-wrap mb-2">

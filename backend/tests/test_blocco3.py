@@ -501,3 +501,25 @@ def test_un_endpoint_api_inesistente_resta_un_404(client, monkeypatch, tmp_path)
 
     assert risposta.status_code == 404
     assert "inesistente" in risposta.get_json()["error"]
+
+
+def test_il_prompt_si_puo_chiedere_per_titoli_che_non_hai_ancora(universo_finto):
+    """E' il caso utile: classificarne di NUOVI prima di aggiungerli. Il backend
+    lo accettava dall'inizio e l'interfaccia non glielo passava mai, quindi si
+    poteva chiedere solo per la watchlist com'e' — il caso meno interessante."""
+    watchlist.aggiungi("AAA")
+
+    testo = watchlist.prompt_classificazione(["PLTR", "CRWD"])
+
+    assert "- PLTR" in testo and "- CRWD" in testo
+    assert "- AAA" not in testo, "chiedendone di precisi, gli altri non c'entrano"
+
+
+def test_la_rotta_del_prompt_accetta_i_simboli_separati_come_capita(client, universo_finto):
+    """Virgole o spazi: chi incolla un elenco non deve badare al separatore."""
+    watchlist.aggiungi("AAA")
+
+    for grezzo in ("PLTR,CRWD", "PLTR CRWD", "PLTR, CRWD"):
+        risposta = client.get(f"/api/watchlist/prompt?simboli={grezzo}").get_json()["data"]
+        assert "- PLTR" in risposta["prompt"], grezzo
+        assert "- CRWD" in risposta["prompt"], grezzo
