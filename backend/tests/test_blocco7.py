@@ -19,7 +19,7 @@ import pytest
 import config
 from data import defeatbeta, depositi, materiale
 from data import ricostruzione as ricostruzione_dati
-from domain import prospetti, publication_dates, ricostruzione
+from domain import prospetti, publication_dates, ricostruzione, voci
 
 # Una mappa di depositi come la costruisce `data/depositi.py`: fine periodo →
 # (data di deposito, fonte).
@@ -348,3 +348,42 @@ def test_una_data_prima_del_primo_prezzo_dice_da_quando_c_e_storia(client, monke
 
     assert risposta.status_code == 404
     assert "2026-01-01" in risposta.get_json()["error"]
+
+
+# --- i nomi delle voci in italiano -----------------------------------------
+
+def test_ogni_voce_dei_prospetti_di_nvda_ha_un_nome_italiano():
+    """Il dizionario copre cio' che si vede davvero. Una voce non tradotta non
+    e' un guasto — torna col suo nome — ma se ne mancassero molte la tabella
+    resterebbe in inglese meta' e meta', che e' peggio di tutta in inglese."""
+    prese = set(voci.VOCI)
+
+    assert len(prese) > 150, "il dizionario deve coprire i tre prospetti"
+    for atteso in ("net_income", "ebit", "ebitda", "free_cash_flow",
+                   "stockholders_equity", "total_debt", "operating_income"):
+        assert atteso in prese, atteso
+
+
+def test_una_voce_sconosciuta_torna_col_suo_nome_e_non_sparisce():
+    """Un dizionario incompleto non deve peggiorare niente: senza traduzione si
+    vede quello che si vedeva prima."""
+    assert voci.etichetta("voce_mai_vista") == "voce mai vista"
+    assert voci.spiegazione("voce_mai_vista") is None
+
+
+def test_il_nome_originale_resta_accanto_a_quello_italiano(client, monkeypatch):
+    """Chi confronta col bilancio depositato deve ritrovare la stessa parola."""
+    monkeypatch.setattr(defeatbeta, "statements", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=_bilanci(), scope="X", category="statements", source="cache",
+        available=True, reason="finto",
+    ))
+    monkeypatch.setattr(depositi, "mappa", lambda s, run_id=None: DEPOSITI)
+
+    risposta = client.get("/api/titolo/X/fondamentali").get_json()["data"]
+
+    voci_viste = risposta["prospetti"]["income_statement"]["voci"]
+    assert voci_viste, "il finto deve avere almeno una voce di conto economico"
+    for nome in voci_viste:
+        assert nome in risposta["nomi"], f"{nome} non ha un'etichetta"
+    # Il nome originale resta la CHIAVE: e' con quello che si cerca e si confronta.
+    assert set(risposta["nomi"]) >= set(voci_viste)

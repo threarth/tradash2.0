@@ -16,6 +16,7 @@ fa fallire la suite finche' qualcuno non sceglie fra le due cose.
 """
 import json
 import os
+from collections import Counter
 from pathlib import Path
 
 import config
@@ -144,9 +145,15 @@ def test_i_rimandi_puntano_a_termini_che_esistono():
 
 
 def test_le_route_del_glossario(client):
+    """Le voci curate ci sono tutte, piu' quelle generate da cio' che il sistema
+    sa calcolare: le voci di bilancio e le metriche di Defeatbeta."""
     elenco = client.get("/api/glossario").get_json()
     assert elenco["success"] is True
-    assert len(elenco["data"]) == 171
+
+    per_origine = Counter(v["origine"] for v in elenco["data"])
+    assert per_origine["curata"] == 171, "le curate non si perdono per strada"
+    assert per_origine["voce di bilancio"] > 150
+    assert per_origine["metrica calcolata"] > 10
 
     singolo = client.get("/api/glossario/roic").get_json()
     assert singolo["data"]["id"] == "roic"
@@ -154,6 +161,29 @@ def test_le_route_del_glossario(client):
     mancante = client.get("/api/glossario/inventato")
     assert mancante.status_code == 404
     assert "non esiste" in mancante.get_json()["error"]
+
+
+def test_una_voce_curata_vince_sempre_su_una_generata(client):
+    """`ebit` e `free_cash_flow` sono scritte per esteso, con formula ed esempio:
+    una voce generata di una riga non deve sostituirle."""
+    voci = {v["id"]: v for v in client.get("/api/glossario").get_json()["data"]}
+
+    for id_curato in ("ebit", "free_cash_flow", "roic"):
+        assert voci[id_curato]["origine"] == "curata", id_curato
+        assert voci[id_curato]["formula"], f"{id_curato} ha perso la sua formula"
+
+
+def test_ogni_voce_generata_dice_da_dove_viene(client):
+    """Una definizione di una riga e una scritta per esteso non danno lo stesso
+    affidamento, e chi legge deve poterle distinguere."""
+    voci = client.get("/api/glossario").get_json()["data"]
+
+    generate = [v for v in voci if v["origine"] != "curata"]
+    assert generate
+    for voce in generate:
+        assert voce["nome_originale"], voce["id"]
+        assert voce["short"], voce["id"]
+        assert voce["source_label"] == "Defeatbeta"
 
 
 def test_una_lettura_del_glossario_finisce_nel_registro(client):

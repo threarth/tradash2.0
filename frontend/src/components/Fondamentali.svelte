@@ -79,9 +79,11 @@
             : [...scelte, voce];
     }
 
-    function apriMenu(evento, voce) {
+    /** Il menu si porta dietro l'etichetta: vive fuori dal riquadro che ha i
+        dati, e andarsela a cercare da li' vorrebbe dire tenerne una copia. */
+    function apriMenu(evento, voce, etichetta) {
         evento.preventDefault();
-        menu = { voce, x: evento.clientX, y: evento.clientY };
+        menu = { voce, etichetta, x: evento.clientX, y: evento.clientY };
     }
 
     function soloQuesta(voce) {
@@ -197,12 +199,22 @@
                         {#each Object.entries(prospetto.voci) as [voce, valori] (voce)}
                             <tr class="riga" class:table-active={scelte.includes(voce)}
                                 onclick={() => segna(voce)}
-                                oncontextmenu={(e) => apriMenu(e, voce)}>
+                                oncontextmenu={(e) => apriMenu(e, voce,
+                                    d.nomi?.[voce] ?? voce.replaceAll("_", " "))}>
                                 <td>
                                     <span class="text-secondary me-1">
                                         {scelte.includes(voce) ? "◉" : "○"}
                                     </span>
-                                    <Testo testo={voce.replaceAll("_", " ")} />
+                                    <!-- L'etichetta italiana e, sotto, il nome
+                                         originale: chi confronta col bilancio
+                                         depositato deve ritrovare la stessa
+                                         parola, chi legge deve capire. -->
+                                    <Testo testo={d.nomi?.[voce] ?? voce.replaceAll("_", " ")} />
+                                    {#if d.nomi?.[voce] && d.nomi[voce] !== voce.replaceAll("_", " ")}
+                                        <div class="text-secondary small numerico">
+                                            {voce.replaceAll("_", " ")}
+                                        </div>
+                                    {/if}
                                 </td>
                                 {#each prospetto.periodi.slice(0, 8) as periodo (periodo)}
                                     <td class="numerico">{breve(valori[periodo])}</td>
@@ -221,7 +233,7 @@
 {#if menu}
     <div class="menu-voce shadow" style={`left: ${menu.x}px; top: ${menu.y}px`}>
         <div class="small text-secondary px-2 pt-1">
-            <Testo testo={menu.voce.replaceAll("_", " ")} />
+            <Testo testo={menu.etichetta} />
         </div>
         <button class="dropdown-item small" onclick={() => soloQuesta(menu.voce)}>
             Grafica solo questa

@@ -27,6 +27,7 @@ from domain import (
     publication_dates,
     salute,
     simulatore,
+    voci,
 )
 
 logger = logging.getLogger(__name__)
@@ -267,15 +268,20 @@ def fondamentali(simbolo: str):
     mappa_depositi = depositi.mappa(simbolo)
     trimestrale = periodicita == prospetti.TRIMESTRALE
     visibili = _periodi_visibili(mappa_depositi, tutti, quando, trimestrale)
+    tabelle = {
+        nome: prospetti.tabella(lettura.frame, nome, periodicita, visibili)
+        for nome in prospetti.PROSPETTI
+    }
 
     return ok({
         "symbol": simbolo.strip().upper(),
         "as_of": quando,
         "periodicita": periodicita,
-        "prospetti": {
-            nome: prospetti.tabella(lettura.frame, nome, periodicita, visibili)
-            for nome in prospetti.PROSPETTI
-        },
+        "prospetti": tabelle,
+        # Le etichette italiane accanto ai nomi originali, non al posto loro:
+        # chi confronta col bilancio depositato deve ritrovare la stessa parola,
+        # chi legge deve capire cosa sta guardando. Due bisogni, nessuno sacrificato.
+        "nomi": voci.etichette({v for t in tabelle.values() for v in t["voci"]}),
         "periodi_totali": len(tutti),
         "periodi_visibili": len(visibili) if visibili is not None else len(tutti),
         "base_del_taglio": publication_dates.truncation_basis(
