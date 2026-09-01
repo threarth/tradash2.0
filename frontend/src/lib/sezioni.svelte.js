@@ -14,7 +14,20 @@
  * L'ordine e' quello di registrazione, cioe' l'ordine in cui le sezioni stanno
  * nel documento: e' l'ordine in cui si scorre la pagina, ed e' l'unico che ha
  * senso in un indice.
+ *
+ * ## Perche' `untrack` sta qui e non e' un dettaglio
+ *
+ * Registrarsi vuol dire **leggere l'elenco e riscriverlo**. La registrazione
+ * avviene dentro un effetto del componente, quindi senza precauzioni quella
+ * lettura diventa una dipendenza: si scrive, l'effetto riparte, si riscrive.
+ * Con dieci sezioni il risultato e' stato `effect_update_depth_exceeded`, cioe'
+ * Svelte che si arrende dopo aver bruciato CPU a vuoto — e la pagina lentissima
+ * mentre ci prova.
+ *
+ * L'elenco si legge senza tracciarlo. Chi lo mostra — il navigatore — lo legge
+ * normalmente e si aggiorna come deve.
  */
+import { untrack } from "svelte";
 
 /** Le sezioni presenti nella pagina, e quale si sta guardando. */
 class Sezioni {
@@ -23,16 +36,18 @@ class Sezioni {
 
     /** Una sezione entra nella pagina. Ritorna la funzione che la toglie. */
     registra(id, titolo) {
-        this.elenco = [...this.elenco.filter((s) => s.id !== id), { id, titolo }];
+        const senzaDiMe = () => untrack(() => this.elenco.filter((s) => s.id !== id));
+
+        this.elenco = [...senzaDiMe(), { id, titolo }];
         return () => {
-            this.elenco = this.elenco.filter((s) => s.id !== id);
-            if (this.attiva === id) this.attiva = null;
+            this.elenco = senzaDiMe();
+            if (untrack(() => this.attiva) === id) this.attiva = null;
         };
     }
 
     /** Quale sezione e' sotto gli occhi adesso. */
     guarda(id) {
-        this.attiva = id;
+        if (untrack(() => this.attiva) !== id) this.attiva = id;
     }
 
     /** Porta la pagina su una sezione, senza saltarci di colpo. */

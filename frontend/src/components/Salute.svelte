@@ -18,13 +18,14 @@
     import Valore from "./Valore.svelte";
     import { api } from "../lib/api.js";
     import { richiedi } from "../lib/carica.svelte.js";
-    import { onMount } from "svelte";
 
     let { simbolo } = $props();
 
     const salute = richiedi(() => api.salute(simbolo));
 
-    onMount(() => salute.ricarica());
+    // Un effetto solo, come tutte le altre sezioni: gira al montaggio e ogni
+    // volta che cambia il titolo. Con anche un `onMount` accanto, la prima
+    // apertura chiedeva i bilanci due volte.
     $effect(() => {
         simbolo;
         salute.ricarica();
