@@ -18,7 +18,7 @@ import pandas as pd
 import pytest
 
 import config
-from core import llm
+from core import llm, registry, schema
 from core.db import db_read
 from data import analisi, defeatbeta, filing_locali, materiale, qualitativa
 from domain import (
@@ -1660,3 +1660,75 @@ def test_i_prompt_veri_hanno_tutti_la_regola_sul_non_dare_consigli():
     for numero in (1, 2, 3):
         testo = (materiale.PROMPT_DIR / f"qualitativa_fase{numero}.txt").read_text()
         assert re.search(r"raccomandazion", testo, re.I), numero
+
+
+# --- i referti sopravvivono al rebuild -------------------------------------
+
+def test_il_referto_finisce_anche_su_file(tmp_path, monkeypatch):
+    """Il database e' una vista ricostruibile — tranne che per i referti, che
+    sono stati PAGATI e che nessuna fonte sa riprodurre."""
+    monkeypatch.setattr(config, "REFERTI_PATH", tmp_path / "referti.jsonl")
+
+    with registry.job("analisi", "prova", total=1) as lavoro:
+        analisi._salva("NVDA", "tecnica", {"contenuto": {"lettura": "sale"},
+                                           "modello": "m", "costo_usd": 0.5}, lavoro.run_id)
+        lavoro.advance()
+
+    righe = [json.loads(r) for r in
+             config.REFERTI_PATH.read_text(encoding="utf-8").splitlines()]
+    assert len(righe) == 1
+    assert righe[0]["contenuto"]["lettura"] == "sale"
+    assert righe[0]["costo_usd"] == 0.5
+
+
+def test_dopo_un_rebuild_i_referti_si_rimettono(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "REFERTI_PATH", tmp_path / "referti.jsonl")
+
+    for i in (1, 2, 3):
+        with registry.job("analisi", f"prova {i}", total=1) as lavoro:
+            analisi._salva("NVDA", "tecnica", {"contenuto": {"lettura": f"n{i}"},
+                                               "modello": "m", "costo_usd": 0.1},
+                           lavoro.run_id)
+            lavoro.advance()
+
+    schema.rebuild(confirmed=True)
+    assert analisi.referti() == []
+
+    esito = analisi.ripristina_dal_file()
+
+    assert esito["rimessi"] == 3
+    assert sorted(r["contenuto"]["lettura"] for r in analisi.referti()) == ["n1", "n2", "n3"]
+    # I lavori d'origine non ci sono piu': la colonna diventa NULL, ma il
+    # referto no — e il conto lo dice.
+    assert esito["senza_lavoro"] == 3
+
+
+def test_ripristinare_due_volte_non_raddoppia(tmp_path, monkeypatch):
+    """Due referti dello stesso metodo finiti nello STESSO SECONDO si fondevano
+    in uno: `creato_il` ha la precisione del secondo, e da solo non e'
+    un'identita'. Adesso a distinguerli e' il lavoro che li ha prodotti."""
+    monkeypatch.setattr(config, "REFERTI_PATH", tmp_path / "referti.jsonl")
+
+    for i in (1, 2):
+        with registry.job("analisi", f"prova {i}", total=1) as lavoro:
+            analisi._salva("X", "tecnica", {"contenuto": {"n": i}}, lavoro.run_id)
+            lavoro.advance()
+
+    schema.rebuild(confirmed=True)
+    assert analisi.ripristina_dal_file()["rimessi"] == 2, "due sono due, non uno"
+    assert analisi.ripristina_dal_file()["rimessi"] == 0
+    assert len(analisi.referti()) == 2
+
+
+def test_una_riga_illeggibile_non_ferma_le_altre(tmp_path, monkeypatch):
+    """Il file e' la verita': una riga rotta si salta dicendolo, non si perde
+    tutto il resto."""
+    monkeypatch.setattr(config, "REFERTI_PATH", tmp_path / "referti.jsonl")
+    buona = json.dumps({"symbol": "X", "metodo": "tecnica", "contenuto": {"a": 1},
+                        "creato_il": "2026-09-02T10:00:00+00:00"})
+    config.REFERTI_PATH.write_text(f"{buona}\nnon sono json\n{buona}\n", encoding="utf-8")
+
+    esito = analisi.ripristina_dal_file()
+
+    assert esito["illeggibili"] == 1
+    assert esito["rimessi"] == 1, "le due buone sono identiche: una sola entra"

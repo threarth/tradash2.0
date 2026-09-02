@@ -5,6 +5,7 @@ manage.py — comandi di manutenzione di tradash2.0.
     python manage.py check      elenca le tabelle presenti
     python manage.py rebuild    cancella tutto e ricrea lo schema (chiede conferma)
     python manage.py costi      riapplica il listino alle chiamate gia' fatte
+    python manage.py referti    rimette in SQLite i referti che stanno nel file
 """
 import argparse
 import logging
@@ -13,6 +14,7 @@ import sys
 import config
 from core import llm, schema
 from core.db import db_read
+from data import analisi
 
 CONFIRMATION_WORD = "RICOSTRUISCI"
 EXIT_OK = 0
@@ -28,6 +30,24 @@ def comando_check() -> int:
     return EXIT_OK
 
 
+def comando_referti() -> int:
+    """Rimette in SQLite i referti che stanno nel file, dopo un rebuild."""
+    schema.ensure_schema()
+    esito = analisi.ripristina_dal_file()
+    if esito["reason"]:
+        print(esito["reason"])
+        return EXIT_OK
+    print(f"referti nel file:   {esito['letti']}")
+    print(f"rimessi in SQLite:  {esito['rimessi']}")
+    print(f"gia' presenti:      {esito['gia_presenti']}")
+    if esito["senza_lavoro"]:
+        print(f"senza il lavoro:    {esito['senza_lavoro']} — il lavoro d'origine "
+              f"non esiste piu'; il referto si'")
+    if esito["illeggibili"]:
+        print(f"righe illeggibili:  {esito['illeggibili']} — saltate, il file resta com'e'")
+    return EXIT_OK
+
+
 def comando_costi() -> int:
     """Ricalcola il costo delle chiamate gia' registrate col listino di adesso.
 
@@ -39,6 +59,7 @@ def comando_costi() -> int:
     esito = llm.ricalcola_costi()
     print(f"righe in llm_calls: {esito['righe_totali']}")
     print(f"costi ricalcolati:  {esito['righe_aggiornate']}")
+    print(f"referti corretti:   {esito['referti_aggiornati']}")
     if esito["modelli_ancora_senza_listino"]:
         print("ancora senza listino, e i loro costi restano a zero: "
               + ", ".join(esito["modelli_ancora_senza_listino"]))
@@ -67,7 +88,7 @@ def _chiedi_conferma() -> str | None:
 # questi no: i referti sono stati PAGATI, e il registro delle chiamate e' il solo
 # posto dove c'e' scritto quanto.
 TABELLE_NON_RICOSTRUIBILI = {
-    "referti": "referti delle analisi, che sono costati denaro",
+    "referti": "referti delle analisi — si rimettono con `manage.py referti`",
     "llm_calls": "registro delle chiamate ai modelli, con i costi",
     "calls": "registro di tutte le chiamate, con la provenienza",
     "jobs": "storico dei lavori",
@@ -131,13 +152,15 @@ def main() -> int:
     """Punto di ingresso della riga di comando."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s — %(message)s")
     parser = argparse.ArgumentParser(description="Manutenzione del database di tradash2.0")
-    parser.add_argument("comando", choices=["check", "rebuild", "costi"])
+    parser.add_argument("comando", choices=["check", "rebuild", "costi", "referti"])
     argomenti = parser.parse_args()
 
     if argomenti.comando == "check":
         return comando_check()
     if argomenti.comando == "costi":
         return comando_costi()
+    if argomenti.comando == "referti":
+        return comando_referti()
     return comando_rebuild()
 
 

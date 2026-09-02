@@ -353,7 +353,7 @@ def test_il_rebuild_dice_cosa_non_tornera_piu():
 
     perdite = manage._cosa_si_perde()
 
-    assert any("referti" in p and "costati denaro" in p for p in perdite)
+    assert any("referti" in p for p in perdite)
 
 
 def test_senza_niente_da_perdere_il_rebuild_non_allarma():

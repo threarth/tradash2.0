@@ -316,9 +316,39 @@ def ricalcola_costi() -> dict:
             conn.executemany("UPDATE llm_calls SET costo_usd = ? WHERE id = ?",
                              aggiornate)
 
+    referti = _ricalcola_referti()
+
     return {"righe_totali": len(righe), "righe_aggiornate": len(aggiornate),
+            "referti_aggiornati": referti,
             "modelli_ancora_senza_listino": sorted(ancora_ignote),
             "speso": speso_totale()}
+
+
+def _ricalcola_referti() -> int:
+    """Rimette nei referti il costo delle chiamate che li hanno prodotti.
+
+    Un referto porta il costo com'era al momento del salvataggio. Se il listino
+    e' arrivato dopo — ed e' il caso normale con un modello nuovo — quel numero
+    resta a zero: quattro referti su nove dicevano di non essere costati niente,
+    mentre le loro chiamate erano registrate per intero.
+
+    Il costo si ricalcola dalla somma delle chiamate dello stesso lavoro, che e'
+    l'unico legame fra un referto e cio' che e' costato produrlo.
+    """
+    with db_read() as conn:
+        da_correggere = [dict(r) for r in conn.execute("""
+            SELECT r.id, r.costo_usd AS scritto, SUM(l.costo_usd) AS vero
+            FROM referti r JOIN llm_calls l ON l.run_id = r.run_id
+            WHERE r.run_id IS NOT NULL
+            GROUP BY r.id
+            HAVING ABS(COALESCE(r.costo_usd, 0) - SUM(l.costo_usd)) > 1e-9
+        """)]
+
+    if da_correggere:
+        with db_session() as conn:
+            conn.executemany("UPDATE referti SET costo_usd = ? WHERE id = ?",
+                             [(r["vero"], r["id"]) for r in da_correggere])
+    return len(da_correggere)
 
 
 def speso_totale(run_id: str | None = None) -> dict:

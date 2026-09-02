@@ -35,6 +35,8 @@ os.environ["TRADASH2_DEFEATBETA_CACHE"] = str(Path(_TEMP_DIR) / "httpfs_cache")
 os.environ["TRADASH2_WATCHLIST"] = str(Path(_TEMP_DIR) / "watchlist.json")
 os.environ["TRADASH2_WATCHLIST_EVENTS"] = str(Path(_TEMP_DIR) / "watchlist_events.jsonl")
 os.environ["TRADASH2_GRAFICI"] = str(Path(_TEMP_DIR) / "grafici.json")
+os.environ["TRADASH2_REFERTI"] = str(Path(_TEMP_DIR) / "referti.jsonl")
+os.environ["TRADASH2_FILINGS"] = str(Path(_TEMP_DIR) / "filings")
 
 import pytest  # noqa: E402  (l'ordine e' voluto: prima l'ambiente, poi gli import)
 

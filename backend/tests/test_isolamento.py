@@ -7,6 +7,7 @@ Il vecchio sistema aveva la promessa e non la verifica: un docstring diceva che
 yfinance veri per mesi senza che nessuno se ne accorgesse. Qui ogni pezzo della
 separazione ha il suo test.
 """
+import re
 import socket
 from pathlib import Path
 
@@ -127,3 +128,39 @@ def test_l_applicazione_all_avvio_non_fa_lavoro_sui_dati():
     sorgente = (Path(config.BASE_DIR) / "app.py").read_text(encoding="utf-8")
     for istruzione in ("UPDATE", "INSERT", "ALTER TABLE", "DELETE"):
         assert istruzione not in sorgente, f"app.py contiene {istruzione}"
+
+
+# --- ogni percorso configurabile e' dirottato, senza doverselo ricordare ----
+
+def test_ogni_percorso_dell_uso_reale_e_dirottato_nella_suite():
+    """Il difetto che questo test esiste per impedire, e che e' gia' successo:
+    ho aggiunto `TRADASH2_REFERTI` a config e ho dimenticato di aggiungerlo al
+    conftest. Tre referti di prova, con simbolo «AAA», sono finiti nel FILE VERO
+    dei referti — quello che da oggi e' la copia di sicurezza di analisi pagate.
+
+    L'isolamento era una lista da tenere allineata a un'altra, ed e' la forma di
+    difetto che questo progetto incontra piu' spesso. Adesso l'allineamento si
+    verifica invece di ricordarselo.
+    """
+    sorgente = (Path(config.BASE_DIR) / "config.py").read_text(encoding="utf-8")
+    lette = set(re.findall(r'os\.environ\.get\("(TRADASH2_[A-Z_]+)"', sorgente))
+
+    conftest = (Path(config.BASE_DIR) / "tests" / "conftest.py").read_text(encoding="utf-8")
+    dirottate = set(re.findall(r'os\.environ\["(TRADASH2_[A-Z_]+)"\]', conftest))
+
+    dimenticate = sorted(lette - dirottate - VARIABILI_SENZA_PERCORSO)
+    assert not dimenticate, (
+        f"config legge {dimenticate} ma il conftest non le dirotta: la suite "
+        f"scriverebbe sui dati veri"
+    )
+
+
+# Le variabili che NON puntano a un percorso: dirottarle non avrebbe senso.
+VARIABILI_SENZA_PERCORSO = {"TRADASH2_MODELLO", "TRADASH2_SFORZO"}
+
+
+def test_i_percorsi_della_suite_stanno_tutti_nella_cartella_temporanea():
+    """Non basta che siano dirottati: devono finire dove si buttano."""
+    for percorso in (config.DB_PATH, config.WATCHLIST_PATH, config.REFERTI_PATH,
+                     config.GRAFICI_PATH, config.FILING_DIR):
+        assert "tradash2_test_" in str(percorso), percorso

@@ -22,6 +22,8 @@ backend/data/watchlist.json
 backend/data/watchlist.json.tmp
 backend/data/watchlist_events.jsonl
 backend/data/grafici.json
+backend/data/referti.jsonl
+backend/data/referti.jsonl.prima
 backend/data/grafici.json.tmp
 
 # i documenti SEC che scarichi tu: sono grossi e sono pubblici,

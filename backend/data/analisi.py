@@ -426,18 +426,124 @@ PASSI_PREDEFINITI = 1
 
 # --- eseguire e conservare --------------------------------------------------
 
+def _identita(simbolo: str, metodo: str, quando: str, lavoro: str | None) -> tuple:
+    """Cosa distingue un referto da un altro: il lavoro che l'ha prodotto.
+
+    L'istante da solo non basta — ha la precisione del secondo — e simbolo e
+    metodo si ripetono per costruzione.
+    """
+    return (simbolo, metodo, quando, lavoro)
+
+
+def _sul_file(riga: dict) -> None:
+    """Scrive il referto nel file che ne e' la verita'. Append-only.
+
+    Il database e' una vista ricostruibile — tranne che per i referti, che sono
+    stati PAGATI e che nessuna fonte sa riprodurre. Qui vale la stessa regola
+    della watchlist: la verita' e' un file, SQLite ne tiene una copia di lavoro.
+
+    Se la scrittura fallisce l'analisi NON fallisce: il referto e' gia' stato
+    prodotto e pagato, e perderlo per un errore di disco sarebbe il doppio del
+    danno. Ma l'errore si vede nel log, perche' vuol dire che la copia di
+    sicurezza non c'e'.
+    """
+    try:
+        config.REFERTI_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with config.REFERTI_PATH.open("a", encoding="utf-8") as file:
+            file.write(json.dumps(riga, ensure_ascii=False) + "\n")
+    except OSError:
+        logger.exception("[ANALISI] referto NON scritto su file: resta solo in SQLite")
+
+
 def _salva(simbolo: str, metodo: str, referto: dict, run_id: str) -> int:
-    """Conserva il referto. Il contenuto e' un documento annidato, e SQLite regge."""
+    """Conserva il referto: prima sul file che e' la verita', poi in SQLite."""
+    riga = {"symbol": simbolo, "metodo": metodo, "as_of": None,
+            "contenuto": referto["contenuto"], "modello": referto.get("modello"),
+            "costo_usd": referto.get("costo_usd", 0.0), "run_id": run_id,
+            "creato_il": _adesso()}
+    _sul_file(riga)
+
     with db_session() as conn:
         cursore = conn.execute(
             """INSERT INTO referti (symbol, metodo, as_of, contenuto, modello,
                                     costo_usd, run_id, creato_il)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (simbolo, metodo, None,
-             json.dumps(referto["contenuto"], ensure_ascii=False),
-             referto.get("modello"), referto.get("costo_usd", 0.0), run_id, _adesso()),
+            (riga["symbol"], riga["metodo"], riga["as_of"],
+             json.dumps(riga["contenuto"], ensure_ascii=False),
+             riga["modello"], riga["costo_usd"], riga["run_id"], riga["creato_il"]),
         )
         return cursore.lastrowid
+
+
+def ripristina_dal_file() -> dict:
+    """Rimette in SQLite i referti che stanno nel file. Si usa dopo un rebuild.
+
+    Salta quelli gia' presenti. L'identita' e' il **lavoro** che li ha prodotti,
+    non l'istante: `creato_il` ha la precisione del secondo, e due analisi
+    finite nello stesso secondo si sarebbero fuse in una — successo alla prima
+    prova, con due referti su due che diventavano uno.
+
+    Il lavoro d'origine viene conservato dentro il contenuto quando la sua riga
+    in `jobs` non c'e' piu': la colonna deve diventare NULL per via della chiave
+    esterna, ma l'identita' del referto non deve perdersi con lei, o al secondo
+    ripristino si duplicherebbe.
+    """
+    if not config.REFERTI_PATH.is_file():
+        return {"letti": 0, "rimessi": 0, "gia_presenti": 0, "illeggibili": 0,
+                "reason": f"nessun file in {config.REFERTI_PATH}"}
+
+    letti = rimessi = illeggibili = orfani = 0
+    with db_read() as conn:
+        esistenti = set()
+        for r in conn.execute("SELECT symbol, metodo, creato_il, run_id, contenuto "
+                              "FROM referti"):
+            contenuto = json.loads(r["contenuto"])
+            esistenti.add(_identita(r["symbol"], r["metodo"], r["creato_il"],
+                                    r["run_id"] or contenuto.get("run_id_originale")))
+        # Dopo un rebuild la tabella dei lavori e' VUOTA, e `run_id` e' una
+        # chiave esterna: rimettere un referto col suo lavoro d'origine farebbe
+        # fallire l'inserimento. Il lavoro e' ricostruibile, il referto no —
+        # quindi si perde il collegamento, non il referto, e si dice quanti.
+        lavori = {r["run_id"] for r in conn.execute("SELECT run_id FROM jobs")}
+
+    with db_session() as conn:
+        for riga_grezza in config.REFERTI_PATH.read_text(encoding="utf-8").splitlines():
+            if not riga_grezza.strip():
+                continue
+            letti += 1
+            try:
+                riga = json.loads(riga_grezza)
+            except json.JSONDecodeError:
+                illeggibili += 1
+                logger.warning("[ANALISI] riga di referto illeggibile, saltata")
+                continue
+            chiave = _identita(riga["symbol"], riga["metodo"], riga["creato_il"],
+                               riga.get("run_id"))
+            if chiave in esistenti:
+                continue
+
+            lavoro = riga.get("run_id")
+            contenuto = riga["contenuto"]
+            if lavoro is not None and lavoro not in lavori:
+                contenuto = {**contenuto, "run_id_originale": lavoro}
+                lavoro = None
+                orfani += 1
+
+            conn.execute(
+                """INSERT INTO referti (symbol, metodo, as_of, contenuto, modello,
+                                        costo_usd, run_id, creato_il)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (riga["symbol"], riga["metodo"], riga.get("as_of"),
+                 json.dumps(contenuto, ensure_ascii=False),
+                 riga.get("modello"), riga.get("costo_usd", 0.0),
+                 lavoro, riga["creato_il"]),
+            )
+            esistenti.add(chiave)
+            rimessi += 1
+
+    return {"letti": letti, "rimessi": rimessi,
+            "gia_presenti": letti - rimessi - illeggibili,
+            "illeggibili": illeggibili, "senza_lavoro": orfani, "reason": None}
 
 
 def esegui(metodo: str, simbolo: str) -> dict:

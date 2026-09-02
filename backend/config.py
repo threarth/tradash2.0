@@ -235,6 +235,20 @@ QUALITATIVA_CITAZIONI_MASSIME = 24
 # si traducono a mente in percentuali.
 SIMULATORE_CAPITALE_PREDEFINITO = 10_000.0
 
+# --- I referti, che sono l'unica cosa nel database ad essere costata denaro ---
+#
+# Il progetto tratta il database come una vista ricostruibile, e per quasi tutto
+# e' vero: universo, prezzi e freschezza si rifanno leggendo Defeatbeta. I
+# referti no. Nessuna fonte sa riprodurli — servirebbero i dati di quel giorno,
+# quella versione del modello, e un modello non e' comunque deterministico — e
+# `manage.py rebuild` li cancellava senza che niente li rimettesse.
+#
+# Quindi seguono la stessa regola della watchlist: **la verita' e' un file**, il
+# database ne tiene una copia di lavoro. Append-only, una riga per referto: non
+# si corregge un referto, se ne produce un altro.
+PRODUCTION_REFERTI_PATH = BASE_DIR / "data" / "referti.jsonl"
+REFERTI_PATH = Path(os.environ.get("TRADASH2_REFERTI", PRODUCTION_REFERTI_PATH))
+
 # Il verdetto legge i referti degli altri metodi. Quanto se ne manda di ognuno,
 # e da quanti giorni un referto va segnalato come vecchio: mettere insieme una
 # lettura di tre mesi fa e una di stamattina produce una sintesi coerente e
