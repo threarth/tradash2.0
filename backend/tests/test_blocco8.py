@@ -20,7 +20,7 @@ import pytest
 import config
 from core import llm, registry, schema
 from core.db import db_read
-from data import analisi, defeatbeta, filing_locali, materiale, qualitativa
+from data import analisi, defeatbeta, filing_locali, materiale, qualitativa, rischio
 from domain import (
     pannello,
     salute,
@@ -312,9 +312,20 @@ def _messaggio_di(chiamata: dict) -> str:
     return chiamata["messages"][0]["content"]
 
 
+RISCHIO_FINTO = {"symbol": "X", "banda": "medio", "deciso_da": "prova",
+                 "perche": "finto", "componenti": [], "confidenza": "alta"}
+
+
 def _finto(monkeypatch, risposta):
+    """Il modello finto, e il punteggio di rischio finto che gli arriva accanto.
+
+    Il rischio e' deterministico e ha i suoi test: qui si finge perche' altrimenti
+    ogni test di un'analisi dovrebbe montare bilanci, prezzi e DCF per un numero
+    che non e' quello che sta misurando.
+    """
     cliente = _ClienteFinto(risposta)
     monkeypatch.setattr(llm, "_client", lambda fornitore: cliente)
+    monkeypatch.setattr(rischio, "calcola", lambda s, run_id=None: RISCHIO_FINTO)
     return cliente
 
 
@@ -1651,15 +1662,35 @@ def test_ogni_referto_dice_quale_prompt_lo_ha_scritto(tmp_path, monkeypatch):
     assert dopo["caratteri"] != prima["caratteri"]
 
 
-def test_i_prompt_veri_hanno_tutti_la_regola_sul_non_dare_consigli():
-    """Mancava in tre — tecnica, earnings e spin-off — che sono i piu' esposti a
-    scivolarci: una lettura tecnica e' a un passo dal «compra qui»."""
-    for file in sorted(materiale.PROMPT_DIR.glob("analisi_*.txt")):
-        testo = file.read_text(encoding="utf-8")
-        assert re.search(r"raccomandazion", testo, re.I), file.name
+# Le analisi che possono dare un consiglio: quelle che hanno una base per darlo.
+# Fuori restano la qualitativa (descrive come funziona l'azienda, non se il
+# titolo conviene), il rilevatore di spin-off (e' un rilevatore) e le citazioni.
+CON_CONSIGLIO = ("analisi_tecnica", "analisi_fondamentale", "analisi_forward",
+                 "analisi_earnings", "analisi_verdetto")
+
+
+def test_dove_si_da_un_consiglio_si_danno_anche_le_condizioni():
+    """Scelta dell'utente il 02/09: i consigli si danno, ma in tre tempi — la
+    riga secca, a quali condizioni regge, cosa la farebbe cambiare — e sempre
+    con la banda di rischio, che e' calcolata dai dati e non dal modello."""
+    for nome in CON_CONSIGLIO:
+        testo = (materiale.PROMPT_DIR / f"{nome}.txt").read_text(encoding="utf-8")
+        for chiave in ('"consiglio"', '"a_quali_condizioni"',
+                       '"cosa_lo_cambierebbe"', '"rischio_riportato"'):
+            assert chiave in testo, f"{nome} non chiede {chiave}"
+        assert "{rischio}" in testo, f"{nome} non riceve il punteggio di rischio"
+        assert "dal punto di vista di questa lettura" in testo, (
+            f"{nome} non dice da quale sola lente sta parlando")
+
+
+def test_dove_NON_si_da_un_consiglio_resta_scritto_perche():
+    """La qualitativa descrive come funziona l'azienda, non se il titolo sia un
+    buon investimento: e' la stessa ragione per cui la sua tassonomia non e' un
+    giudizio. Il rilevatore di spin-off, allo stesso modo, rileva."""
     for numero in (1, 2, 3):
         testo = (materiale.PROMPT_DIR / f"qualitativa_fase{numero}.txt").read_text()
         assert re.search(r"raccomandazion", testo, re.I), numero
+        assert "{rischio}" not in testo, numero
 
 
 # --- i referti sopravvivono al rebuild -------------------------------------

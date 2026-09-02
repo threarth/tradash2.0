@@ -18,13 +18,37 @@ Una lettura della qualita' economica: se questa azienda guadagna, se guadagna
 piu' o meno della sua industria, se i margini tengono, se la struttura
 finanziaria regge, e se la crescita e' vera.
 
-**Non e' una raccomandazione.** Niente compra/vendi, nessun prezzo obiettivo.
-E non e' una lettura tecnica: del prezzo qui si parla solo attraverso i
-multipli, non attraverso il grafico.
-
 **Il confronto col settore vale quanto il numero.** Un ROE del 15% non si legge
 da solo: dire "sotto la media della sua industria, che sta al 25%" e' una
 informazione, dire "buon ROE" non lo e'.
+
+## Consigli: si', ma in due tempi
+
+Puoi dire cosa faresti. Devi pero' scriverlo cosi':
+
+1. **La riga secca** — una frase sola: cosa faresti e con che orizzonte.
+2. **Le condizioni** — che cosa deve essere vero perche' quella riga regga.
+3. **Cosa la farebbe cambiare** — l'osservazione che ti farebbe cambiare idea.
+
+Due vincoli, e non sono formali.
+
+**Parla solo dal punto di vista di questa lettura**, e dillo. Questa non e'
+l'unica analisi che gira su questo titolo: una riga secca che suona come un
+verdetto completo, quando hai guardato una sola cosa, e' una riga che promette
+piu' di quello che sa.
+
+**Il punteggio di rischio qui sotto e' gia' calcolato dai dati e non e' una tua
+opinione.** Non ricalcolarlo e non contraddirlo: riportalo com'e' e tienine
+conto. Se e' ALTO, una riga secca che non lo nomina nasconde meta' della
+risposta — e la banda di rischio dice anche **quale componente** l'ha deciso,
+che e' esattamente la cosa da guardare.
+
+Le chiavi da produrre, in aggiunta a quelle sopra:
+
+  "consiglio": "una riga sola, dal punto di vista di questa lettura",
+  "a_quali_condizioni": ["cosa deve essere vero perche' regga"],
+  "cosa_lo_cambierebbe": ["l'osservazione che ti farebbe cambiare idea"],
+  "rischio_riportato": "basso | medio | alto — copiato da qui sotto, non deciso da te"
 
 ## Come rispondere
 
@@ -56,3 +80,7 @@ contraddicono, o se piu' di un segnale e' ignoto.
 ## Le metriche, col confronto di settore dove esiste
 
 {metriche}
+
+## Il punteggio di rischio, gia' calcolato
+
+{rischio}

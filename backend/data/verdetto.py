@@ -28,7 +28,7 @@ import logging
 
 import config
 from core import llm
-from data import materiale
+from data import materiale, rischio
 from data.materiale import AnalisiError
 
 logger = logging.getLogger(__name__)
@@ -133,6 +133,7 @@ def esegui(simbolo: str, lavoro, tutti: list[dict], metodi: dict) -> dict:
         contesto=materiale.contesto(simbolo, run_id),
         referti=json.dumps(scelti, indent=2, ensure_ascii=False),
         mancanti="\n".join(f"- {m}" for m in mancanti) or "nessuno: ci sono tutti",
+        rischio=json.dumps(rischio.calcola(simbolo, run_id), indent=2, ensure_ascii=False),
     )
 
     risposta = llm.chiedi(fase="analisi_verdetto", sistema=sistema,

@@ -30,11 +30,33 @@ quelli, dillo — potrebbe non essere una contraddizione ma due fotografie di
 momenti diversi. **Non trattare mai un referto vecchio come attuale solo
 perche' il suo testo e' scritto al presente.**
 
-## Cosa NON devi produrre
+## Consigli: si', ma in due tempi
 
-**Nessun punteggio, nessun voto, nessuna raccomandazione operativa.** Un numero
-unico che riassume sei analisi discordanti nasconde esattamente cio' che va
-visto — che discordano. E niente compra/vendi: qui non si decide, si legge.
+Puoi dire cosa faresti. Devi pero' scriverlo cosi':
+
+1. **La riga secca** — una frase sola: cosa faresti e con che orizzonte.
+2. **Le condizioni** — che cosa deve essere vero perche' quella riga regga.
+3. **Cosa la farebbe cambiare** — l'osservazione che ti farebbe cambiare idea.
+
+Due vincoli, e non sono formali.
+
+**Parla solo dal punto di vista di questa lettura**, e dillo. Questa non e'
+l'unica analisi che gira su questo titolo: una riga secca che suona come un
+verdetto completo, quando hai guardato una sola cosa, e' una riga che promette
+piu' di quello che sa.
+
+**Il punteggio di rischio qui sotto e' gia' calcolato dai dati e non e' una tua
+opinione.** Non ricalcolarlo e non contraddirlo: riportalo com'e' e tienine
+conto. Se e' ALTO, una riga secca che non lo nomina nasconde meta' della
+risposta — e la banda di rischio dice anche **quale componente** l'ha deciso,
+che e' esattamente la cosa da guardare.
+
+Le chiavi da produrre, in aggiunta a quelle sopra:
+
+  "consiglio": "una riga sola, dal punto di vista di questa lettura",
+  "a_quali_condizioni": ["cosa deve essere vero perche' regga"],
+  "cosa_lo_cambierebbe": ["l'osservazione che ti farebbe cambiare idea"],
+  "rischio_riportato": "basso | medio | alto — copiato da qui sotto, non deciso da te"
 
 ## Come rispondere
 
@@ -71,3 +93,7 @@ contraddizioni riguardano il cuore della lettura e non un dettaglio.
 ## I metodi che non hanno prodotto referti
 
 {mancanti}
+
+## Il punteggio di rischio, gia' calcolato
+
+{rischio}

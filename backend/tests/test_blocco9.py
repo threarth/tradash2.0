@@ -19,7 +19,7 @@ import config
 from core import registry
 from core.db import db_read, db_session
 from data import defeatbeta, forward, scanner, verdetto
-from domain import dcf, drawdown, scansione, simulatore
+from domain import dcf, drawdown, rischio, scansione, simulatore
 
 TIMEOUT_S = 5.0
 
@@ -548,3 +548,71 @@ def test_un_ingresso_mancante_del_dcf_non_diventa_zero(monkeypatch):
 
         with pytest.raises(forward.AnalisiError, match=nome_atteso):
             forward.misure("X", None)
+
+
+# --- il punteggio di rischio -----------------------------------------------
+
+def _segnali_finti(**stati) -> dict:
+    return {"segnali": {n: {"stato": s, "perche": f"{n} e' {s}"} for n, s in stati.items()}}
+
+
+def test_il_rischio_prende_il_peggiore_e_non_la_media():
+    """E' la scelta che lo tiene diverso dai punteggi che questo progetto ha
+    gia' tolto due volte: un rischio alto non si annulla con quattro bassi."""
+    componenti = [
+        rischio.da_segnali(_segnali_finti(F1="spento", F2="spento")),
+        rischio.da_discesa({"profondita_massima": -0.05, "giorni_sotto_il_massimo": 3}),
+        rischio.da_coda(0.85),
+        rischio.da_crescita(0.10, 0.30),
+    ]
+
+    esito = rischio.punteggio(componenti)
+
+    assert esito["banda"] == rischio.ALTO
+    assert esito["deciso_da"] == "Valore oltre l'orizzonte"
+    assert "85%" in esito["perche"], "dice il numero che l'ha deciso"
+
+
+def test_cio_che_non_si_sa_non_abbassa_il_rischio_ma_la_confidenza():
+    """Confonderli e' il modo classico per far sembrare sicuro un titolo di cui
+    non sappiamo niente."""
+    componenti = [
+        rischio.da_segnali(_segnali_finti(F1="acceso")),
+        rischio.da_discesa(None),
+        rischio.da_coda(None),
+        rischio.da_crescita(None, None),
+    ]
+
+    esito = rischio.punteggio(componenti)
+
+    assert esito["banda"] == rischio.ALTO, "l'unico calcolabile decide"
+    assert esito["confidenza"] == "bassa"
+    assert esito["calcolati"] == 1 and esito["su"] == 4
+
+
+def test_ogni_componente_porta_il_numero_che_lo_ha_deciso():
+    """Non c'e' un peso da indovinare: c'e' una soglia scritta e il valore
+    misurato accanto."""
+    voce = rischio.da_coda(0.83)
+
+    assert voce["banda"] == rischio.ALTO
+    assert voce["misura"] == 0.83
+    assert "83%" in voce["perche"]
+
+
+def test_la_crescita_richiesta_si_misura_contro_quella_storica():
+    """Non e' «cresce poco» o «cresce tanto»: e' se il prezzo pretende una
+    crescita che questa azienda non ha mai avuto."""
+    poco = rischio.da_crescita(0.10, 0.40)     # ne chiede un quarto: basso
+    tanto = rischio.da_crescita(0.60, 0.20)    # ne chiede il triplo: alto
+
+    assert poco["banda"] == rischio.BASSO
+    assert tanto["banda"] == rischio.ALTO
+
+
+def test_senza_nessun_componente_il_rischio_non_diventa_basso():
+    """«Non lo so» e «non c'e' rischio» sono letture opposte."""
+    esito = rischio.punteggio([rischio.da_coda(None), rischio.da_crescita(None, None)])
+
+    assert esito["banda"] == rischio.IGNOTO
+    assert esito["deciso_da"] is None

@@ -32,7 +32,7 @@ import config
 from core import llm, registry
 from core.db import db_read, db_session
 from core.tipi import python_puro
-from data import defeatbeta, forward, qualitativa, verdetto
+from data import defeatbeta, forward, qualitativa, rischio, verdetto
 from data.materiale import (
     AnalisiError,
     contesto,
@@ -147,13 +147,24 @@ def _misure_tecniche(simbolo: str, run_id: str | None) -> dict:
     return {**misurato, "ultima_seduta": ultimo}
 
 
+def _rischio_leggibile(simbolo: str, run_id: str | None) -> str:
+    """Il punteggio di rischio, pronto da mettere in un prompt.
+
+    E' deterministico e costa circa due secondi e mezzo a cache calda: si
+    calcola PRIMA di chiedere, cosi' il modello non deve inventarsi una
+    valutazione del rischio che noi sappiamo gia' fare meglio di lui.
+    """
+    return json.dumps(rischio.calcola(simbolo, run_id), indent=2, ensure_ascii=False)
+
+
 def _tecnica(simbolo: str, lavoro) -> dict:
     """Calcola, chiede, e ritorna il referto col suo costo."""
     run_id = lavoro.run_id
     misure = _misure_tecniche(simbolo, run_id)
     sistema = prompt("analisi_tecnica",
                      contesto=contesto(simbolo, run_id),
-                     misure=json.dumps(misure, indent=2, ensure_ascii=False))
+                     misure=json.dumps(misure, indent=2, ensure_ascii=False),
+                     rischio=_rischio_leggibile(simbolo, run_id))
 
     risposta = llm.chiedi(fase="analisi_tecnica", sistema=sistema,
                           messaggio=f"Produci la lettura tecnica di {simbolo}.",
@@ -189,7 +200,8 @@ def _fondamentale(simbolo: str, lavoro) -> dict:
     sistema = prompt("analisi_fondamentale",
                      contesto=contesto(simbolo, run_id),
                      segnali=json.dumps(rischi, indent=2, ensure_ascii=False),
-                     metriche=json.dumps(misure, indent=2, ensure_ascii=False))
+                     metriche=json.dumps(misure, indent=2, ensure_ascii=False),
+                     rischio=_rischio_leggibile(simbolo, run_id))
 
     risposta = llm.chiedi(fase="analisi_fondamentale", sistema=sistema,
                           messaggio=f"Produci la lettura fondamentale di {simbolo}.",
@@ -285,7 +297,8 @@ def _earnings(simbolo: str, lavoro) -> dict:
         f"{json.dumps(call, indent=2, ensure_ascii=False)}\n\n"
         f"## Le domande della call precedente\n{prima_json}"
     )
-    sistema = prompt("analisi_earnings")
+    sistema = prompt("analisi_earnings",
+                     rischio=_rischio_leggibile(simbolo, run_id))
 
     risposta = llm.chiedi(fase="analisi_earnings", sistema=sistema, messaggio=messaggio,
                           scope=simbolo, run_id=run_id)

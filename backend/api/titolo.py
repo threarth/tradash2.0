@@ -19,7 +19,15 @@ import config
 from api import HTTP_NOT_FOUND, fail, ok
 from core.db import db_read
 from core.tipi import python_puro
-from data import defeatbeta, depositi, filing_locali, grafici, materiale, ricostruzione
+from data import (
+    defeatbeta,
+    depositi,
+    filing_locali,
+    grafici,
+    materiale,
+    ricostruzione,
+    rischio,
+)
 from data.grafici import GraficiError
 from domain import (
     indicators,
@@ -471,6 +479,25 @@ def salute_finanziaria(simbolo: str):
         ) if quando else None,
         "source": lettura.source,
     })
+
+
+@bp.get("/<simbolo>/rischio")
+def punteggio_di_rischio(simbolo: str):
+    """Quanto si puo' perdere, e per quali ragioni. **Nessun modello.**
+
+    Non viene dopo un'analisi: viene prima, e le alimenta. Tutti i suoi
+    ingredienti sono gia' calcolati da codice deterministico — i segnali dai
+    bilanci, la discesa dai prezzi, il peso della coda e la crescita implicita
+    dal DCF.
+
+    Il rischio complessivo e' il PEGGIORE dei componenti, non la media: un
+    rischio alto non si annulla con quattro bassi. Cio' che non si sa non
+    abbassa il rischio, abbassa la confidenza.
+    """
+    try:
+        return ok(rischio.calcola(simbolo))
+    except defeatbeta.DefeatbetaUnavailable as exc:
+        return fail(str(exc), HTTP_NOT_FOUND)
 
 
 @bp.get("/<simbolo>/simulatore")

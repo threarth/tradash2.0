@@ -32,7 +32,7 @@ import logging
 
 from core import llm
 from core.tipi import python_puro
-from data import defeatbeta, materiale
+from data import defeatbeta, materiale, rischio
 from data.materiale import AnalisiError
 from domain import dcf
 
@@ -202,9 +202,12 @@ def esegui(simbolo: str, lavoro) -> dict:
     run_id = lavoro.run_id
     conto = misure(simbolo, run_id)
 
-    sistema = materiale.prompt("analisi_forward",
-                               contesto=materiale.contesto(simbolo, run_id),
-                               misure=json.dumps(conto, indent=2, ensure_ascii=False))
+    sistema = materiale.prompt(
+        "analisi_forward",
+        contesto=materiale.contesto(simbolo, run_id),
+        misure=json.dumps(conto, indent=2, ensure_ascii=False),
+        rischio=json.dumps(rischio.calcola(simbolo, run_id), indent=2, ensure_ascii=False),
+    )
 
     risposta = llm.chiedi(fase="analisi_forward", sistema=sistema,
                           messaggio=f"Leggi il DCF di {simbolo} e le sue ipotesi.",
