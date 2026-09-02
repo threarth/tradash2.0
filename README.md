@@ -24,11 +24,17 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 
 ```bash
 cd frontend
-pnpm install
-pnpm build     # produce dist/, che Flask serve: un solo processo
-pnpm dev       # sviluppo con ricarica a caldo su :5173, /api va a Flask
-pnpm test      # i test della logica pura (rilevatore del glossario)
+pnpm install                 # SOLO pnpm: vedi la nota qui sotto
+npm run build   # oppure pnpm build — produce dist/, che Flask serve
+npm run dev     # oppure pnpm dev — ricarica a caldo su :5173, /api va a Flask
+npm run test    # oppure pnpm test — i test della logica pura
 ```
+
+**Per installare serve pnpm; per lanciare gli script va bene anche npm.**
+`node_modules` e' un deposito di pnpm fatto di collegamenti simbolici, e `npm`
+non lo sa gestire: `npm install` non fallisce con un messaggio utile — si rompe
+con «Cannot read properties of null (reading 'edgesOut')», oppure resta li'
+senza dire niente. `npm run <script>` invece esegue e basta, e funziona.
 
 In uso reale gira **solo Flask**: niente SvelteKit, quindi niente processo Node
 accanto. In sviluppo si tengono aperti tutti e due perche' Vite ricarica a caldo.
