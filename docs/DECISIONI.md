@@ -1043,3 +1043,69 @@ niente percorsi di file, niente watchlist.
 `cartella("NON..VALIDO")` produce una cartella dal nome strano DENTRO il
 perimetro: i punti non sono separatori. Un test lo dice, col percorso risolto a
 dimostrarlo — altrimenti qualcuno lo "corregge" un'altra volta.
+
+---
+
+## L'archiviazione delle chiamate: cosa si e' portato e cosa no
+
+Il vecchio tradash archiviava 3.567 chiamate in una tabella con diciotto
+colonne. Il **meccanismo** e' stato portato, non i dati; e non tutte le colonne.
+
+**Portato, e migliorato:** modello, fase, ambito, token in entrata e in uscita,
+costo, lavoro, istante. In piu' rispetto al vecchio: `stop_reason`, `status` e
+`error_msg` — cioe' **come si e' fermata** una chiamata e perche' e' fallita,
+che e' l'informazione che ha permesso di riconoscere una risposta tagliata dal
+tetto di token invece di dare la colpa al JSON.
+
+**Non portato di proposito:** `system_prompt`, `user_prompt` e `response`. Il
+prompt di una fase qualitativa passa i 200.000 caratteri: archiviarlo a ogni
+chiamata vorrebbe dire far crescere il database di un megabyte per analisi, per
+un contenuto che sta gia' sul disco. Al suo posto ogni referto porta
+l'**impronta** del prompt che l'ha scritto — nome, hash, lunghezza — che risponde
+alla domanda per cui servirebbe il testo: «due referti dello stesso metodo sono
+confrontabili, o nel mezzo il prompt e' cambiato?».
+
+**Non portato, e resta un limite dichiarato:** `cache_read_tokens` e
+`cache_write_tokens`. Se il fornitore serve parte dell'ingresso dalla cache, la
+fattura e' piu' bassa del nostro conto, che li paga tutti a prezzo pieno.
+Misurato su una chiamata da 1.221 token: la cache non si attiva. Sulle fasi
+qualitative, da 44.000 token, potrebbe — e in quel caso il costo che mostriamo e'
+una SOVRASTIMA. Registrarlo vorrebbe dire una colonna nuova, quindi un rebuild,
+quindi perdere i referti gia' pagati: si aspetta di averne motivo.
+
+---
+
+## Il database e' ricostruibile, tranne dove non lo e'
+
+Il progetto dichiara che il database e' una vista che si rifa' leggendo
+Defeatbeta, e che l'unica eccezione e' la watchlist — che infatti sta in un file
+fuori da git. **Non era vero:** i **referti** sono stati pagati, e nessuna fonte
+sa riprodurli. Il registro delle chiamate e' il solo posto dove c'e' scritto
+quanto si e' speso.
+
+`manage.py rebuild` diceva «questo cancella tutti i dati» ed elencava le
+tabelle. Adesso dice cosa non tornera' piu', contandolo:
+
+    ATTENZIONE — questo non si ricostruisce da nessuna fonte:
+      - 9 righe in «referti» — referti delle analisi, che sono costati denaro
+      - 18 righe in «llm_calls» — registro delle chiamate, con i costi
+
+Un comando che dice «cancella tutto» senza dire che li' dentro ci sono cinque
+dollari di analisi e' un comando che si esegue una volta di troppo.
+
+---
+
+## Tre prompt su sette non dicevano di non dare consigli
+
+L'audit dei prompt ha trovato la regola «niente compra o vendi» in quattro su
+sette. Mancava proprio nei tre piu' esposti: la **lettura tecnica**, che e' a un
+passo dal «compra qui»; l'**earnings review**, dove da una call si scivola
+facilmente a «il titolo salira'»; e il **rilevatore di spin-off**, dove la
+domanda naturale del lettore e' «conviene comprare prima o dopo».
+
+Nessuno dei referti prodotti aveva dato consigli — ma non lo garantiva niente.
+
+E il compositore dei prompt adesso **rifiuta un segnaposto rimasto vuoto**. Se
+il file dichiara `{fase1}` e nessuno lo riempie, al modello arriva la parola
+«{fase1}» sotto un titolo che promette le conclusioni della fase precedente: lui
+non le ha, e la sua risposta sembra comunque una risposta.

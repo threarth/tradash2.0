@@ -33,6 +33,12 @@ non ci sono. Se un'informazione manca, elencala fra quelle mancanti. **Uno
 stadio marcato "non determinabile" significa che il titolo dell'articolo non
 diceva abbastanza: non trasformarlo in "annunciato".**
 
+## Quello che NON devi produrre
+
+**Nessuna raccomandazione operativa.** Non dire se conviene comprare prima o
+dopo l'operazione, ne' quale delle due societa' sara' migliore: qui si stabilisce
+se uno spin-off c'e' e a che punto e', non cosa farne.
+
 ## Come rispondere
 
 UN SOLO blocco JSON, senza testo prima o dopo:

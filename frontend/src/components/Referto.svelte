@@ -26,6 +26,7 @@
         "confidenza", "classificazione", "classificazione_scartata",
         "citations", "citazioni_scartate", "senza_riscontro", "copertura",
         "citazioni_non_prodotte",
+        "prompt",  // l'impronta di chi ha scritto: si vede nella copertura
         "menzioni_trovate", "menzioni_notizie", "menzioni_call",
         "dcf",  // ha un suo blocco qui sotto: la griglia va letta come tabella
     ]);

@@ -142,6 +142,7 @@ def esegui(simbolo: str, lavoro, tutti: list[dict], metodi: dict) -> dict:
         raise AnalisiError("il modello ha rifiutato di rispondere")
 
     return {"contenuto": {**materiale.leggi_json(risposta["testo"]),
+                          "prompt": materiale.impronta_prompt("analisi_verdetto"),
                           "referti_letti": [{"metodo": r["metodo"],
                                              "scritto_il": r["scritto_il"],
                                              "eta_in_giorni": r["eta_in_giorni"],

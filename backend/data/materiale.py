@@ -11,8 +11,10 @@ modulo suo — quattro fasi sono troppe per stare dentro il registro dei metodi 
 e se avesse dovuto importarle da li' avremmo avuto due moduli che si importano
 a vicenda.
 """
+import hashlib
 import json
 import logging
+import re
 from pathlib import Path
 
 from core.tipi import python_puro
@@ -22,6 +24,11 @@ from domain import pannello, prospetti, publication_dates, segnali
 logger = logging.getLogger(__name__)
 
 PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
+
+# Un segnaposto: `{parola}` con dentro lettere minuscole, cifre e trattini bassi.
+# Le graffe degli esempi JSON nei prompt contengono virgolette e due punti, e
+# non somigliano a questo.
+SEGNAPOSTO = re.compile(r"\{([a-z_][a-z0-9_]*)\}")
 
 # Le metriche del pannello, e la loro gemella di settore dove esiste. Il
 # confronto vale quanto il numero: "ROE del 15%" non si legge da solo.
@@ -55,11 +62,43 @@ def contesto(simbolo: str, run_id: str | None) -> str:
 
 def prompt(nome: str, **pezzi) -> str:
     """Compone un prompt dal suo file. I segnaposti si sostituiscono a mano,
-    perche' il testo contiene graffe di esempio JSON che `format` interpreterebbe."""
+    perche' il testo contiene graffe di esempio JSON che `format` interpreterebbe.
+
+    **Un segnaposto rimasto vuoto e' un errore, non un dettaglio estetico.** Se
+    il file dichiara `{fase1}` e nessuno lo riempie, al modello arriva la parola
+    «{fase1}» sotto un titolo che promette le conclusioni della fase precedente:
+    lui non le ha, e la sua risposta sembra comunque una risposta.
+    """
     testo = (PROMPT_DIR / f"{nome}.txt").read_text(encoding="utf-8")
     for chiave, valore in pezzi.items():
         testo = testo.replace(f"{{{chiave}}}", valore)
+
+    rimasti = sorted(set(SEGNAPOSTO.findall(testo)))
+    if rimasti:
+        raise AnalisiError(
+            f"il prompt {nome} ha segnaposti non riempiti: {', '.join(rimasti)}"
+        )
     return testo
+
+
+def impronta_prompt(nome: str) -> dict:
+    """Di quale prompt si tratta, e in che versione.
+
+    Serve a rispondere a «quale prompt ha prodotto questo referto?». Due referti
+    dello stesso metodo non sono confrontabili se nel mezzo il prompt e'
+    cambiato, e senza questo non c'e' modo di accorgersene: il referto conserva
+    la risposta, non la domanda.
+
+    Si conserva l'impronta e non il testo. Il testo di una fase qualitativa
+    passa i 200.000 caratteri, e archiviarlo a ogni referto vorrebbe dire far
+    crescere il database di un megabyte per analisi — per un contenuto che si
+    ritrova sul disco.
+    """
+    file = PROMPT_DIR / f"{nome}.txt"
+    grezzo = file.read_bytes()
+    return {"prompt": nome,
+            "impronta": hashlib.sha256(grezzo).hexdigest()[:12],
+            "caratteri": len(grezzo)}
 
 
 def leggi_json(testo: str) -> dict:

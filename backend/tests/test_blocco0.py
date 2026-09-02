@@ -16,7 +16,7 @@ import pytest
 import config
 import manage
 from core import calls, freshness, registry, schema
-from core.db import db_read
+from core.db import db_read, db_session
 
 # Un lavoro finto abbastanza lungo da poter essere fermato a meta'.
 PASSI_LAVORO_FINTO = 50
@@ -338,3 +338,26 @@ def test_il_processo_dice_se_sta_servendo_codice_vecchio(client):
     assert risposta["avviato_il"] and risposta["codice_del"]
     assert isinstance(risposta["aggiornato"], bool)
     assert "riavvialo" in risposta["nota"]
+
+
+def test_il_rebuild_dice_cosa_non_tornera_piu():
+    """Il progetto tratta il database come una vista ricostruibile, ed e' vero
+    per quasi tutto — ma i referti sono stati PAGATI e nessuna fonte sa
+    riprodurli. Un comando che dice «cancella tutto» senza dire che li' dentro
+    ci sono cinque dollari di analisi si esegue una volta di troppo."""
+    schema.ensure_schema()
+    with db_session() as conn:
+        conn.execute(
+            "INSERT INTO referti (symbol, metodo, contenuto, costo_usd, run_id, creato_il) "
+            "VALUES ('X', 'tecnica', '{}', 1.5, NULL, '2026-09-02T00:00:00+00:00')")
+
+    perdite = manage._cosa_si_perde()
+
+    assert any("referti" in p and "costati denaro" in p for p in perdite)
+
+
+def test_senza_niente_da_perdere_il_rebuild_non_allarma():
+    """Un avviso che compare sempre smette di essere un avviso."""
+    schema.rebuild(confirmed=True)
+
+    assert manage._cosa_si_perde() == []

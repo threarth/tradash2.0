@@ -420,6 +420,10 @@ def esegui(simbolo: str, lavoro) -> dict:
     )
     contenuto = {**unito, **quarta, "classificazione": classificazione,
                  "classificazione_scartata": scarti,
+                 # Quattro fasi, quattro prompt: se uno cambia, due referti dello
+                 # stesso metodo non sono piu' confrontabili.
+                 "prompt": [materiale.impronta_prompt(f"qualitativa_fase{n}")
+                            for n in (1, 2, 3, 4)],
                  "copertura": _riepilogo(pezzi, avvisi, quarta["citazioni_scartate"])}
 
     return {"contenuto": contenuto, "modello": risposta["modello"], "costo_usd": costo}

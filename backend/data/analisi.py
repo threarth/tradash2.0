@@ -36,6 +36,7 @@ from data import defeatbeta, forward, qualitativa, verdetto
 from data.materiale import (
     AnalisiError,
     contesto,
+    impronta_prompt,
     leggi_json,
     pannello_metriche,
     prompt,
@@ -161,7 +162,8 @@ def _tecnica(simbolo: str, lavoro) -> dict:
     if risposta["rifiutata"]:
         raise AnalisiError("il modello ha rifiutato di rispondere")
 
-    return {"contenuto": {**leggi_json(risposta["testo"]), "misure": misure},
+    return {"contenuto": {**leggi_json(risposta["testo"]), "misure": misure,
+                          "prompt": impronta_prompt("analisi_tecnica")},
             "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
 
 
@@ -198,7 +200,8 @@ def _fondamentale(simbolo: str, lavoro) -> dict:
 
     return {"contenuto": {**leggi_json(risposta["testo"]),
                           "segnali": rischi, "metriche": misure,
-                          "metriche_mancanti": mancanti},
+                          "metriche_mancanti": mancanti,
+                          "prompt": impronta_prompt("analisi_fondamentale")},
             "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
 
 
@@ -293,7 +296,8 @@ def _earnings(simbolo: str, lavoro) -> dict:
                           "call": call["periodo"],
                           "call_precedente": precedente["periodo"] if precedente else None,
                           "testi_troncati": call["testi_troncati"],
-                          "caratteri_originali": ultima["caratteri"]},
+                          "caratteri_originali": ultima["caratteri"],
+                          "prompt": impronta_prompt("analisi_earnings")},
             "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}
 
 
@@ -390,6 +394,7 @@ def _spin_off(simbolo: str, lavoro) -> dict:
         raise AnalisiError("il modello ha rifiutato di rispondere")
 
     return {"contenuto": {**leggi_json(risposta["testo"]),
+                          "prompt": impronta_prompt("analisi_spinoff"),
                           "menzioni_trovate": len(notizie) + len(call),
                           "menzioni_notizie": notizie,
                           "menzioni_call": call},

@@ -11,6 +11,7 @@ Due principi che questi test difendono, e che vengono dal vecchio tradash:
    costringe a fidarsi, ed e' invendibile alla domanda "in base a cosa?".
 """
 import json
+import re
 
 import numpy as np
 import pandas as pd
@@ -1617,3 +1618,45 @@ def test_un_simbolo_impossibile_non_diventa_un_500(client):
     risposta = client.get("/api/titolo/..%2E/filing-da-salvare")
 
     assert risposta.status_code in (400, 404)
+
+
+def test_un_segnaposto_non_riempito_ferma_il_prompt(tmp_path, monkeypatch):
+    """Un segnaposto rimasto vuoto non e' un dettaglio estetico: al modello
+    arriverebbe la parola «{fase1}» sotto un titolo che promette le conclusioni
+    della fase precedente. Lui non le ha, e la sua risposta sembra comunque una
+    risposta."""
+    monkeypatch.setattr(materiale, "PROMPT_DIR", tmp_path)
+    (tmp_path / "prova.txt").write_text("Ecco {questo} e anche {quello}.", encoding="utf-8")
+
+    with pytest.raises(materiale.AnalisiError, match="quello"):
+        materiale.prompt("prova", questo="riempito")
+
+    assert materiale.prompt("prova", questo="a", quello="b") == "Ecco a e anche b."
+
+
+def test_ogni_referto_dice_quale_prompt_lo_ha_scritto(tmp_path, monkeypatch):
+    """Due referti dello stesso metodo non sono confrontabili se nel mezzo il
+    prompt e' cambiato, e senza impronta non c'e' modo di accorgersene: il
+    referto conserva la risposta, non la domanda."""
+    monkeypatch.setattr(materiale, "PROMPT_DIR", tmp_path)
+    (tmp_path / "prova.txt").write_text("uno", encoding="utf-8")
+
+    prima = materiale.impronta_prompt("prova")
+    assert prima["prompt"] == "prova" and len(prima["impronta"]) == 12
+
+    (tmp_path / "prova.txt").write_text("due, diverso", encoding="utf-8")
+    dopo = materiale.impronta_prompt("prova")
+
+    assert dopo["impronta"] != prima["impronta"], "il prompt e' cambiato e si vede"
+    assert dopo["caratteri"] != prima["caratteri"]
+
+
+def test_i_prompt_veri_hanno_tutti_la_regola_sul_non_dare_consigli():
+    """Mancava in tre — tecnica, earnings e spin-off — che sono i piu' esposti a
+    scivolarci: una lettura tecnica e' a un passo dal «compra qui»."""
+    for file in sorted(materiale.PROMPT_DIR.glob("analisi_*.txt")):
+        testo = file.read_text(encoding="utf-8")
+        assert re.search(r"raccomandazion", testo, re.I), file.name
+    for numero in (1, 2, 3):
+        testo = (materiale.PROMPT_DIR / f"qualitativa_fase{numero}.txt").read_text()
+        assert re.search(r"raccomandazion", testo, re.I), numero

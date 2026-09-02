@@ -212,5 +212,6 @@ def esegui(simbolo: str, lavoro) -> dict:
     if risposta["rifiutata"]:
         raise AnalisiError("il modello ha rifiutato di rispondere")
 
-    return {"contenuto": {**materiale.leggi_json(risposta["testo"]), "dcf": conto},
+    return {"contenuto": {**materiale.leggi_json(risposta["testo"]), "dcf": conto,
+                          "prompt": materiale.impronta_prompt("analisi_forward")},
             "modello": risposta["modello"], "costo_usd": risposta["costo_usd"]}

@@ -24,6 +24,12 @@ contraddicono.
 **Non e' una view fondamentale**: non parlare di valutazione, multipli, qualita'
 del business o margini. Per quelli ci sono altri metodi.
 
+## Quello che NON devi produrre
+
+**Nessuna raccomandazione operativa: niente compra o vendi, nessun prezzo
+obiettivo, nessun livello di ingresso o di uscita.** Una lettura tecnica e' la
+piu' esposta a scivolarci — descrivi il regime dei prezzi, non cosa farne.
+
 ## Come rispondere
 
 Rispondi con UN SOLO blocco JSON, senza testo prima o dopo:
