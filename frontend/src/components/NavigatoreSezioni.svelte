@@ -18,18 +18,11 @@
     import Testo from "./Testo.svelte";
     import { sezioni } from "../lib/sezioni.svelte.js";
 
-    let { chiudi = null } = $props();
 </script>
 
 {#if sezioni.elenco.length > 1}
-    <nav class="navigatore d-none d-xl-block" aria-label="sezioni della pagina">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="small text-secondary">In questa pagina</span>
-            {#if chiudi}
-                <button class="btn btn-sm btn-link p-0 text-secondary"
-                        onclick={chiudi} aria-label="nascondi l'indice">×</button>
-            {/if}
-        </div>
+    <nav class="navigatore" aria-label="sezioni della pagina">
+        <div class="small text-secondary mb-1">In questa pagina</div>
 
         <!-- I due comandi complessivi. Quello che serve di piu' e' il primo:
              una pagina tutta aperta si richiude in un colpo, e da li' si apre
@@ -64,9 +57,9 @@
 {/if}
 
 <style>
+    /* Niente `sticky` qui: ce l'ha gia' la colonna che lo contiene, e due
+       sticky annidati non fanno il doppio del lavoro — fanno una cosa strana. */
     .navigatore {
-        position: sticky;
-        top: 1rem;
         border-left: 2px solid var(--bs-border-color);
         padding-left: 0.75rem;
     }

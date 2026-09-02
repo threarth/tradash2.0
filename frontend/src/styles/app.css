@@ -9,13 +9,20 @@
  */
 @import "bootstrap/dist/css/bootstrap.min.css";
 @import "bootstrap-icons/font/bootstrap-icons.css";
+/* I caratteri, ospitati in casa: nessuna chiamata a un servizio di font. */
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/source-serif-4/600.css";
 /* Dopo Bootstrap, perche' ne sovrascrive le variabili. */
 @import "./palette.css";
 
 /* I numeri incolonnati si leggono solo se le cifre hanno tutte la stessa
    larghezza: senza, una colonna di capitalizzazioni balla. */
 .numerico {
+    font-family: var(--font-numeri);
     font-variant-numeric: tabular-nums;
+    font-size: 0.94em;
     text-align: right;
 }
 
@@ -154,4 +161,11 @@
     border: 1px solid var(--bs-border-color);
     border-radius: .375rem;
     overflow: hidden;
+}
+
+/* La colonna dell'indice resta appiccicata in alto: l'etichetta MENU deve
+   essere raggiungibile a qualunque altezza della pagina, non solo in cima. */
+.colonna-indice {
+    position: sticky;
+    top: 1rem;
 }

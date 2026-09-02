@@ -12,6 +12,7 @@
     import Assente from "../components/Assente.svelte";
     import Caricamento from "../components/Caricamento.svelte";
     import Errore from "../components/Errore.svelte";
+    import EtichettaPannello from "../components/EtichettaPannello.svelte";
     import Analisi from "../components/Analisi.svelte";
     import Documenti from "../components/Documenti.svelte";
     import FilingDaSalvare from "../components/FilingDaSalvare.svelte";
@@ -164,15 +165,8 @@
     <!-- La scheda e' lunga: l'indice sta a destra e segue dove sei. Su schermi
          stretti sparisce, perche' li' ruberebbe piu' spazio di quanto ne
          faccia risparmiare. -->
-    {#if !pannelli.indice}
-        <div class="d-none d-xl-flex justify-content-end mb-2">
-            <button class="btn btn-sm btn-link p-0 text-secondary"
-                    onclick={() => mostra("indice")}>‹ mostra l'indice</button>
-        </div>
-    {/if}
-
     <div class="row g-4">
-    <div class={pannelli.indice ? "col-12 col-xl-10" : "col-12"}>
+    <div class={pannelli.indice ? "col-12 col-xl-10" : "col-12 col-xl-11"}>
         {#if profilo.long_business_summary}
             <!-- Era un `<details>` sciolto, quindi non compariva nell'indice: una
                  sezione che c'e' ma che il menu non nomina si trova solo per
@@ -194,11 +188,9 @@
             <div class="row g-3">
                 <div class={pannelli.indicatori ? "col-12 col-xl-9" : "col-12"}>
                     <div class="d-flex justify-content-end mb-1">
-                        <button class="btn btn-sm btn-link p-0 text-secondary"
-                                onclick={() => mostra("indicatori")}>
-                            {pannelli.indicatori
-                                ? "nascondi gli indicatori ›" : "‹ indicatori"}
-                        </button>
+                        <EtichettaPannello nome="Indicatori"
+                                           aperto={pannelli.indicatori}
+                                           cambia={() => mostra("indicatori")} />
                     </div>
                     <Grafico barre={grafico.dato.barre} serie={grafico.dato.serie}
                              configurazione={grafico.dato.configurazione} />
@@ -272,11 +264,20 @@
         {/each}
     </div>
 
-    {#if pannelli.indice}
-        <div class="col-12 col-xl-2">
-            <NavigatoreSezioni chiudi={() => mostra("indice")} />
+    <!-- La colonna dell'indice c'e' sempre: dentro, l'etichetta MENU e' lo
+         stesso interruttore aperto o chiuso, e resta dov'e'. Un pulsante che si
+         sposta quando lo premi si ritrova solo cercandolo. -->
+    <div class={pannelli.indice ? "col-12 col-xl-2" : "col-12 col-xl-1"}>
+        <div class="colonna-indice d-none d-xl-block">
+            <div class="mb-2">
+                <EtichettaPannello nome="Menu" aperto={pannelli.indice}
+                                   cambia={() => mostra("indice")} />
+            </div>
+            {#if pannelli.indice}
+                <NavigatoreSezioni />
+            {/if}
         </div>
-    {/if}
+    </div>
     </div>
     {/if}
 {/if}

@@ -1,11 +1,22 @@
 /*
- * palette.css — i colori del thematic-equity-monitor, portati su Bootstrap.
- * feat (Blocco 4): la sua palette, che si legge meglio di quella di serie.
+ * palette.css — i colori, riscaldati.
+ * feat (Blocco 4, ripreso): via il blu notte con l'accento ciano.
  *
- * Non e' una scelta estetica arbitraria: quel blu notte con l'accento ciano e'
- * gia' stato guardato per ore su schermi veri, e i tre colori di stato — verde,
- * ambra, rosa — sono quelli con cui profilo e maturity si distinguono a colpo
- * d'occhio scorrendo un elenco lungo.
+ * La prima versione portava la palette del thematic-equity-monitor: blu notte
+ * #081019 con accento ciano. Si legge bene — era stata guardata per ore su
+ * schermi veri — ma e' anche l'aria che hanno tutti i cruscotti generati: fondo
+ * blu-nero freddo, accento ciano elettrico, verde e rosa al neon.
+ *
+ * Qui il fondo e' un nero CALDO, con dentro un po' di terra, e la carta sopra
+ * ha lo stesso tono. L'accento e' un ocra, non un ciano: e' il colore che si
+ * nota di meno fra quelli che si notano, e non somiglia a niente di
+ * predefinito. Il su e il giu' restano distinguibili — verde salvia e cotto —
+ * ma smettono di essere fluorescenti: su una tabella lunga, il neon stanca in
+ * mezz'ora.
+ *
+ * I nomi delle variabili restano `--monitor-*`: cambiare anche quelli
+ * vorrebbe dire toccare ottanta punti del foglio per un rinominare, e il
+ * rinominare non e' la cosa che serve.
  *
  * Attenzione a come Bootstrap 5.3 lega i suoi colori: `--bs-primary` governa
  * `text-primary`, i bordi e i `text-bg-*`, ma i pulsanti hanno i colori
@@ -17,34 +28,76 @@
 :root {
     /* I colori del monitor, con i loro nomi. Le mappature su Bootstrap
        vengono dopo, cosi' si vede quale valore sta andando dove. */
-    --monitor-fondo: #081019;
-    --monitor-pannello: #101b27;
-    --monitor-sezione: #0d1823;
-    --monitor-linea: #263544;
-    --monitor-testo: #e9f0f5;
-    --monitor-attenuato: #8fa4b5;
-    --monitor-ciano: #62d4ff;
-    --monitor-ciano-chiaro: #b8eaff;
-    --monitor-verde: #66d19e;
-    --monitor-ambra: #f2c166;
-    --monitor-rosa: #ff7b8d;
+    /* Il fondo: nero caldo, non blu. Tre gradini appena percettibili, perche'
+       un pannello si deve distinguere dallo sfondo senza diventare un riquadro. */
+    --monitor-fondo: #17150f;
+    --monitor-pannello: #201d16;
+    --monitor-sezione: #1b1812;
+    --monitor-linea: #3a352b;
+
+    /* Il testo ha lo stesso tono del fondo, schiarito: bianco puro su nero
+       caldo vibra, e su una tabella lunga si sente. */
+    --monitor-testo: #ece5d6;
+    --monitor-attenuato: #a09883;
+
+    /* L'accento e' un ocra. Non e' un vezzo: il ciano elettrico e' il colore
+       predefinito di ogni cruscotto, e qui serviva qualcosa che si notasse
+       senza gridare. */
+    --monitor-ciano: #d6a94b;
+    --monitor-ciano-chiaro: #f0cd83;
+
+    /* Su e giu' restano riconoscibili a colpo d'occhio, ma smettono di essere
+       fluorescenti: verde salvia e cotto, non verde acido e rosa shocking. */
+    --monitor-verde: #8bb37a;
+    --monitor-ambra: #d8a75c;
+    --monitor-rosa: #cd7a6b;
 
     /* Su fondo chiaro gli stessi toni servono piu' scuri, o spariscono. */
-    --monitor-ciano-scuro: #0a6f96;
-    --monitor-verde-scuro: #1c7d55;
-    --monitor-ambra-scuro: #8a6100;
-    --monitor-rosa-scuro: #b32340;
+    --monitor-ciano-scuro: #8a6414;
+    --monitor-verde-scuro: #3f6b34;
+    --monitor-ambra-scuro: #8a5f10;
+    --monitor-rosa-scuro: #9c4436;
 
-    /* Il testo che va SOPRA un fondo pieno d'accento: quasi nero, perche' i
-       toni del monitor sono chiari e il bianco sopra ci sparisce. */
-    --monitor-su-accento: #06131d;
+    /* Il testo che va SOPRA un fondo pieno d'accento. */
+    --monitor-su-accento: #17150f;
+
+    /* I caratteri. Tre famiglie con tre mestieri diversi, ospitate in casa:
+       chiederle a un servizio di font vorrebbe dire una chiamata verso
+       l'esterno a ogni apertura di pagina, e qui non se ne fanno.
+       - il serif e' per i titoli: da' alla pagina un'aria da documento
+         invece che da pannello di controllo;
+       - il sans e' per il testo, con una forma piu' definita di quella di
+         sistema;
+       - il monospazio e' per i numeri, che in una tabella devono incolonnarsi. */
+    --font-titoli: "Source Serif 4", Georgia, "Iowan Old Style", serif;
+    --font-testo: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --font-numeri: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 /* La misura del monitor: 14px con interlinea 1.45. Bootstrap parte da 16px,
    che su tabelle di undicimila righe costringe a scorrere il doppio. */
 body {
     font-size: 14px;
-    line-height: 1.45;
+    line-height: 1.5;
+    font-family: var(--font-testo);
+    /* Le forme aperte del Plex si leggono meglio con un filo d'aria fra le
+       lettere; senza, a 14px si stringono. */
+    letter-spacing: 0.005em;
+}
+
+/* I titoli in serif. E' la differenza che si nota per prima, ed e' voluta: una
+   pagina di soli sans a pesi diversi somiglia a ogni altra pagina generata. */
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+    font-family: var(--font-titoli);
+    letter-spacing: -0.01em;
+    font-weight: 600;
+}
+
+/* Il simbolo di un titolo e' un'etichetta, non una parola: monospazio e
+   spaziato, cosi' si distingue dal testo attorno anche a colpo d'occhio. */
+.simbolo {
+    font-family: var(--font-numeri);
+    letter-spacing: 0.04em;
 }
 
 /* --- tema scuro: la palette del monitor, per intero -------------------- */

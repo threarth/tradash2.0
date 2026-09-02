@@ -1109,3 +1109,51 @@ E il compositore dei prompt adesso **rifiuta un segnaposto rimasto vuoto**. Se
 il file dichiara `{fase1}` e nessuno lo riempie, al modello arriva la parola
 «{fase1}» sotto un titolo che promette le conclusioni della fase precedente: lui
 non le ha, e la sua risposta sembra comunque una risposta.
+
+
+---
+
+## Via il blu notte con l'accento ciano
+
+La prima palette era quella del thematic-equity-monitor: fondo #081019, accento
+ciano #62d4ff, verde e rosa al neon. Si legge bene — era stata guardata per ore
+su schermi veri — **ma e' anche l'aria che hanno tutti i cruscotti generati.**
+Fondo blu-nero freddo, accento ciano elettrico, caratteri di sistema: si
+riconosce da lontano chi li ha fatti.
+
+Cambiate due cose, e la seconda conta piu' della prima.
+
+**I colori.** Il fondo e' un nero CALDO con dentro un po' di terra (#17150f), e
+la carta sopra ha lo stesso tono invece del bianco puro — che su nero vibra, e
+su una tabella lunga si sente. L'accento e' un ocra: e' il colore che si nota di
+meno fra quelli che si notano, e non somiglia a niente di predefinito. Su e giu'
+restano distinguibili a colpo d'occhio ma smettono di essere fluorescenti —
+verde salvia e cotto — perche' il neon stanca in mezz'ora.
+
+**I caratteri, che erano quelli di sistema.** Tre famiglie con tre mestieri:
+Source Serif per i titoli, che da' alla pagina un'aria da documento invece che
+da pannello di controllo; IBM Plex Sans per il testo; IBM Plex Mono per i
+numeri e per i simboli, che in una tabella devono incolonnarsi.
+
+**Ospitati in casa**, non chiesti a un servizio di font: una pagina che a ogni
+apertura chiama Google per i caratteri e' una chiamata verso l'esterno, e qui
+non se ne fanno. Verificato sul build: zero riferimenti a `fonts.googleapis`,
+tutti gli `url()` puntano a `/assets`.
+
+Una nota pratica costata dieci minuti: il progetto usa **pnpm**, e `npm install`
+su un albero di pnpm non fallisce con un messaggio chiaro — si rompe con
+«Cannot read properties of null (reading 'edgesOut')», che non dice niente.
+
+---
+
+## Aprire e chiudere devono essere lo stesso gesto
+
+Il pulsante per chiudere un pannello stava dentro il pannello, e quello per
+riaprirlo da un'altra parte: **due bersagli diversi per una cosa sola**, e il
+secondo si trovava solo cercandolo.
+
+Adesso l'etichetta e' la stessa aperta o chiusa, resta dov'e', e si preme due
+volte per tornare al punto di prima. Chiusa diventa una striscia verticale:
+occupa una colonna sottile invece di una riga in mezzo al contenuto. E la
+colonna del menu resta appiccicata in alto, perche' l'interruttore dev'essere
+raggiungibile a qualunque altezza della pagina.
