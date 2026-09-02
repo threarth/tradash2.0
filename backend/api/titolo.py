@@ -183,7 +183,51 @@ def prezzi(simbolo: str):
     return ok({"symbol": simbolo.strip().upper(), "barre": barre, "serie": serie,
                "configurazione": configurazione, "source": lettura.source,
                "sedute_calcolate": len(tutte),
+               "ultimo_prezzo": tutte[-1]["close"] if tutte else None,
+               "ultima_seduta": tutte[-1]["timestamp"] if tutte else None,
+               # Le variazioni su tutti gli intervalli, non solo su quello
+               # mostrato: costano zero — i prezzi sono gia' letti tutti — e
+               # servono a rispondere a «e sul trimestre?» senza ricaricare.
+               "variazioni": _variazioni(tutte),
                "intervalli": list(config.INTERVALLI_GRAFICO)})
+
+
+def _variazioni(barre: list[dict]) -> dict:
+    """Quanto si e' mosso il prezzo su ciascun intervallo.
+
+    Il confronto e' con la PRIMA seduta dell'intervallo, non con quella di
+    esattamente N giorni fa: se quel giorno la borsa era chiusa non esiste un
+    prezzo, e prendere il piu' vicino sarebbe un confronto con una data diversa
+    da quella dichiarata.
+
+    Un intervallo piu' lungo della storia disponibile vale `None`, non zero: un
+    titolo quotato da otto mesi non ha fatto lo 0% in cinque anni.
+    """
+    if not barre:
+        return {}
+
+    ultimo = barre[-1]["close"]
+    fatte = {}
+    for nome, giorni in config.INTERVALLI_GRAFICO.items():
+        if giorni is None:
+            dentro = barre
+        else:
+            da = (datetime.now(UTC) - timedelta(days=giorni)).strftime("%Y-%m-%d")
+            dentro = [b for b in barre if b["timestamp"] >= da]
+
+        # Serve almeno una seduta PRIMA dell'intervallo, altrimenti la storia
+        # comincia dentro e il confronto sarebbe con se stessa.
+        abbastanza = len(dentro) >= 2 and (giorni is None or len(dentro) < len(barre))
+        primo = dentro[0]["close"] if dentro else None
+        fatte[nome] = {
+            "variazione": (round(ultimo / primo - 1, 6)
+                           if abbastanza and primo else None),
+            "da": dentro[0]["timestamp"] if dentro else None,
+            "sedute": len(dentro),
+            "reason": None if abbastanza else "la storia del titolo non copre "
+                                              "tutto l'intervallo",
+        }
+    return fatte
 
 
 @bp.get("/<simbolo>/grafico")

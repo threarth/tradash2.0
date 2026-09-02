@@ -209,3 +209,48 @@ def test_i_quattro_assenti_si_riconoscono_tutti():
         assert tipi.manca(valore) is True, valore
     for valore in (0, 0.0, "", "x", False):
         assert tipi.manca(valore) is False, valore
+
+
+# --- le variazioni per periodo, in cima alla scheda ------------------------
+
+def test_le_variazioni_arrivano_per_ogni_intervallo(client, monkeypatch):
+    """Costano zero — i prezzi si leggono gia' tutti — e servono a rispondere a
+    «e sul trimestre?» senza ricaricare la pagina."""
+    giorni = 400
+    inizio = date.today() - timedelta(days=giorni - 1)
+    monkeypatch.setattr(defeatbeta, "prices", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame({
+            "report_date": [(inizio + timedelta(days=i)).isoformat() for i in range(giorni)],
+            "open": [100.0] * giorni, "high": [100.0] * giorni,
+            "low": [100.0] * giorni, "close": [100.0 + i for i in range(giorni)],
+            "volume": [1e6] * giorni,
+        }),
+        scope=s, category="price", source="cache", available=True, reason="finto"))
+
+    d = client.get("/api/titolo/X/prezzi?intervallo=1A").get_json()["data"]
+
+    assert d["ultimo_prezzo"] == 100.0 + giorni - 1
+    assert set(d["variazioni"]) == set(config.INTERVALLI_GRAFICO)
+    for nome, v in d["variazioni"].items():
+        assert "da" in v and "sedute" in v, nome
+
+
+def test_un_intervallo_piu_lungo_della_storia_non_vale_zero(client, monkeypatch):
+    """Un titolo quotato da otto mesi non ha fatto lo 0% in cinque anni."""
+    giorni = 60
+    # La storia deve arrivare fino a OGGI: con dati vecchi di un mese anche la
+    # finestra a un mese sarebbe vuota, ed e' un caso diverso da quello provato.
+    inizio = date.today() - timedelta(days=giorni - 1)
+    monkeypatch.setattr(defeatbeta, "prices", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame({
+            "report_date": [(inizio + timedelta(days=i)).isoformat() for i in range(giorni)],
+            "open": [10.0] * giorni, "high": [10.0] * giorni, "low": [10.0] * giorni,
+            "close": [10.0 + i for i in range(giorni)], "volume": [1e6] * giorni,
+        }),
+        scope=s, category="price", source="cache", available=True, reason="finto"))
+
+    d = client.get("/api/titolo/X/prezzi").get_json()["data"]
+
+    assert d["variazioni"]["5A"]["variazione"] is None
+    assert "non copre" in d["variazioni"]["5A"]["reason"]
+    assert d["variazioni"]["1M"]["variazione"] is not None, "il mese invece c'e'"

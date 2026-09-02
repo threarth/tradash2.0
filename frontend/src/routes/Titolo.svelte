@@ -35,6 +35,32 @@
 
     let intervallo = $state("1A");
 
+    // Cosa e' aperto attorno al contenuto: il pannello degli indicatori e
+    // l'indice laterale. Si ricordano nel browser — chi lavora su uno schermo
+    // stretto li chiude una volta, non a ogni visita.
+    const CHIAVE_PANNELLI = "tradash-pannelli";
+
+    function leggiPannelli() {
+        try {
+            return { indicatori: true, indice: true,
+                     ...JSON.parse(localStorage.getItem(CHIAVE_PANNELLI) ?? "{}") };
+        } catch {
+            return { indicatori: true, indice: true };
+        }
+    }
+
+    let pannelli = $state(leggiPannelli());
+
+    function mostra(quale) {
+        pannelli = { ...pannelli, [quale]: !pannelli[quale] };
+        try {
+            localStorage.setItem(CHIAVE_PANNELLI, JSON.stringify(pannelli));
+        } catch {
+            // Un browser che non lascia scrivere non deve rompere la pagina:
+            // si perde il ricordo, non il pannello.
+        }
+    }
+
     const scheda = richiedi(() => api.titolo(simbolo));
     const grafico = richiedi(() => api.titoloPrezzi(simbolo, intervallo));
 
@@ -80,7 +106,55 @@
                 </div>
             {/if}
         </div>
-        <a class="btn btn-sm btn-outline-secondary" href="/watchlist">← Watchlist</a>
+        <!-- Prezzo e variazione stanno in ALTO, prima di tutto il resto: sono
+             le due cose che si guardano per prime, e cercarle a meta' pagina
+             dentro il grafico e' una piccola fatica ripetuta ogni volta.
+             Il periodo e' lo STESSO del grafico: un secondo selettore che fa
+             quasi la stessa cosa costringerebbe a tenerli allineati a mente. -->
+        <div class="text-end">
+            {#if grafico.dato?.ultimo_prezzo}
+                {@const v = grafico.dato.variazioni?.[intervallo]}
+                <div class="h4 mb-0 numerico">
+                    {grafico.dato.ultimo_prezzo.toFixed(2)}
+                </div>
+                <div class="small numerico"
+                     class:text-success={v?.variazione > 0}
+                     class:text-danger={v?.variazione < 0}
+                     class:text-secondary={!v?.variazione}>
+                    {#if v?.variazione !== null && v?.variazione !== undefined}
+                        {v.variazione >= 0 ? "+" : ""}{(v.variazione * 100).toFixed(1)}%
+                        su {intervallo}
+                    {:else}
+                        <span title={v?.reason}>— su {intervallo}</span>
+                    {/if}
+                </div>
+                <div class="small text-secondary">
+                    chiusura del {grafico.dato.ultima_seduta}
+                </div>
+            {/if}
+            <a class="btn btn-sm btn-outline-secondary mt-2"
+               href="/watchlist">← Watchlist</a>
+        </div>
+    </div>
+
+    <!-- I selettori di periodo governano il confronto qui sopra E il grafico. -->
+    <div class="btn-group btn-group-sm mb-3">
+        {#each (grafico.dato?.intervalli ?? []) as nome (nome)}
+            {@const v = grafico.dato?.variazioni?.[nome]}
+            <button class="btn {intervallo === nome
+                        ? 'btn-primary' : 'btn-outline-secondary'}"
+                    title={v?.reason ?? (v?.da ? `dal ${v.da}` : "")}
+                    onclick={() => (intervallo = nome)}>
+                {nome}
+                {#if v?.variazione !== null && v?.variazione !== undefined}
+                    <span class="small numerico ms-1"
+                          class:text-success={intervallo !== nome && v.variazione > 0}
+                          class:text-danger={intervallo !== nome && v.variazione < 0}>
+                        {v.variazione >= 0 ? "+" : ""}{(v.variazione * 100).toFixed(0)}%
+                    </span>
+                {/if}
+            </button>
+        {/each}
     </div>
 
     {#if !profilo.available}
@@ -90,25 +164,23 @@
     <!-- La scheda e' lunga: l'indice sta a destra e segue dove sei. Su schermi
          stretti sparisce, perche' li' ruberebbe piu' spazio di quanto ne
          faccia risparmiare. -->
-    <div class="row g-4">
-    <div class="col-12 col-xl-10">
-        {#if profilo.long_business_summary}
-            <details class="mb-3">
-                <summary class="text-secondary small">Cosa fa questa societa'</summary>
-                <p class="small mt-2 mb-0"><Testo testo={profilo.long_business_summary} /></p>
-            </details>
-        {/if}
-
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <h2 class="h6 mb-0">Prezzo</h2>
-            <div class="btn-group btn-group-sm">
-                {#each (grafico.dato?.intervalli ?? []) as nome (nome)}
-                    <button class="btn {intervallo === nome
-                                ? 'btn-primary' : 'btn-outline-secondary'}"
-                            onclick={() => (intervallo = nome)}>{nome}</button>
-                {/each}
-            </div>
+    {#if !pannelli.indice}
+        <div class="d-none d-xl-flex justify-content-end mb-2">
+            <button class="btn btn-sm btn-link p-0 text-secondary"
+                    onclick={() => mostra("indice")}>‹ mostra l'indice</button>
         </div>
+    {/if}
+
+    <div class="row g-4">
+    <div class={pannelli.indice ? "col-12 col-xl-10" : "col-12"}>
+        {#if profilo.long_business_summary}
+            <!-- Era un `<details>` sciolto, quindi non compariva nell'indice: una
+                 sezione che c'e' ma che il menu non nomina si trova solo per
+                 caso. Adesso e' una sezione come le altre. -->
+            <Sezione id="descrizione" titolo="Descrizione" aperta={false}>
+                <p class="small mb-0"><Testo testo={profilo.long_business_summary} /></p>
+            </Sezione>
+        {/if}
 
         {#if grafico.primoCaricamento}
             <Caricamento testo="carico i prezzi…" />
@@ -120,7 +192,14 @@
                  pagina costringerebbe a scorrere avanti e indietro per vedere
                  l'effetto di ogni modifica. -->
             <div class="row g-3">
-                <div class="col-12 col-xl-9">
+                <div class={pannelli.indicatori ? "col-12 col-xl-9" : "col-12"}>
+                    <div class="d-flex justify-content-end mb-1">
+                        <button class="btn btn-sm btn-link p-0 text-secondary"
+                                onclick={() => mostra("indicatori")}>
+                            {pannelli.indicatori
+                                ? "nascondi gli indicatori ›" : "‹ indicatori"}
+                        </button>
+                    </div>
                     <Grafico barre={grafico.dato.barre} serie={grafico.dato.serie}
                              configurazione={grafico.dato.configurazione} />
                     <p class="small text-secondary mt-2">
@@ -129,11 +208,13 @@
                         indicatori · dati arrivati da {grafico.dato.source}
                     </p>
                 </div>
-                <div class="col-12 col-xl-3">
-                    <PannelloIndicatori {simbolo}
-                                        configurazione={grafico.dato.configurazione}
-                                        salvata={grafico.ricarica} />
-                </div>
+                {#if pannelli.indicatori}
+                    <div class="col-12 col-xl-3">
+                        <PannelloIndicatori {simbolo}
+                                            configurazione={grafico.dato.configurazione}
+                                            salvata={grafico.ricarica} />
+                    </div>
+                {/if}
             </div>
         {/if}
 
@@ -191,9 +272,11 @@
         {/each}
     </div>
 
-    <div class="col-12 col-xl-2">
-        <NavigatoreSezioni />
-    </div>
+    {#if pannelli.indice}
+        <div class="col-12 col-xl-2">
+            <NavigatoreSezioni chiudi={() => mostra("indice")} />
+        </div>
+    {/if}
     </div>
     {/if}
 {/if}

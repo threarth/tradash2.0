@@ -17,12 +17,18 @@
 <script>
     import Testo from "./Testo.svelte";
     import { sezioni } from "../lib/sezioni.svelte.js";
+
+    let { chiudi = null } = $props();
 </script>
 
 {#if sezioni.elenco.length > 1}
     <nav class="navigatore d-none d-xl-block" aria-label="sezioni della pagina">
         <div class="d-flex justify-content-between align-items-center mb-1">
             <span class="small text-secondary">In questa pagina</span>
+            {#if chiudi}
+                <button class="btn btn-sm btn-link p-0 text-secondary"
+                        onclick={chiudi} aria-label="nascondi l'indice">×</button>
+            {/if}
         </div>
 
         <!-- I due comandi complessivi. Quello che serve di piu' e' il primo:
