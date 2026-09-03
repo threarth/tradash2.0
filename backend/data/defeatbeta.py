@@ -612,22 +612,39 @@ def _ticker(simbolo: str):
     return Ticker(simbolo, log_level=DUCKDB_LOG_LEVEL_SILENT)
 
 
-def _esegui_metodo(simbolo: str, metodo: str) -> tuple[pd.DataFrame, int]:
+def _esegui_metodo(simbolo: str, metodo: str):
     """Chiama un metodo della libreria contando le richieste HTTP che ha fatto.
 
     Il conteggio funziona anche se il metodo usa un cursore suo: il log di
     DuckDB e' della connessione, non del cursore.
+
+    **Un secondo tentativo, come per le query.** La difesa contro la cache
+    disallineata era scritta solo per `_esegui`, e questa e' la seconda porta
+    che da' sullo stesso motore: il DCF di F e' fallito con
+    `don't know what type` — l'errore che il commento di `_esegui` cita per
+    nome — e il punteggio di rischio ne e' uscito con due componenti «non
+    calcolabili» invece che col loro valore. Una difesa che copre una porta su
+    due non e' una difesa: e' una porta.
     """
-    cursore = _ensure_client().connection.cursor()
-    _stato["cursore_attivo"] = cursore
-    try:
-        cursore.execute(SQL_TRUNCATE_LOG)
-        frame = getattr(_ticker(simbolo), metodo)()
-        richieste = cursore.execute(SQL_COUNT_HTTP).fetchone()[0]
-        return frame, int(richieste)
-    finally:
-        _stato["cursore_attivo"] = None
-        cursore.close()
+    for tentativo in range(TENTATIVI):
+        cursore = _ensure_client().connection.cursor()
+        _stato["cursore_attivo"] = cursore
+        try:
+            cursore.execute(SQL_TRUNCATE_LOG)
+            risultato = getattr(_ticker(simbolo), metodo)()
+            richieste = cursore.execute(SQL_COUNT_HTTP).fetchone()[0]
+            return risultato, int(richieste)
+        except Exception:
+            if tentativo == TENTATIVI - 1:
+                raise
+            logger.warning("[DEFEATBETA] %s per %s fallito: si ricomincia da capo",
+                           metodo, simbolo)
+            _dimentica_il_client()
+        finally:
+            _stato["cursore_attivo"] = None
+            cursore.close()
+
+    raise DefeatbetaUnavailable(f"{metodo} non riuscito dopo il secondo tentativo")
 
 
 def metrica(simbolo: str, nome: str, run_id: str | None = None) -> Lettura:

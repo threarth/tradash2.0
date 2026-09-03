@@ -10,6 +10,18 @@
     L'esportato e l'importato hanno la STESSA forma: un formato per uscire e un
     altro per rientrare sarebbero due occasioni di sbagliare.
 
+    ## Tre domande diverse, tre prompt
+
+    - **Classifica questi** — hai i simboli e vuoi temi, profilo e maturity.
+    - **Trovamene di nuovi** — hai un tema e vuoi sapere chi ci sta dentro.
+    - **Cosa non ci sta piu' bene** — hai la watchlist e vuoi che qualcuno la
+      guardi con occhi freschi: doppioni, classificazioni che non tornano, temi
+      appesi a un titolo solo.
+
+    Il terzo NON riceve bilanci ne' prezzi, e il suo prompt lo dice: quelli il
+    sistema li calcola da se', e meglio di quanto un modello se li ricordi. Cio'
+    che puo' vedere e' se la classificazione e' coerente.
+
     ## Per quali titoli
 
     Il caso utile non e' riclassificare quelli che hai gia': e' classificarne di
@@ -30,6 +42,7 @@
     let { onImportato } = $props();
 
     let daClassificare = $state("");
+    let temiDaCercare = $state("");
     let daImportare = $state("");
 
     /** I simboli scritti nella casella, separati da spazi o virgole. */
@@ -60,6 +73,28 @@
             const risposta = await api.prompt(simboli?.join(","));
             anteprima = risposta.prompt;
             await copia(risposta.prompt, "Prompt");
+        } catch (problema) {
+            esito = { errore: problema.message };
+        }
+    }
+
+    async function promptScoperta() {
+        esito = null;
+        try {
+            const risposta = await api.promptScoperta(temiDaCercare);
+            anteprima = risposta.prompt;
+            await copia(risposta.prompt, "Prompt di scoperta");
+        } catch (problema) {
+            esito = { errore: problema.message };
+        }
+    }
+
+    async function promptRevisione() {
+        esito = null;
+        try {
+            const risposta = await api.promptRevisione();
+            anteprima = risposta.prompt;
+            await copia(risposta.prompt, "Prompt di revisione");
         } catch (problema) {
             esito = { errore: problema.message };
         }
@@ -130,6 +165,27 @@
                 <span class="small text-success align-self-center">{testoCopiato}</span>
             {/if}
         </div>
+
+        <hr class="my-3" />
+
+        <label class="form-label small mb-1" for="temi-da-cercare">
+            Temi su cui cercare titoli nuovi
+        </label>
+        <input id="temi-da-cercare" class="form-control form-control-sm mb-1"
+               bind:value={temiDaCercare}
+               placeholder="quantum-computing, nuclear-smr — separati da virgola" />
+        <div class="d-flex gap-2 flex-wrap mb-3">
+            <button class="btn btn-sm btn-outline-primary" onclick={promptScoperta}
+                    disabled={!temiDaCercare.trim()}>
+                <i class="bi bi-search"></i> Prompt: trovamene di nuovi
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick={promptRevisione}>
+                <i class="bi bi-arrow-repeat"></i> Prompt: cosa non ci sta piu' bene
+            </button>
+        </div>
+        <p class="small text-secondary">
+            <Testo testo="Il prompt di revisione non riceve bilanci ne' prezzi: quelli il sistema li calcola da se', e meglio di quanto un modello se li ricordi. Quello che puo' vedere e' se la classificazione e' coerente, se ci sono doppioni, e su cosa varrebbe la pena chiedere un'analisi." />
+        </p>
 
         {#if anteprima}
             <textarea class="form-control form-control-sm mb-3" rows="6" readonly

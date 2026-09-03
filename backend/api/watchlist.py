@@ -120,6 +120,26 @@ def prompt():
         return fail(str(exc))
 
 
+@bp.get("/prompt/scoperta")
+def prompt_scoperta():
+    """Il testo per farsi proporre titoli NUOVI su temi precisi."""
+    grezzo = request.args.get("temi", "").strip()
+    voluti = [t.strip() for t in grezzo.split(",") if t.strip()]
+    try:
+        return ok({"prompt": watchlist.prompt_scoperta(voluti)})
+    except WatchlistError as exc:
+        return fail(str(exc))
+
+
+@bp.get("/prompt/revisione")
+def prompt_revisione():
+    """Il testo per farsi dire cosa, nella watchlist, non ci sta piu' bene."""
+    try:
+        return ok({"prompt": watchlist.prompt_revisione()})
+    except WatchlistError as exc:
+        return fail(str(exc))
+
+
 @bp.post("/importa")
 def importa():
     """Carica una classificazione prodotta altrove, dicendo di ognuno che fine ha fatto."""

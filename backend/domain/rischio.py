@@ -110,7 +110,7 @@ def da_discesa(profilo: dict | None) -> dict:
     )
 
 
-def da_coda(peso_terminale: float | None) -> dict:
+def da_coda(peso_terminale: float | None, motivo: str | None = None) -> dict:
     """Il rischio che viene da quanta parte del valore sta oltre l'orizzonte.
 
     Se meta' del valore dipende da cio' che succede dopo il decimo anno, il DCF
@@ -119,12 +119,13 @@ def da_coda(peso_terminale: float | None) -> dict:
     return _voce(
         "Valore oltre l'orizzonte", _banda(peso_terminale, CODA_MEDIA, CODA_ALTA),
         None if peso_terminale is None else round(peso_terminale, 4),
-        "non c'e' un DCF da cui misurarlo" if peso_terminale is None else
+        (motivo or "non c'e' un DCF da cui misurarlo") if peso_terminale is None else
         f"il {peso_terminale * 100:.0f}% del valore viene da dopo il decimo anno",
     )
 
 
-def da_crescita(implicita: float | None, storica: float | None) -> dict:
+def da_crescita(implicita: float | None, storica: float | None,
+                motivo: str | None = None) -> dict:
     """Il rischio che viene da quanto il prezzo chiede rispetto a quanto e' stato.
 
     Non e' «cresce poco» o «cresce tanto»: e' se il prezzo attuale pretende una
@@ -133,7 +134,7 @@ def da_crescita(implicita: float | None, storica: float | None) -> dict:
     """
     if implicita is None or not storica or storica <= 0:
         return _voce("Crescita richiesta dal prezzo", IGNOTO, None,
-                     "manca la crescita implicita o quella storica")
+                     motivo or "manca la crescita implicita o quella storica")
 
     rapporto = implicita / storica
     return _voce(

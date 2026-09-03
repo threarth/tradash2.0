@@ -85,6 +85,8 @@ export const api = {
     esporta: () => chiama("/watchlist/esporta"),
     importa: (dati) => chiama("/watchlist/importa", corpoJson("POST", dati)),
     prompt: (simboli) => chiama(`/watchlist/prompt${query({ simboli })}`),
+    promptScoperta: (temi) => chiama(`/watchlist/prompt/scoperta${query({ temi })}`),
+    promptRevisione: () => chiama("/watchlist/prompt/revisione"),
     tagElenco: () => chiama("/watchlist/tag"),
     tagCrea: (etichetta, padre) => chiama("/watchlist/tag", corpoJson("POST", { etichetta, padre })),
     tagElimina: (nome, cascata) =>
@@ -114,6 +116,7 @@ export const api = {
         chiama(`/titolo/${encodeURIComponent(simbolo)}/segnali${query({ as_of: asOf })}`),
     ricostruzione: (simbolo, asOf) =>
         chiama(`/titolo/${encodeURIComponent(simbolo)}/ricostruzione${query({ as_of: asOf })}`),
+    rischio: (simbolo) => chiama(`/titolo/${encodeURIComponent(simbolo)}/rischio`),
     salute: (simbolo, asOf) =>
         chiama(`/titolo/${encodeURIComponent(simbolo)}/salute${query({ as_of: asOf })}`),
     simulatore: (simbolo, da, capitale, base) =>

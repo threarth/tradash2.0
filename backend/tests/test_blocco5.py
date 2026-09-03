@@ -43,6 +43,7 @@ SENZA_GLOSSARIO = {
     "SchedaTitolo.svelte": "la prosa dei dati passa da Valore e da Assente",
     "Universo.svelte": "la prosa dei dati passa da Valore e da Assente",
     "Watchlist.svelte": "la prosa dei dati passa da Valore, Assente e SchedaTitolo",
+    "EtichettaPannello.svelte": "due parole fisse, MENU e INDICATORI: non e' prosa dei dati",
 }
 
 # I componenti attraverso cui passa quasi tutta la prosa che arriva dal backend.

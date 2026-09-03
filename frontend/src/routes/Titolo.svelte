@@ -22,6 +22,7 @@
     import NavigatoreSezioni from "../components/NavigatoreSezioni.svelte";
     import PannelloIndicatori from "../components/PannelloIndicatori.svelte";
     import Ricostruzione from "../components/Ricostruzione.svelte";
+    import Rischio from "../components/Rischio.svelte";
     import Salute from "../components/Salute.svelte";
     import Segnali from "../components/Segnali.svelte";
     import Sezione from "../components/Sezione.svelte";
@@ -211,6 +212,11 @@
         {/if}
 
         <hr class="my-4" />
+
+        <Sezione id="rischio" titolo="Rischio"
+                 descrizione="Deterministico: calcolato dai dati, senza nessun modello. Non viene dopo le analisi — viene prima, e loro lo ricevono gia' fatto invece di inventarsene uno.">
+            <Rischio {simbolo} />
+        </Sezione>
 
         <Sezione id="salute" titolo="Salute finanziaria"
                  descrizione="Le grandezze di bilancio e i rapporti di solidita'. Nessun punteggio di sintesi: il giudizio lo da' l'analisi fondamentale, ed e' uno solo.">

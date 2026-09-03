@@ -26,6 +26,7 @@
         "confidenza", "classificazione", "classificazione_scartata",
         "citations", "citazioni_scartate", "senza_riscontro", "copertura",
         "citazioni_non_prodotte",
+        "rischio_riportato",  // si vede accanto al consiglio, non come sezione
         "prompt",  // l'impronta di chi ha scritto: si vede nella copertura
         "menzioni_trovate", "menzioni_notizie", "menzioni_call",
         "dcf",  // ha un suo blocco qui sotto: la griglia va letta come tabella
@@ -35,6 +36,9 @@
     // qui vengono dopo, nell'ordine in cui il referto le porta: cosi' un metodo
     // nuovo non deve toccare questo elenco per mostrare le sue.
     const ORDINE = [
+        // Il consiglio e le sue condizioni aprono il referto: sono la riga che
+        // si legge per prima, e in fondo alla pagina si trovavano per ultime.
+        "consiglio", "a_quali_condizioni", "cosa_lo_cambierebbe",
         "thesis", "lettura", "business_overview", "cost_structure",
         "customers_revenue_quality", "competitors", "competitive_advantages",
         "industry_outlook", "management_governance", "recent_developments",
@@ -94,6 +98,15 @@
         )?.prezzo_equo;
     const copertura = $derived(contenuto?.copertura ?? null);
 </script>
+
+<!-- La banda di rischio sta ACCANTO al consiglio, non da sola: un consiglio
+     senza la sua banda e' meta' della risposta. -->
+{#if contenuto?.rischio_riportato}
+    <div class="small mb-2">
+        <span class="text-secondary">Rischio riportato:</span>
+        <strong class="text-uppercase">{contenuto.rischio_riportato}</strong>
+    </div>
+{/if}
 
 {#each sezioni as [chiave, valore] (chiave)}
     <div class="mt-2">

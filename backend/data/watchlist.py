@@ -694,8 +694,11 @@ def eventi(limit: int = config.WATCHLIST_EVENTS_LIMIT_DEFAULT) -> list[dict]:
 # questo l'esportato e l'importato hanno la STESSA forma: un formato per uscire
 # e un altro per rientrare sarebbero due occasioni di sbagliare.
 
-PROMPT_CLASSIFICAZIONE = Path(__file__).resolve().parent.parent / "prompts" / \
-    "watchlist_classificazione.txt"
+# Dove stanno i prompt della watchlist. Sono tre, e rispondono a tre domande
+# diverse: classifica quelli che ti do, proponimene di nuovi, dimmi cosa qui
+# dentro non ci sta piu' bene.
+PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
+PROMPT_CLASSIFICAZIONE = PROMPT_DIR / "watchlist_classificazione.txt"
 
 
 def esporta() -> dict:
@@ -710,6 +713,92 @@ def esporta() -> dict:
                     "profilo": t.get("profilo"), "maturity": t.get("maturity")}
                    for t in stato["titoli"]],
     }
+
+
+def _valori_ammessi() -> dict:
+    """I due vocabolari chiusi, nella forma in cui i prompt li mostrano."""
+    return {
+        "profili": "\n".join(f"   - {v}" for v in config.PROFILI),
+        "maturity": "\n".join(f"   - {v}" for v in config.MATURITY),
+    }
+
+
+def _temi_esistenti(stato: dict) -> str:
+    """I temi gia' in uso, coi nomi esatti: senza, il modello ne inventa di
+    paralleli e l'import si riempie di doppioni che dicono la stessa cosa."""
+    return "\n".join(
+        f"- `{t['nome']}` — {t['etichetta']}"
+        + (f" (sotto-ambito di {t['padre']})" if t.get("padre") else "")
+        for t in stato["tag"]
+    ) or "- (nessuno: creali tu)"
+
+
+def prompt_scoperta(temi: list[str]) -> str:
+    """Il testo per farsi proporre titoli NUOVI su temi precisi.
+
+    Porta con se' cosa c'e' gia': un titolo gia' in watchlist non e' una
+    scoperta, e proporlo occupa il posto di una.
+    """
+    voluti = [t.strip() for t in (temi or []) if t.strip()]
+    if not voluti:
+        raise WatchlistError("serve almeno un tema su cui cercare")
+
+    stato = _assicura_vista()
+    # Nello STATO i temi stanno sotto `tag` come elenco di nomi; `temi` e' la
+    # forma arricchita che produce `elenco()`. Leggere la chiave sbagliata non
+    # dava errore: dava una watchlist che sembrava senza temi.
+    presenti = "\n".join(
+        f"- {t['symbol']}"
+        + (f" — {', '.join(t['tag'])}" if t.get("tag") else " — senza tema")
+        for t in stato["titoli"]
+    ) or "- (la watchlist e' vuota)"
+
+    return _componi("watchlist_scoperta",
+                    temi_chiesti="\n".join(f"- {t}" for t in voluti),
+                    tag_esistenti=_temi_esistenti(stato),
+                    gia_presenti=presenti,
+                    **_valori_ammessi())
+
+
+def prompt_revisione() -> str:
+    """Il testo per farsi dire cosa nella watchlist non ci sta piu' bene.
+
+    Riceve la classificazione, non i numeri: bilanci e prezzi il sistema li
+    calcola da se', e meglio. Quello che il modello puo' vedere e' se la
+    classificazione e' coerente e se ci sono doppioni.
+    """
+    stato = _assicura_vista()
+    if not stato["titoli"]:
+        raise WatchlistError("non c'e' niente da rivedere: la watchlist e' vuota")
+
+    righe = []
+    for titolo in stato["titoli"]:
+        temi = ", ".join(titolo.get("tag") or []) or "nessun tema"
+        righe.append(f"- {titolo['symbol']}: temi [{temi}], "
+                     f"profilo {titolo.get('profilo') or 'non classificato'}, "
+                     f"maturity {titolo.get('maturity') or 'non classificata'}")
+
+    return _componi("watchlist_revisione",
+                    watchlist="\n".join(righe),
+                    tag_esistenti=_temi_esistenti(stato),
+                    **_valori_ammessi())
+
+
+def _componi(nome: str, **pezzi) -> str:
+    """Sostituisce i segnaposti di un prompt, e si accorge se ne resta uno vuoto.
+
+    I segnaposti si sostituiscono a mano perche' il testo contiene graffe di
+    esempio JSON che `format` interpreterebbe come segnaposti suoi.
+    """
+    testo = (PROMPT_DIR / f"{nome}.txt").read_text(encoding="utf-8")
+    for chiave, valore in pezzi.items():
+        testo = testo.replace(f"{{{chiave}}}", valore)
+
+    rimasti = sorted(set(re.findall(r"\{([a-z_][a-z0-9_]*)\}", testo)))
+    if rimasti:
+        raise WatchlistError(f"il prompt {nome} ha segnaposti non riempiti: "
+                             f"{', '.join(rimasti)}")
+    return testo
 
 
 def prompt_classificazione(simboli_richiesti: list[str] | None = None) -> str:

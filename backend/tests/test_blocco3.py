@@ -12,6 +12,7 @@ un solo tag per titolo, due livelli, il sotto-ambito implica il padre,
 cancellare un tag non cancella titoli.
 """
 import json
+import re
 
 import pytest
 
@@ -557,3 +558,66 @@ def test_ogni_categoria_dichiarata_per_titolo_ha_un_ttl():
     risulterebbe vecchia sempre."""
     for nome in config.FRESHNESS_CATEGORIE_PER_TITOLO:
         assert nome in config.FRESHNESS_TTL_S, nome
+
+
+# --- i due prompt nuovi: trovarne, e rivedere quelli che ci sono ------------
+
+def test_il_prompt_di_scoperta_porta_con_se_cosa_c_e_gia(universo_finto):
+    """Un titolo gia' in watchlist non e' una scoperta, e proporlo occupa il
+    posto di una."""
+    watchlist.tag_crea("Semiconductors")
+    watchlist.aggiungi("MU", tag=["semiconductors"])
+
+    testo = watchlist.prompt_scoperta(["quantum-computing"])
+
+    assert "- quantum-computing" in testo
+    assert "MU" in testo, "deve sapere cosa c'e' gia'"
+    assert "semiconductors" in testo, "e i temi che esistono"
+    for ammesso in config.PROFILI:
+        assert ammesso in testo
+
+
+def test_senza_temi_la_scoperta_non_parte():
+    with pytest.raises(watchlist.WatchlistError, match="almeno un tema"):
+        watchlist.prompt_scoperta([])
+
+
+def test_la_revisione_mostra_i_temi_veri_di_ogni_titolo(universo_finto):
+    """Nello stato i temi stanno sotto `tag`; leggere la chiave sbagliata non
+    dava errore — dava una watchlist che sembrava senza temi."""
+    watchlist.tag_crea("Semiconductors")
+    watchlist.aggiungi("MU", tag=["semiconductors"])
+
+    testo = watchlist.prompt_revisione()
+
+    assert "MU: temi [semiconductors]" in testo
+
+
+def test_su_una_watchlist_vuota_non_c_e_niente_da_rivedere():
+    with pytest.raises(watchlist.WatchlistError, match="vuota"):
+        watchlist.prompt_revisione()
+
+
+def test_la_revisione_non_riceve_ne_bilanci_ne_prezzi(universo_finto):
+    """Quelli il sistema li calcola da se', e meglio di quanto un modello se li
+    ricordi. Dargli numeri a memoria vorrebbe dire farglieli usare."""
+    watchlist.tag_crea("Semiconductors")
+    watchlist.aggiungi("MU", tag=["semiconductors"])
+
+    testo = watchlist.prompt_revisione()
+
+    assert "non hai i numeri" in testo.lower()
+    for vietato in ("prezzo attuale", "capitalizzazione di", "ROE del"):
+        assert vietato not in testo
+
+
+def test_ogni_prompt_della_watchlist_riempie_tutti_i_suoi_segnaposti(universo_finto):
+    """Un segnaposto rimasto vuoto arriva al modello come la parola «{tema}»
+    sotto un titolo che promette un contenuto."""
+    watchlist.tag_crea("Semiconductors")
+    watchlist.aggiungi("MU", tag=["semiconductors"])
+
+    for testo in (watchlist.prompt_classificazione(),
+                  watchlist.prompt_scoperta(["quantum"]),
+                  watchlist.prompt_revisione()):
+        assert not re.findall(r"\{[a-z_][a-z0-9_]*\}", testo)

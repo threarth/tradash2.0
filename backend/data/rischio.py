@@ -36,8 +36,12 @@ def _dal_dcf(simbolo: str, run_id: str | None) -> dict:
     try:
         misurato = forward.misure(simbolo, run_id)
     except (materiale.AnalisiError, defeatbeta.DefeatbetaUnavailable) as exc:
+        # Il motivo si conserva e si mostra: «questo titolo non ha un DCF» e
+        # «il DCF non ha risposto adesso» sono due cose diverse, e la seconda
+        # cambia se si riprova. Senza, il rischio cambiava banda fra una
+        # ricarica e l'altra senza dire perche'.
         logger.info("[RISCHIO] niente DCF per %s: %s", simbolo, exc)
-        return {}
+        return {"motivo": str(exc)}
 
     return {
         "peso_terminale": misurato["peso_del_valore_terminale"],
@@ -63,9 +67,9 @@ def calcola(simbolo: str, run_id: str | None = None) -> dict:
     componenti = [
         rischio.da_segnali(_segnali(ambito, run_id)),
         rischio.da_discesa(_discesa(ambito, run_id)),
-        rischio.da_coda(dal_dcf.get("peso_terminale")),
+        rischio.da_coda(dal_dcf.get("peso_terminale"), dal_dcf.get("motivo")),
         rischio.da_crescita(dal_dcf.get("crescita_implicita"),
-                            dal_dcf.get("crescita_storica")),
+                            dal_dcf.get("crescita_storica"), dal_dcf.get("motivo")),
     ]
 
     return {"symbol": ambito, **rischio.punteggio(componenti),
