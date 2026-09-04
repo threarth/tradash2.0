@@ -220,6 +220,38 @@ REGISTRY_EVENTI_MAX = 40
 # Sono un file JSON e non una tabella per lo stesso motivo della watchlist —
 # `manage.py rebuild` cancella il database, e una scelta che sparisce con la
 # ricostruzione tornerebbe al predefinito senza dirlo.
+# --- l'elenco degli spin-off recenti ---------------------------------------
+#
+# E' l'unico dato che NON viene da Defeatbeta, e la ragione e' che non esiste
+# li' dentro: l'indice dei filing e' recente-only (verificato su SNDK il
+# 04/09/2026 — 182 depositi, il piu' vecchio del 2026-01-21, nessun 10-12B), e
+# senza sapere CHI si e' separato non c'e' niente da cercare.
+#
+# Il confine resta quello deciso il 30/08: **niente parte da solo**. Questa
+# pagina si scarica quando premi il pulsante, e l'elenco resta nel file finche'
+# non lo ripremi. Nessun aggiornamento in background, nessun secondo provider
+# per i dati di mercato: qui si prende un elenco di nomi, non dei prezzi.
+SPINOFF_URL_MODELLO = "https://stockanalysis.com/actions/spinoffs/{anno}/"
+
+# Ci si presenta con un nome vero: chi riceve la richiesta ha diritto di sapere
+# chi e'. Nessuna finzione di essere un browser.
+SPINOFF_USER_AGENT = "tradash2.0 (strumento personale di analisi)"
+
+# Quanto si aspetta una pagina, e quanto si accetta di scaricare. Il tetto e'
+# una difesa, non un'ottimizzazione: una pagina da cento megabyte non e' la
+# pagina che ci aspettiamo.
+SPINOFF_TIMEOUT_S = 20
+SPINOFF_MAX_BYTE = 5 * 1024 * 1024
+
+# Quanti anni di pagine si leggono. Ne servono due perche' la pagina e' per
+# anno e la finestra utile e' di diciotto mesi: a febbraio, un anno solo
+# vorrebbe dire un elenco lungo sei settimane.
+SPINOFF_ANNI_INDIETRO = 1
+
+PRODUCTION_SPINOFF_PATH = BASE_DIR / "data" / "spinoff.json"
+SPINOFF_PATH = Path(os.environ.get("TRADASH2_SPINOFF", PRODUCTION_SPINOFF_PATH))
+SPINOFF_FILE_VERSION = 1
+
 PRODUCTION_IMPOSTAZIONI_PATH = BASE_DIR / "data" / "impostazioni.json"
 IMPOSTAZIONI_PATH = Path(os.environ.get("TRADASH2_IMPOSTAZIONI",
                                         PRODUCTION_IMPOSTAZIONI_PATH))

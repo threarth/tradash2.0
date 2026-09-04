@@ -31,6 +31,10 @@ backend/data/grafici.json.tmp
 backend/data/impostazioni.json
 backend/data/impostazioni.json.tmp
 
+# l'elenco degli spin-off: e' una pagina scaricata, si riprende col pulsante
+backend/data/spinoff.json
+backend/data/spinoff.json.tmp
+
 # i documenti SEC che scarichi tu: sono grossi e sono pubblici,
 # il repo non e' il posto giusto per tenerli
 backend/data/filings/
