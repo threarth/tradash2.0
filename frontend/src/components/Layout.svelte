@@ -20,6 +20,7 @@
     import { alternaTema, SCURO, temaAttuale } from "../lib/tema.js";
     import PannelloGlossario from "./PannelloGlossario.svelte";
     import PannelloLavori from "./PannelloLavori.svelte";
+    import SelettoreModello from "./SelettoreModello.svelte";
 
     let { children } = $props();
 
@@ -66,7 +67,8 @@
             {/each}
         </ul>
 
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 align-items-start">
+            <SelettoreModello />
             <button class="btn btn-sm {glossario.attivo
                         ? 'btn-outline-primary' : 'btn-outline-secondary'}"
                     onclick={() => glossario.alterna()}

@@ -142,6 +142,11 @@ export const api = {
     glossario: () => chiama("/glossario"),
 
     // --- lavori e chiamate: la regola 1 vista dal frontend ---
+    // --- impostazioni ---
+    impostazioniLlm: () => chiama("/impostazioni/llm"),
+    scegliModello: (modello) =>
+        chiama("/impostazioni/llm", corpoJson("PUT", { modello })),
+
     lavoriAttivi: () => chiama("/ops/active"),
     processo: () => chiama("/ops/processo"),
     lavoriStorici: () => chiama("/ops/history"),
