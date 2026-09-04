@@ -1244,3 +1244,28 @@ sotto che lo sta facendo: i numeri sopra restano quelli esatti del giorno.
 Niente doppia valuta, a differenza del vecchio: non abbiamo una fonte per i
 cambi, e l'effetto valuta qui non c'e' e non viene stimato. Era gia' dichiarato
 nella pagina, e resta vero.
+
+---
+
+## Il percorso giusto era quello che non funzionava dove serve
+
+La scheda dei documenti SEC mostrava la cartella in cui salvarli, con un pulsante
+per copiarla: `/home/dan/coding/tradash2.0/backend/data/filings/NVDA`. Corretto,
+e inutile — perche' **quel percorso va incollato in una finestra di salvataggio
+di Windows**, dove un indirizzo che comincia con `/home` non porta da nessuna
+parte.
+
+E' l'unico punto del sistema in cui il giro attraversa due sistemi operativi: la
+pagina gira dentro WSL, ma a scaricare e' il browser, che sta fuori. I due nomi
+dello stesso posto sono due, e ne mostravamo uno solo — quello sbagliato per chi
+doveva usarlo.
+
+Adesso ci sono tutti e due, e **per primo quello di Windows**, che e' quello che
+si copia: `\\wsl.localhost\Ubuntu-26.04\home\dan\...`.
+
+Il nome della distribuzione non si indovina: lo dichiara WSL nell'ambiente del
+processo (`WSL_DISTRO_NAME`), e «Ubuntu» e «Ubuntu-26.04» sono due percorsi
+diversi di cui uno non esiste. Se quel nome manca, la riga non compare **e la
+pagina dice perche'**: un campo che sparisce in silenzio si legge come un
+guasto. Fuori da WSL non compare e non c'e' niente da spiegare, perche' li' i
+due percorsi sono lo stesso.

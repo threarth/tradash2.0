@@ -12,6 +12,7 @@ Due principi che questi test difendono, e che vengono dal vecchio tradash:
 """
 import json
 import re
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -606,6 +607,56 @@ def test_lo_stato_dice_cosa_fare_quando_manca_qualcosa(indice_finto, tmp_path, m
     assert stato["pronti"] == 0
     assert "salva" in stato["action"]
     assert stato["cartella"].endswith("NVDA")
+
+
+# --- due sistemi, due nomi per lo stesso posto -----------------------------
+#
+# Il giro dei documenti SEC attraversa WSL e Windows: la pagina gira dentro
+# Linux, ma a salvare e' il browser, che sta fuori. Mostrare solo il percorso
+# Linux vuol dire mostrare, a chi deve incollarlo, l'unico dei due che nella
+# finestra di salvataggio non porta da nessuna parte.
+
+def test_su_wsl_la_cartella_ha_anche_il_nome_che_vede_windows(monkeypatch):
+    monkeypatch.setattr(filing_locali, "SU_WSL", True)
+    monkeypatch.setattr(config, "WSL_DISTRO", "Ubuntu-26.04")
+
+    dove, motivo = filing_locali.percorso_windows(Path("/home/dan/tradash/filings/NVDA"))
+
+    assert dove == r"\\wsl.localhost\Ubuntu-26.04\home\dan\tradash\filings\NVDA"
+    assert motivo is None
+
+
+def test_fuori_da_wsl_non_c_e_niente_da_tradurre(monkeypatch):
+    """E nemmeno niente da spiegare: li' i due percorsi sono lo stesso."""
+    monkeypatch.setattr(filing_locali, "SU_WSL", False)
+
+    assert filing_locali.percorso_windows(Path("/home/dan/filings/NVDA")) == (None, None)
+
+
+def test_su_wsl_senza_il_nome_della_distribuzione_lo_dice(monkeypatch):
+    """Un campo che sparisce senza dire perche' si legge come un guasto. E
+    indovinare il nome darebbe una cartella che non esiste: «Ubuntu» e
+    «Ubuntu-26.04» sono due percorsi diversi."""
+    monkeypatch.setattr(filing_locali, "SU_WSL", True)
+    monkeypatch.setattr(config, "WSL_DISTRO", None)
+
+    dove, motivo = filing_locali.percorso_windows(Path("/home/dan/filings/NVDA"))
+
+    assert dove is None
+    assert "WSL_DISTRO_NAME" in motivo
+
+
+def test_lo_stato_porta_tutti_e_due_i_percorsi(indice_finto, tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "FILING_DIR", tmp_path)
+    monkeypatch.setattr(filing_locali, "SU_WSL", True)
+    monkeypatch.setattr(config, "WSL_DISTRO", "Ubuntu-26.04")
+
+    stato = filing_locali.stato("NVDA")
+
+    assert stato["cartella"].endswith("NVDA")
+    assert stato["cartella_windows"].startswith(r"\\wsl.localhost\Ubuntu-26.04")
+    assert stato["cartella_windows"].endswith(r"\NVDA")
+    assert stato["cartella_windows_reason"] is None
 
 
 def test_senza_depositi_nell_indice_lo_dice(monkeypatch):
