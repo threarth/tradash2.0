@@ -15,6 +15,11 @@
     convenzione (`nvda-20260125.htm`) e quindi non garantito; il secondo apre la
     cartella e funziona sempre. Sapere il nome vero vorrebbe dire chiederlo a
     sec.gov, e a sec.gov questo sistema non chiede niente.
+
+    E su WSL anche le CARTELLE sono due, perche' il giro attraversa due sistemi:
+    la pagina gira dentro Linux, ma a salvare e' il browser, che sta su Windows —
+    e in una finestra di salvataggio di Windows un percorso che comincia con
+    `/home` non porta da nessuna parte. Quello da incollare sta per primo.
 -->
 <script>
     import Assente from "./Assente.svelte";
@@ -62,14 +67,35 @@
                 {/if}
             </div>
 
-            <div class="input-group input-group-sm mb-3">
-                <span class="input-group-text">Cartella</span>
-                <input class="form-control font-monospace" readonly value={d.cartella} />
-                <button class="btn btn-outline-secondary"
-                        onclick={() => copia(d.cartella, "Percorso")}>
-                    <i class="bi bi-clipboard"></i>
-                </button>
-            </div>
+            <!-- Su WSL sono due nomi dello stesso posto, e il primo e' quello
+                 che serve: e' li' che il browser deve salvare. Fuori da WSL ce
+                 n'e' uno solo, e la riga in piu' non compare. -->
+            {@const percorsi = d.cartella_windows
+                ? [{ dove: "Windows", quale: d.cartella_windows },
+                   { dove: "Linux", quale: d.cartella }]
+                : [{ dove: "Cartella", quale: d.cartella }]}
+
+            {#each percorsi as riga (riga.dove)}
+                <div class="input-group input-group-sm mb-2">
+                    <span class="input-group-text">{riga.dove}</span>
+                    <input class="form-control font-monospace" readonly value={riga.quale} />
+                    <button class="btn btn-outline-secondary" title="Copia {riga.dove}"
+                            onclick={() => copia(riga.quale, `Percorso ${riga.dove}`)}>
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                </div>
+            {/each}
+
+            {#if d.cartella_windows}
+                <p class="small text-secondary">
+                    <Testo testo="Il primo e' quello da incollare nella finestra di salvataggio del browser: la pagina gira dentro WSL, il browser no." />
+                </p>
+            {:else if d.cartella_windows_reason}
+                <p class="small text-warning">
+                    <Testo testo={d.cartella_windows_reason} />
+                </p>
+            {/if}
+
             {#if copiato}
                 <p class="small text-success">{copiato}</p>
             {/if}
