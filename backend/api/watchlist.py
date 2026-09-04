@@ -38,6 +38,9 @@ def elenco():
         "tag": watchlist.tag_elenco(),
         "profili": config.PROFILI,
         "maturity": config.MATURITY,
+        # Il tetto delle note lo dichiara il backend: l'interfaccia lo mostra
+        # invece di scoprirlo con un errore a salvataggio gia' tentato.
+        "nota_max_caratteri": config.WATCHLIST_NOTA_MAX_CARATTERI,
     })
 
 
@@ -84,7 +87,7 @@ def modifica():
 
 @bp.patch("/<simbolo>")
 def attributi(simbolo: str):
-    """L'editor della scheda: temi, profilo e maturity di UN titolo.
+    """L'editor della scheda: temi, profilo, maturity e note di UN titolo.
 
     Cio' che non arriva nel corpo non viene toccato: mandare `null` significa
     svuotare, non mandare il campo significa lasciarlo com'e'.
@@ -97,6 +100,8 @@ def attributi(simbolo: str):
             tag=corpo.get("tag", non_toccare),
             profilo=corpo.get("profilo", non_toccare),
             maturity=corpo.get("maturity", non_toccare),
+            perche=corpo.get("perche", non_toccare),
+            cosa_lo_distingue=corpo.get("cosa_lo_distingue", non_toccare),
         ))
     except WatchlistError as exc:
         return fail(str(exc))

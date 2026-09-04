@@ -397,6 +397,14 @@ MATURITY = ("CONCEPT", "DEVELOPMENT", "DEMONSTRATED", "CONTRACTED", "OPERATIONAL
 # incollaggio sbagliato non diventi una watchlist da diecimila righe.
 WATCHLIST_IMPORT_MAX = 500
 
+# Le due note scritte a mano su un titolo: perche' lo guardi, e cosa lo
+# distingue dagli altri dello stesso tema. Sono testo libero — nessun valore
+# ammesso da rispettare — ma con un tetto di caratteri, perche' un incollaggio
+# sbagliato non trasformi l'unico file non ricostruibile del sistema in un
+# archivio di documenti. Il tetto e' dichiarato dal backend e mostrato
+# nell'interfaccia: un testo troncato in silenzio si legge come un dato perso.
+WATCHLIST_NOTA_MAX_CARATTERI = 2000
+
 PRODUCTION_WATCHLIST_PATH = BASE_DIR / "data" / "watchlist.json"
 WATCHLIST_PATH = Path(os.environ.get("TRADASH2_WATCHLIST", PRODUCTION_WATCHLIST_PATH))
 

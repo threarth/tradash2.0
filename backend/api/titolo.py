@@ -27,6 +27,7 @@ from data import (
     materiale,
     ricostruzione,
     rischio,
+    watchlist,
 )
 from data.grafici import GraficiError
 from domain import (
@@ -122,6 +123,10 @@ def scheda(simbolo: str):
         "symbol": simbolo.strip().upper(),
         "name": _nome(simbolo),
         "profilo": _profilo(simbolo),
+        # Perche' questo titolo e' in watchlist, se ci sta: la descrizione dice
+        # cosa fa la societa', questa dice cosa ci fa QUI. Si scrive nella
+        # watchlist, che e' il posto dove si decide; qui si legge soltanto.
+        "note_watchlist": watchlist.note(simbolo),
         "sezioni_future": {
             nome: {"available": False,
                    "reason": f"{dati['cosa']}: non ancora costruita",

@@ -29,6 +29,18 @@ thematic-equity-monitor dove la scala e' gia' collaudata: **profilo** (quanto
 del valore e' gia' provato) e **maturity** (a che punto e' arrivato il
 business).
 
+E porta due note in testo libero: **perche'** lo guardi e **cosa lo
+distingue** dagli altri dello stesso tema. Il prompt di scoperta le chiede da
+sempre — sono le due domande a cui serve rispondere per non ritrovarsi, sei
+mesi dopo, un simbolo di cui non si ricorda il motivo — ma l'import le
+buttava via: entravano i temi, il profilo e la maturity, e il ragionamento
+che li aveva prodotti finiva nel cestino. Adesso restano, e si correggono a
+mano come tutto il resto.
+
+Le note NON stanno nella copia SQLite: la copia serve a filtrare e a fare
+JOIN, e su un testo libero non si filtra. `elenco()` le rimette accanto ai
+titoli leggendole dalla verita', che ha gia' in mano.
+
 Ogni modifica lascia una riga in `data/watchlist_events.jsonl`, append-only:
 cresce in fondo e non si corregge mai.
 """
@@ -57,6 +69,18 @@ CARATTERI_NON_SLUG = re.compile(r"[^a-z0-9]+")
 
 # Il separatore fra ambito e sotto-ambito dentro lo slug: 'semiconductor.memory'.
 SEPARATORE_LIVELLI = "."
+
+# Le due note in testo libero di un titolo. Viaggiano sempre insieme: chi
+# esporta, chi importa e chi legge l'elenco le tratta allo stesso modo, e
+# averle scritte in un posto solo evita che una delle due venga dimenticata
+# per strada — che e' esattamente com'e' nato il difetto che ha portato a
+# introdurle.
+CAMPI_NOTA = ("perche", "cosa_lo_distingue")
+
+# Un titolo senza note: la forma che `elenco()` restituisce quando la verita'
+# non ha niente da dire su quel simbolo, cosi' le chiavi ci sono comunque e il
+# frontend non deve distinguere «assente» da «vuoto».
+NOTE_VUOTE = dict.fromkeys(CAMPI_NOTA)
 
 # I tipi di evento che finiscono nello storico.
 EVENTO_AGGIUNTI = "titoli_aggiunti"
@@ -118,6 +142,8 @@ def _converti_da_v1(contenuto: dict) -> dict:
         titolo["tag"] = [vecchio_tag] if vecchio_tag else []
         titolo.setdefault("profilo", None)
         titolo.setdefault("maturity", None)
+        titolo.setdefault("perche", None)
+        titolo.setdefault("cosa_lo_distingue", None)
     contenuto["versione"] = config.WATCHLIST_FILE_VERSION
     logger.info("[WATCHLIST] file della versione 1 convertito al modello a piu' temi")
     return contenuto
@@ -419,10 +445,11 @@ def _sconosciuti(simboli: list[str]) -> tuple[list[str], str | None]:
 def _nuovo_titolo(simbolo: str, tag: list[str], istante: str) -> dict:
     """Un titolo appena aggiunto: temi eventuali, attributi ancora da decidere.
 
-    `profilo` e `maturity` nascono vuoti apposta: sono giudizi, e inventarli al
-    posto di chi guarda sarebbe peggio che lasciarli in bianco.
+    `profilo`, `maturity` e le due note nascono vuoti apposta: sono giudizi, e
+    inventarli al posto di chi guarda sarebbe peggio che lasciarli in bianco.
     """
     return {"symbol": simbolo, "tag": list(tag), "profilo": None, "maturity": None,
+            "perche": None, "cosa_lo_distingue": None,
             "preferito": False, "aggiunto_il": istante}
 
 
@@ -524,8 +551,30 @@ def _valida_attributo(valore: str | None, ammessi: tuple, nome: str) -> str | No
     return valore
 
 
-def imposta_attributi(simbolo: str, tag=..., profilo=..., maturity=...) -> dict:
-    """Cambia i temi e/o gli attributi di UN titolo. E' l'editor della scheda.
+def _valida_nota(valore: str | None, nome: str) -> str | None:
+    """Una nota in testo libero: si accetta com'e', ma non oltre il tetto.
+
+    Il testo troppo lungo si RIFIUTA invece di tagliarlo: un taglio silenzioso
+    fa credere di aver salvato tutto, e chi rilegge non ha modo di accorgersi
+    che manca la meta' di una frase.
+    """
+    if valore is None:
+        return None
+
+    pulito = str(valore).strip()
+    if not pulito:
+        return None
+    if len(pulito) > config.WATCHLIST_NOTA_MAX_CARATTERI:
+        raise WatchlistError(
+            f"{nome}: {len(pulito)} caratteri superano il tetto di "
+            f"{config.WATCHLIST_NOTA_MAX_CARATTERI}"
+        )
+    return pulito
+
+
+def imposta_attributi(simbolo: str, tag=..., profilo=..., maturity=...,
+                      perche=..., cosa_lo_distingue=...) -> dict:
+    """Cambia i temi, gli attributi e/o le note di UN titolo. E' l'editor della scheda.
 
     I parametri non passati restano come sono: `...` distingue "non toccare" da
     "svuota", che con `None` sarebbero la stessa cosa.
@@ -547,12 +596,21 @@ def imposta_attributi(simbolo: str, tag=..., profilo=..., maturity=...) -> dict:
             titolo["profilo"] = _valida_attributo(profilo, config.PROFILI, "profilo")
         if maturity is not ...:
             titolo["maturity"] = _valida_attributo(maturity, config.MATURITY, "maturity")
+        if perche is not ...:
+            titolo["perche"] = _valida_nota(perche, "perche")
+        if cosa_lo_distingue is not ...:
+            titolo["cosa_lo_distingue"] = _valida_nota(cosa_lo_distingue, "cosa_lo_distingue")
 
         _salva(stato)
         aggiornato = dict(titolo)
 
+    # Nello storico finisce se una nota c'e', non cosa dice: le righe sono
+    # append-only e ricopiarci dentro duemila caratteri per ogni correzione
+    # renderebbe illeggibile proprio il file che serve a rileggere la storia.
     _registra_evento(EVENTO_ATTRIBUTI, simbolo=simbolo_pulito, tag=aggiornato["tag"],
-                     profilo=aggiornato["profilo"], maturity=aggiornato["maturity"])
+                     profilo=aggiornato["profilo"], maturity=aggiornato["maturity"],
+                     ha_perche=bool(aggiornato.get("perche")),
+                     ha_cosa_lo_distingue=bool(aggiornato.get("cosa_lo_distingue")))
     return aggiornato
 
 
@@ -568,6 +626,18 @@ def preferito(simboli: list[str], valore: bool) -> dict:
 
 
 # --- leggere ----------------------------------------------------------------
+
+def _note_per_simbolo(stato: dict) -> dict[str, dict]:
+    """Le note di ogni titolo, lette dalla verita' e non dalla copia SQLite.
+
+    Nella copia non ci sono, e non e' una dimenticanza: la copia esiste per
+    filtrare e per fare JOIN con l'universo, e su un testo libero non si filtra.
+    Il file JSON e' gia' in mano a chi chiama — `_assicura_vista()` lo ha appena
+    letto — quindi rimetterle accanto ai titoli non costa nessuna lettura in piu'.
+    """
+    return {titolo["symbol"]: {campo: titolo.get(campo) for campo in CAMPI_NOTA}
+            for titolo in stato["titoli"]}
+
 
 def _temi_per_simbolo(conn) -> dict[str, list[dict]]:
     """Le etichette di ogni titolo, con nome, etichetta a video e ambito padre.
@@ -627,7 +697,7 @@ def elenco(tag: str | None = None, solo_preferiti: bool = False,
     L'unione con l'universo e' una LEFT JOIN: un titolo resta visibile anche se
     l'universo non e' stato ancora costruito.
     """
-    _assicura_vista()
+    stato = _assicura_vista()
     dove, parametri = _filtri_elenco(tag, profilo, maturity, solo_preferiti)
 
     with db_read() as conn:
@@ -641,7 +711,9 @@ def elenco(tag: str | None = None, solo_preferiti: bool = False,
         """, parametri).fetchall()
         temi = _temi_per_simbolo(conn)
 
-    return [{**dict(r), "temi": temi.get(r["symbol"], [])} for r in righe]
+    note = _note_per_simbolo(stato)
+    return [{**dict(r), "temi": temi.get(r["symbol"], []),
+             **note.get(r["symbol"], NOTE_VUOTE)} for r in righe]
 
 
 def simboli() -> list[str]:
@@ -650,6 +722,20 @@ def simboli() -> list[str]:
     with db_read() as conn:
         return [r["symbol"] for r in
                 conn.execute("SELECT symbol FROM watchlist ORDER BY symbol").fetchall()]
+
+
+def note(simbolo: str) -> dict | None:
+    """Le note scritte su un titolo, o `None` se quel titolo non e' in watchlist.
+
+    Legge il file e basta: non tocca la copia SQLite perche' non ne ha bisogno,
+    e la pagina di un titolo non deve pagare una sincronizzazione per mostrare
+    due righe di testo.
+    """
+    cercato = simbolo.strip().upper()
+    titolo = next((t for t in _carica()["titoli"] if t["symbol"] == cercato), None)
+    if titolo is None:
+        return None
+    return {campo: titolo.get(campo) for campo in CAMPI_NOTA}
 
 
 def da_aggiornare(categoria: str) -> list[dict]:
@@ -710,7 +796,8 @@ def esporta() -> dict:
         "tag": [{"nome": t["nome"], "etichetta": t["etichetta"], "padre": t.get("padre")}
                 for t in stato["tag"]],
         "titoli": [{"symbol": t["symbol"], "tag": t.get("tag", []),
-                    "profilo": t.get("profilo"), "maturity": t.get("maturity")}
+                    "profilo": t.get("profilo"), "maturity": t.get("maturity"),
+                    **{campo: t.get(campo) for campo in CAMPI_NOTA}}
                    for t in stato["titoli"]],
     }
 
@@ -866,6 +953,13 @@ def _applica_importato(stato: dict, voce: dict, definizioni: list[dict], esito: 
     profilo = _valida_attributo(voce.get("profilo"), config.PROFILI, "profilo")
     maturity = _valida_attributo(voce.get("maturity"), config.MATURITY, "maturity")
 
+    # Le note si aggiornano solo se arrivano davvero. Il prompt di scoperta le
+    # produce, quello di classificazione no: senza questa distinzione una
+    # riclassificazione cancellerebbe il perche' scritto mesi prima, e nessuno
+    # se ne accorgerebbe finche' non serve.
+    note_arrivate = {campo: _valida_nota(voce.get(campo), campo)
+                     for campo in CAMPI_NOTA if campo in voce}
+
     etichette = [str(nome) for nome in (voce.get("tag") or [])]
     for slug in etichette:
         esito["tag_creati"].extend(_assicura_tag(stato, definizioni, slug))
@@ -881,6 +975,7 @@ def _applica_importato(stato: dict, voce: dict, definizioni: list[dict], esito: 
     titolo["tag"] = etichette
     titolo["profilo"] = profilo
     titolo["maturity"] = maturity
+    titolo.update(note_arrivate)
 
 
 def importa(dati: dict) -> dict:
