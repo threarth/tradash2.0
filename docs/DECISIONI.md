@@ -1716,16 +1716,23 @@ Sulle card, che sono la superficie peggiore:
 
 | | qui | Mocha | Gruvbox |
 |---|---:|---:|---:|
+| titoli | **17,49** | — | — |
 | testo | **16,74** | 8,69 | 9,57 |
-| la riga che spiega | **11,74** | 7,10 | 7,65 |
+| la riga che spiega | **13,93** | 7,10 | 7,65 |
 | simboli | **12,13** | — | — |
 | collegamenti | 10,37 | 9,89 | 7,74 |
 | verde | 9,10 | 8,46 | 6,36 |
 | rosso | **6,50** | 5,43 | 4,57 |
 
-La riga che spiega passa da 7,10 a **11,74**: e' il numero che questa voce
+La riga che spiega passa da 7,10 a **13,93**: e' il numero che questa voce
 esiste per cambiare, ed e' stato il difetto piu' longevo dell'interfaccia — tre
-palette e un cambio di corpo del testo prima di essere chiuso.
+palette, un cambio di corpo del testo e due schiarite prima di essere chiuso.
+
+**La scala del testo e' fatta di tre gradini tutti chiari**, perche' la
+gerarchia la fanno gia' il corpo e il carattere: i titoli sono in serif e piu'
+grandi, e non hanno bisogno anche del colore. Bianco pieno per i titoli (17,49),
+`stone-50` per il testo (16,74), `stone-200` per la riga che spiega (13,93). Fra
+il primo e il secondo la differenza si vede appena, ed e' voluto.
 
 **Due livelli, non tre.** Le card erano un gradino piu' chiare della pagina
 (`stone-800`) e sono scese a `stone-900`: schiarire un riquadro per farlo notare

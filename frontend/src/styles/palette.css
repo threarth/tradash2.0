@@ -28,8 +28,8 @@
  *   della pagina che ha un colore tutto suo: un ticker si cerca con l'occhio
  *   prima di leggerlo.
  *
- * I numeri, sulle card: testo 16,74, la riga che spiega 11,74, simboli 12,13,
- * verde 9,10, rosso 6,50. La palette precedente (Mocha) stava rispettivamente a
+ * I numeri, sulle card: titoli 17,49, testo 16,74, la riga che spiega 13,93,
+ * simboli 12,13, verde 9,10, rosso 6,50. La palette precedente (Mocha) stava rispettivamente a
  * 8,69, 7,10, 9,89, 8,46 e 5,43 — e questa e' calda.
  *
  * I nomi delle variabili restano `--monitor-*`: cambiare anche quelli
@@ -59,14 +59,21 @@
 
     /* Il testo e' `stone-100`, non bianco: il bianco puro su fondo scuro vibra.
 
-       L'ATTENUATO e' la riga che spiega, la piu' difficile da leggere di tutta
-       l'interfaccia per quattro palette di fila. Qui e' `stone-300` e sta a
-       **11,74 sulle card**: e' il gradino piu' chiaro che resti distinguibile
-       dal testo pieno, e la differenza fra i due si vede ancora perche' e' il
-       testo pieno a essere quasi bianco. Nelle palette precedenti lo stesso
-       posto stava fra 6,0 e 7,7. */
+       La scala del testo ha tre gradini e sono tutti chiari, perche' la gerarchia
+       la fanno gia' il corpo e il carattere — i titoli sono in serif e piu'
+       grandi, e non hanno bisogno anche del colore per distinguersi:
+
+         titoli      bianco pieno   17,49 sulle card
+         testo       stone-50       16,74
+         secondario  stone-200      13,93
+
+       L'ultimo e' la riga che spiega, la piu' difficile da leggere di tutta
+       l'interfaccia per quattro palette di fila: era a 5,86 quando e' stata
+       segnalata la prima volta. Adesso e' quasi bianca anche lei, un gradino
+       appena sotto al testo pieno — abbastanza da non confondersi, non tanto da
+       diventare grigia. */
     --monitor-testo: #fafaf9;      /* tailwind stone-50 */
-    --monitor-attenuato: #d6d3d1;  /* tailwind stone-300 */
+    --monitor-attenuato: #e7e5e4;  /* tailwind stone-200 */
 
     /* L'accento e' il giallo di Gruvbox: si nota senza gridare, e non e' il
        ciano elettrico che hanno tutti i cruscotti. Il nome della variabile dice
@@ -177,7 +184,7 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     --bs-emphasis-color: #ffffff;
 
     --bs-secondary-color: var(--monitor-attenuato);
-    --bs-secondary-color-rgb: 214, 211, 209;
+    --bs-secondary-color-rgb: 231, 229, 228;
     --bs-secondary-bg: var(--monitor-pannello);
     --bs-tertiary-bg: var(--monitor-sezione);
     --bs-border-color: var(--monitor-linea);
@@ -209,7 +216,10 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     --bs-success-text-emphasis: var(--monitor-verde);
     --bs-info-text-emphasis: var(--monitor-blu);
 
-    --bs-heading-color: var(--monitor-testo);
+    /* I titoli sono l'unico bianco pieno della pagina: un gradino sopra al
+       testo, non due. La differenza si vede appena — 17,49 contro 16,74 — ed e'
+       giusto cosi', perche' a distinguerli ci pensano gia' il serif e il corpo. */
+    --bs-heading-color: #ffffff;
 }
 
 /* --- tema chiaro: gli stessi toni, scuriti quanto basta ---------------- */
