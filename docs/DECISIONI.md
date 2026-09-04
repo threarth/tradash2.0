@@ -1484,3 +1484,52 @@ dimostrato niente. L'antidoto e' rigiocare il punteggio a ogni fine mese su
 tutti gli spin-off dell'elenco e guardare cosa e' successo dopo — venti o trenta
 casi, non statistica, ma la differenza fra pesi misurati e pesi inventati. Sta
 nel backlog, e non e' stato fatto.
+
+---
+
+## Gli stati del rilevatore sono termini, non etichette
+
+«Numeri girati», «in raffreddamento», «troppo presto»: sono parole inventate
+qui, e chi le legge in una tabella non ha modo di sapere cosa dividono da cosa.
+Otto voci nuove nel glossario — i sei stati, piu' «punti disponibili» e «ticker
+non nuovo» — e ognuna porta il caso da cui e' nata, che di solito e' SanDisk a
+una data precisa.
+
+Il punto non e' la definizione: e' la **differenza fra due stati vicini**. «In
+movimento» e «numeri girati» possono avere lo stesso punteggio e sono due
+momenti diversi — il primo e' settembre 2025 col +1.276% davanti, il secondo e'
+novembre col +651%. E «troppo presto» non e' un punteggio basso: e' il rifiuto
+di darne uno, che e' l'opposto.
+
+Perche' si aprano, gli stati passano da `Testo` come tutta la prosa che arriva
+dal backend. La voce **«ticker non nuovo»** invece sta nella legenda sotto la
+tabella e non dentro l'icona: nascosta in un `visually-hidden` sarebbe stata
+leggibile solo da un lettore di schermo, cioe' invisibile proprio a chi vede
+l'orologio e si chiede cosa significhi.
+
+---
+
+## Un simbolo non dice chi e'
+
+In un elenco di venti candidati la domanda «ma questo chi e'?» si fa venti
+volte, e ogni volta costava una pagina aperta e una chiusa. Il vecchio tradash
+aveva l'anteprima al passaggio del mouse (`ticker-cell.tsx`): e' tornata.
+
+Tre cose sono state copiate perche' erano giuste, e sono le stesse tre che
+rendono la cosa sostenibile:
+
+* **si legge una volta sola per simbolo**, con la memoria nel MODULO e non nel
+  componente: lo stesso ticker compare in due tabelle, e la seconda non deve
+  richiedere quello che la prima ha gia' chiesto;
+* **le richieste in volo si condividono**, altrimenti passare velocemente su una
+  colonna ne fa partire una per ogni riga sfiorata;
+* **non parte al montaggio**: venti simboli che si preparano l'anteprima sono
+  venti richieste per una che servira'. Si legge quando il mouse si ferma
+  davvero, dopo un quarto di secondo.
+
+Il dato viene dalla tabella `universe`, che e' locale: e' una query per chiave,
+non una lettura da Defeatbeta, e per questo si puo' fare mentre si scorre.
+
+Sta dove il simbolo compare **da solo** — la tabella degli spin-off, i risultati
+dello scanner. Non nell'universo, dove la riga porta gia' nome, settore,
+industria e dimensione: li' l'anteprima ripeterebbe la riga sotto il mouse.

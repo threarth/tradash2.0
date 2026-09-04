@@ -72,6 +72,7 @@ export const api = {
     // --- universo ---
     universo: (filtri) => chiama(`/universe${query(filtri)}`),
     universoStato: () => chiama("/universe/stato"),
+    universoTitolo: (simbolo) => chiama(`/universe/titolo/${encodeURIComponent(simbolo)}`),
     universoCostruisci: (forzato) => chiama(`/universe/build${query({ force: forzato ? 1 : "" })}`,
         { method: "POST" }),
 

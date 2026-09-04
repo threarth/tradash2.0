@@ -37,6 +37,7 @@
 
     import Assente from "./Assente.svelte";
     import Testo from "./Testo.svelte";
+    import Ticker from "./Ticker.svelte";
     import { api } from "../lib/api.js";
 
     const GIORNI_PER_MESE = 30.44;
@@ -228,18 +229,14 @@
                             {@const eta = mesi(riga.data)}
                             <tr class:text-secondary={eta > MESI_RECENTE}>
                                 <td>
-                                    <a class="numerico" href="/titolo/{riga.symbol}">
-                                        {riga.symbol}
-                                    </a>
+                                    <Ticker simbolo={riga.symbol} grassetto />
                                     {#if riga.nome}
                                         <div class="text-secondary">{riga.nome}</div>
                                     {/if}
                                 </td>
                                 <td>
                                     {#if riga.parent}
-                                        <a class="numerico" href="/titolo/{riga.parent}">
-                                            {riga.parent}
-                                        </a>
+                                        <Ticker simbolo={riga.parent} />
                                     {:else}—{/if}
                                 </td>
                                 <td class="text-end numerico">{riga.data}</td>
@@ -250,8 +247,8 @@
                                              la storia della madre, e li' il
                                              ragionamento «quotato da poco» non vale. -->
                                         <i class="bi bi-clock-history text-warning"
-                                           title="quotato gia' prima della separazione:
-                                                  il ticker non e' nuovo"></i>
+                                           title="quotato gia' prima della separazione"
+                                        ></i>
                                     {/if}
                                 </td>
 
@@ -263,7 +260,10 @@
                                     {:else if !m.disponibile}
                                         <td class="text-end">—</td>
                                         <td colspan={1 + SEGNALI.length}
-                                            class="text-secondary">{m.motivo}</td>
+                                            class="text-secondary">
+                                            {#if m.stato}<Testo testo={m.stato} /> · {/if}
+                                            {m.motivo}
+                                        </td>
                                     {:else}
                                         <td class="text-end numerico">
                                             <strong>{m.punteggio.presi}</strong>
@@ -277,7 +277,7 @@
                                         </td>
                                         <td>
                                             <span class="badge {STATI[m.stato] ?? 'text-bg-light'}">
-                                                {m.stato}
+                                                <Testo testo={m.stato} />
                                             </span>
                                         </td>
                                         {#each SEGNALI as nome (nome)}
@@ -296,6 +296,13 @@
                     </tbody>
                 </table>
             </div>
+
+            {#if righe.some((r) => r.misura?.storia_precedente)}
+                <p class="small text-secondary mt-2 mb-0">
+                    <i class="bi bi-clock-history text-warning"></i>
+                    <Testo testo="L'orologio segna un ticker non nuovo: i suoi prezzi cominciano molto prima della separazione, quindi non e' una quotazione recente." />
+                </p>
+            {/if}
         {/if}
     </div>
 </div>

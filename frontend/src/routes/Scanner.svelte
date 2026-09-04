@@ -14,6 +14,7 @@
     import Assente from "../components/Assente.svelte";
     import Errore from "../components/Errore.svelte";
     import Spinoff from "../components/Spinoff.svelte";
+    import Ticker from "../components/Ticker.svelte";
     import Testo from "../components/Testo.svelte";
     import Valore from "../components/Valore.svelte";
     import { api } from "../lib/api.js";
@@ -177,8 +178,11 @@
             <div class="card mb-2">
                 <div class="card-body py-2">
                     <div class="d-flex justify-content-between align-items-center">
-                        <a class="simbolo text-decoration-none"
-                           href="/titolo/{trovato.symbol}">{trovato.symbol}</a>
+                        <!-- Il risultato dice il simbolo e i numeri che l'hanno
+                             fatto trovare, non chi e': l'anteprima al passaggio
+                             del mouse risponde a «ma questo chi e'?» senza
+                             aprire e richiudere una pagina. -->
+                        <Ticker simbolo={trovato.symbol} classe="simbolo text-decoration-none" />
                         <span class="small text-secondary numerico">
                             <Valore valore={trovato.misure.ultimo_prezzo} />
                             {#if trovato.misure.drawdown}
