@@ -1408,3 +1408,79 @@ vecchio sistema che ricomincia.
 Sono due cose diverse — la distribuzione e l'inizio degli scambi — e per
 contare i mesi la piu' affidabile e' la nostra, che e' il primo prezzo davvero
 esistente.
+
+---
+
+## I pesi del rilevatore vengono da un caso, e il caso li ha ribaltati
+
+Il vecchio tradash aveva «find the next SanDisk»: otto segnali con pesi
+differenziati, un punteggio 0-100, bonus e malus. Prima di portarlo abbiamo
+fatto l'analisi del caso da cui prende il nome, e il caso ha detto che i pesi
+erano quasi invertiti.
+
+SNDK: prima seduta 2025-02-13 a $36, minimo il 22 aprile a $29,62, oggi $1.554.
+Incrociando **quando un dato e' diventato pubblico** con **quanto prezzo restava
+da li'**:
+
+| quando | prezzo | cosa era pubblico | da li' a oggi |
+|---|---:|---|---:|
+| 2025-04-22 | 29,62 | niente: EPS -13,33, ricavi in calo | +5.150% |
+| 2025-09 | ~41→113 | volume +170% sui tre mesi | +1.276% |
+| 2025-11-03 | 207,01 | ricavi +21%, EPS torna positivo | +651% |
+| 2026-02-02 | 665,24 | ricavi +31%, margine 51% | +134% |
+
+**L'accelerazione fondamentale — il 30% dei pesi vecchi — e' diventata pubblica
+quando il titolo aveva gia' fatto cinque volte.** Il segnale arrivato per primo
+e' stato il **volume**, che nel vecchio pesava il 5%, il minimo di tutti. E il
+**margine lordo**, che descrive il ciclo meglio dei ricavi (22,5% -> 78,4% in
+quattro trimestri), fra gli otto non c'era affatto.
+
+Da qui i sei segnali nuovi: volume 25, margine 20, ricavi 20, EPS 15, prezzo
+sulla media a 6 mesi 10, sulla media a 50 sedute 10. **La media a 200 non c'e'**:
+per uno spin-off di sei mesi non esiste — SNDK l'ha avuta a fine novembre, dieci
+mesi dopo la quotazione — e un peso strutturalmente assente falsa tutto il resto.
+
+Il difetto peggiore del vecchio non erano i pesi, era questo:
+
+```python
+except Exception:
+    signals[key] = {"passed": False, "partial_score": 0.0, "note": "dati non disponibili"}
+```
+
+**«Non lo so» e «va male» finivano nello stesso numero.** Qui un segnale non
+calcolabile esce dal **denominatore**: il punteggio e' «punti presi su punti
+disponibili», e accanto c'e' sempre scritto su quanti segnali dei sei. Niente
+bonus e niente malus: quelli del vecchio mescolavano additivo e moltiplicativo
+(`+= 5`, `*= 0,85`, `*= 0,90`) e poi tagliavano a 100, e un 62 non era
+interpretabile in nessun senso.
+
+Accanto al numero c'e' uno **stato**, che il punteggio da solo non da':
+*troppo presto* (meno di due trimestri dopo la separazione), *in movimento*
+(prezzo e volume si', bilanci non ancora — dove stava SanDisk a settembre 2025),
+*numeri girati* (novembre), *in raffreddamento* (bilanci al massimo e volume
+girato — maggio 2026, e da li' -8%).
+
+## Le tre guardie, trovate solo facendolo girare
+
+Il modello sulla carta sembrava a posto. Queste sono venute fuori misurando
+davvero i ventisette candidati dell'elenco vero.
+
+1. **I mesi si contano dalla data dello spin, non dalla prima seduta.** Contati
+   dai prezzi, NVRI dava **381 mesi** e ANGI 178: quei ticker non sono nuovi,
+   hanno ereditato la storia della madre. Quando la storia comincia molto prima
+   della separazione la riga lo dichiara, perche' li' «quotato da poco» non vale.
+2. **I trimestri chiusi prima della separazione non si guardano.** MFP dava un
+   EPS da 270,80 a 0,26: cifre per azione di una societa' che non esisteva
+   ancora.
+3. **Un titolo non piu' scambiato non si giudica.** TWNPQ segnava zero ovunque e
+   -100% su tutto: la Q finale e' il suffisso delle bancarotte, e un punteggio
+   li' sopra e' un numero che sembra un giudizio.
+
+## Il rischio che resta
+
+**I pesi vengono da un caso solo**, ed e' sovradattamento fino a prova
+contraria: un modello tarato su SanDisk che descrive benissimo SanDisk non ha
+dimostrato niente. L'antidoto e' rigiocare il punteggio a ogni fine mese su
+tutti gli spin-off dell'elenco e guardare cosa e' successo dopo — venti o trenta
+casi, non statistica, ma la differenza fra pesi misurati e pesi inventati. Sta
+nel backlog, e non e' stato fatto.
