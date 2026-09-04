@@ -64,6 +64,13 @@ In due giorni ne sono passati quattro: `structuredClone` su un proxy, il ciclo
 infinito del registro delle sezioni, il punto fissato che ricostruiva il
 grafico, e l'effetto di `SchedaTitolo` che converge solo per una guardia.
 
+Adesso ce n'e' un quinto, e di un genere nuovo: **l'effetto di `Cinema.svelte`
+governa un `setInterval`**. Regge su una proprieta' che nessun test verifica —
+che le letture dentro allo scatto avvengano fuori dal giro di tracciamento, e
+quindi non siano dipendenze. Se lo diventassero, il timer si ricreerebbe a ogni
+fotogramma e la velocita' non sarebbe piu' quella chiesta. Non e' un errore che
+si vede: e' un film che scorre storto.
+
 **Il test giusto non si e' potuto scrivere:** vitest carica `svelte` nella build
 da server, dove `$effect` esiste e non esegue niente — un test cosi' passa senza
 aver provato nulla. Provate due condizioni di risoluzione diverse, nessuna lo fa
@@ -76,7 +83,24 @@ il controllo sul sorgente a tutti i componenti — oggi copre solo
 
 ---
 
-## 5. Cose piccole, se capita
+## 5. Il cinema del simulatore non e' mai stato visto girare
+
+Il codice c'e', i test del backend passano, il build compila. **Nessuno l'ha
+guardato scorrere**, ed e' l'unica verifica che conta per una cosa che si
+giudica a occhio: se a 120 sedute al secondo la linea scatta, se il cursore
+trascinato mentre e' in movimento fa quello che sembra, se la scala che si
+ricalcola a ogni fotogramma da' l'effetto voluto o fa solo ballare il disegno.
+
+Vale lo stesso, in piccolo, per le due caselle delle note in watchlist: sono
+state provate solo dai test.
+
+**Cosa fare:** aprire il simulatore su un titolo con una storia brutta — una
+salita, un crollo, una risalita — e premere play. Dieci minuti, e o si chiude o
+si scopre cosa non va.
+
+---
+
+## 6. Cose piccole, se capita
 
 - **`before` su `get_recent_filings`** (dal PIANO): qui il taglio dei filing e'
   esatto e usato. Resta come lezione — un parametro esposto e mai passato e' un
@@ -87,6 +111,11 @@ il controllo sul sorgente a tutti i componenti — oggi copre solo
   Defeatbeta, gli indicatori dal motore a nodi, le misure dello scanner da
   `domain/scansione.py`, e il confronto point-in-time e' fatto. Prima di
   portarli, verificare se serve ancora qualcosa.
+- **Il prompt di revisione non vede il perche'**. Adesso che le note esistono,
+  chi rivede la watchlist con occhi freschi potrebbe leggerle: giudicherebbe se
+  la classificazione regge *e* se il motivo scritto sei mesi fa vale ancora. Non
+  fatto perche' non era la richiesta, e perche' allunga un prompt che oggi e'
+  volutamente magro.
 - **Il tetto delle citazioni**: se ne chiedono 24 e ne sono arrivate 25. Il
   tetto e' una richiesta nel prompt, non un limite del codice. Si dichiarano
   entrambe le cifre; troncare la venticinquesima nasconderebbe che il modello
