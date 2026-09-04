@@ -19,7 +19,7 @@ import pandas as pd
 import pytest
 
 import config
-from core import llm, registry, schema
+from core import impostazioni, llm, registry, schema
 from core.db import db_read
 from data import analisi, defeatbeta, filing_locali, materiale, qualitativa, rischio
 from domain import (
@@ -334,6 +334,85 @@ def test_il_costo_si_calcola_sui_prezzi_dichiarati():
     assert llm.costo("claude-opus-5", 1_000_000, 0) == 5.0
     assert llm.costo("claude-opus-5", 0, 1_000_000) == 25.0
     assert llm.costo("claude-haiku-4-5", 1_000_000, 1_000_000) == 6.0
+
+
+# --- il selettore del modello ----------------------------------------------
+#
+# Il modello si poteva gia' cambiare, ma solo con una variabile d'ambiente e
+# solo riavviando: una scelta che per cambiare vuole un riavvio non e' una
+# scelta, e' una configurazione.
+
+def test_senza_scelta_vale_il_predefinito():
+    assert impostazioni.modello() == config.LLM_MODELLO
+    assert impostazioni.scelto_da_te() is False
+
+
+def test_il_modello_scelto_vale_dalla_chiamata_dopo(monkeypatch):
+    """Non dal prossimo riavvio: si rilegge a ogni chiamata."""
+    monkeypatch.setattr(llm, "_client",
+                        lambda f: _ClienteFinto(_RispostaAnthropic("va bene")))
+    impostazioni.imposta_modello("claude-opus-5", llm.provider_di)
+
+    esito = llm.chiedi(fase="prova", sistema="s", messaggio="m")
+
+    assert esito["modello"] == "claude-opus-5"
+    assert esito["fornitore"] == "anthropic"
+    assert impostazioni.scelto_da_te() is True
+
+
+def test_chi_chiede_un_modello_preciso_lo_ottiene_lo_stesso(monkeypatch):
+    """L'ordine e' esplicito > scelto > predefinito: un'analisi che sa cosa le
+    serve non deve poter essere scavalcata da un'impostazione."""
+    monkeypatch.setattr(llm, "_client",
+                        lambda f: _ClienteFinto(_RispostaAnthropic("va bene")))
+    impostazioni.imposta_modello("claude-opus-5", llm.provider_di)
+
+    esito = llm.chiedi(fase="prova", sistema="s", messaggio="m", modello="claude-sonnet-5")
+
+    assert esito["modello"] == "claude-sonnet-5"
+
+
+def test_un_modello_di_nessun_fornitore_non_si_salva():
+    """`llm.chiedi` lo scoprirebbe comunque, ma a chiamata avviata e dentro
+    un'analisi: il rifiuto deve arrivare mentre si sceglie."""
+    with pytest.raises(impostazioni.ImpostazioniError, match="gpt-"):
+        impostazioni.imposta_modello("llama-3", llm.provider_di)
+
+    assert impostazioni.modello() == config.LLM_MODELLO, "e non deve aver salvato niente"
+
+
+def test_un_modello_senza_listino_si_accetta_e_si_dichiara():
+    """Impedirlo vorrebbe dire non poter mai provare un modello nuovo. I token
+    restano salvati e `manage.py costi` ricalcola all'indietro."""
+    esito = impostazioni.imposta_modello("gpt-5.4-mini", llm.provider_di)
+
+    assert esito["senza_listino"] is True
+    assert impostazioni.modello() == "gpt-5.4-mini"
+
+
+def test_un_file_di_impostazioni_rotto_non_ferma_il_sistema():
+    """Fermare tutto perche' un file di preferenze e' illeggibile sarebbe una
+    punizione sproporzionata: si torna al predefinito e lo si scrive nel log."""
+    config.IMPOSTAZIONI_PATH.write_text("{non e' json", encoding="utf-8")
+
+    assert impostazioni.modello() == config.LLM_MODELLO
+
+
+def test_le_route_del_selettore(client):
+    letto = client.get("/api/impostazioni/llm").get_json()["data"]
+    assert letto["modello"] == config.LLM_MODELLO
+    assert letto["predefinito"] == config.LLM_MODELLO
+    assert {m["nome"] for m in letto["modelli"]} == set(config.LLM_PREZZI)
+    assert all(m["fornitore"] and m["ingresso"] > 0 for m in letto["modelli"])
+
+    scelto = client.put("/api/impostazioni/llm",
+                        json={"modello": "claude-opus-5"}).get_json()
+    assert scelto["data"]["modello"] == "claude-opus-5"
+    assert client.get("/api/impostazioni/llm").get_json()["data"]["scelto_da_te"] is True
+
+    rifiutato = client.put("/api/impostazioni/llm", json={"modello": "boh-9"})
+    assert rifiutato.status_code == 400
+    assert "gpt-" in rifiutato.get_json()["error"]
 
 
 def test_la_chiamata_al_modello_si_racconta_nella_scia_del_lavoro(monkeypatch):

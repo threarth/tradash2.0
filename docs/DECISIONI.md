@@ -1323,3 +1323,45 @@ invece di doverlo indovinare leggendo l'etichetta: un'etichetta e' una frase per
 gli occhi, e cercarci dentro un simbolo vorrebbe dire che riscriverla romperebbe
 la scheda. Resta in memoria — la tabella `jobs` non cambia forma, e nessuno deve
 ricostruire il database.
+
+---
+
+## Il modello si sceglieva riavviando, cioe' non si sceglieva
+
+Le sette fasi che chiamano un modello — le quattro della qualitativa,
+fondamentale, tecnica, earnings, spin-off, verdetto, forward — passano tutte da
+`llm.chiedi` e nessuna dichiara quale modello vuole: prendevano
+`config.LLM_MODELLO`, cioe' `gpt-5.5`. Cambiarlo si poteva, con
+`TRADASH2_MODELLO` e un riavvio del processo. E il `.env` **non veniva nemmeno
+letto** — manca `python-dotenv`, e Flask lo dice a ogni avvio.
+
+Una scelta che per cambiare vuole un riavvio non e' una scelta: e' una
+configurazione. Adesso c'e' un selettore, e sta nella barra in alto — con SOPRA
+il nome del modello in uso, non solo dentro al menu: quale modello risponde e'
+cio' che cambia il conto, e un dato che si vede solo aprendo una tendina si
+guarda quando la spesa e' gia' fatta.
+
+**Uno solo per tutte le fasi.** Il vecchio tradash aveva una tabella di sedici
+task, ognuno col suo modello. Qui le fasi sono sette e usano tutte lo stesso:
+sedici righe da tenere allineate sarebbero sedici occasioni di scoprire un
+giorno che una fase gira su un modello che non ricordavi di aver scelto. Il
+posto per lo scavalco per fase c'e' — il file e' un dizionario — ma finche' non
+serve non esiste.
+
+**In un file, non in una tabella.** `data/impostazioni.json`, per lo stesso
+motivo della watchlist: `manage.py rebuild` cancella il database, e una scelta
+che dopo una ricostruzione torna al predefinito senza dirlo cambia il conto di
+nascosto.
+
+**Si rilegge a ogni chiamata**, non all'avvio: cambiare modello vale
+dall'analisi successiva, comprese quelle gia' aperte in una scheda. L'ordine e'
+esplicito > scelto > predefinito — un'analisi che sa quale modello le serve non
+deve poter essere scavalcata da un'impostazione, e oggi nessuna lo chiede, ma la
+porta resta aperta per il giorno che una fase avra' bisogno di un modello suo.
+
+**Un modello sconosciuto si rifiuta, uno senza listino si accetta e si
+dichiara.** Il primo `llm.chiedi` lo scoprirebbe comunque, ma a chiamata gia'
+avviata e dentro un'analisi: il rifiuto deve arrivare mentre si sceglie. Il
+secondo no: impedire un modello perche' non conosciamo ancora il suo prezzo
+vorrebbe dire non poterlo mai provare, e i token restano salvati riga per riga —
+`manage.py costi` ricalcola all'indietro appena il listino c'e'.

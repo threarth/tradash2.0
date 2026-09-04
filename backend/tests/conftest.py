@@ -37,6 +37,7 @@ os.environ["TRADASH2_WATCHLIST_EVENTS"] = str(Path(_TEMP_DIR) / "watchlist_event
 os.environ["TRADASH2_GRAFICI"] = str(Path(_TEMP_DIR) / "grafici.json")
 os.environ["TRADASH2_REFERTI"] = str(Path(_TEMP_DIR) / "referti.jsonl")
 os.environ["TRADASH2_FILINGS"] = str(Path(_TEMP_DIR) / "filings")
+os.environ["TRADASH2_IMPOSTAZIONI"] = str(Path(_TEMP_DIR) / "impostazioni.json")
 
 import pytest  # noqa: E402  (l'ordine e' voluto: prima l'ambiente, poi gli import)
 
@@ -110,6 +111,19 @@ def tabelle_pulite(schema):
         for tabella in _tutte_le_tabelle(conn):
             conn.execute(f"DELETE FROM {tabella}")
         conn.execute("PRAGMA foreign_keys = ON")
+    yield
+
+
+@pytest.fixture(autouse=True)
+def impostazioni_pulite():
+    """Ogni test parte senza impostazioni salvate.
+
+    Le tabelle si svuotano gia' da sole, ma il modello scelto sta in un FILE, e
+    un file sopravvive alla pulizia del database — che e' esattamente il motivo
+    per cui ci sta. Senza questa riga un test che sceglie un modello lo lascia
+    scelto per tutti quelli dopo, e i loro fornitori finti smettono di combaciare.
+    """
+    config.IMPOSTAZIONI_PATH.unlink(missing_ok=True)
     yield
 
 
