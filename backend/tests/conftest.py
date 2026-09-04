@@ -38,6 +38,7 @@ os.environ["TRADASH2_GRAFICI"] = str(Path(_TEMP_DIR) / "grafici.json")
 os.environ["TRADASH2_REFERTI"] = str(Path(_TEMP_DIR) / "referti.jsonl")
 os.environ["TRADASH2_FILINGS"] = str(Path(_TEMP_DIR) / "filings")
 os.environ["TRADASH2_IMPOSTAZIONI"] = str(Path(_TEMP_DIR) / "impostazioni.json")
+os.environ["TRADASH2_SPINOFF"] = str(Path(_TEMP_DIR) / "spinoff.json")
 
 import pytest  # noqa: E402  (l'ordine e' voluto: prima l'ambiente, poi gli import)
 
@@ -114,16 +115,24 @@ def tabelle_pulite(schema):
     yield
 
 
-@pytest.fixture(autouse=True)
-def impostazioni_pulite():
-    """Ogni test parte senza impostazioni salvate.
+# Cio' che NON sta nel database: le scelte tue. Il modello scelto col selettore
+# e l'elenco degli spin-off stanno in file apposta, perche' un `rebuild` non
+# deve portarseli via — ed e' proprio per questo che sopravvivono anche alla
+# pulizia fra un test e l'altro, se nessuno li cancella.
+FILE_DI_STATO = ("IMPOSTAZIONI_PATH", "SPINOFF_PATH")
 
-    Le tabelle si svuotano gia' da sole, ma il modello scelto sta in un FILE, e
-    un file sopravvive alla pulizia del database — che e' esattamente il motivo
-    per cui ci sta. Senza questa riga un test che sceglie un modello lo lascia
-    scelto per tutti quelli dopo, e i loro fornitori finti smettono di combaciare.
+
+@pytest.fixture(autouse=True)
+def file_di_stato_puliti():
+    """Ogni test parte senza scelte salvate e senza elenchi scaricati.
+
+    Le tabelle si svuotano da sole, ma questi sono FILE. Senza questa riga un
+    test che sceglie un modello lo lascia scelto per tutti quelli dopo, e i loro
+    fornitori finti smettono di combaciare: e' costato quattordici test caduti
+    in fila per una riga in un file.
     """
-    config.IMPOSTAZIONI_PATH.unlink(missing_ok=True)
+    for nome in FILE_DI_STATO:
+        getattr(config, nome).unlink(missing_ok=True)
     yield
 
 

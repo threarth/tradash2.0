@@ -1365,3 +1365,46 @@ avviata e dentro un'analisi: il rifiuto deve arrivare mentre si sceglie. Il
 secondo no: impedire un modello perche' non conosciamo ancora il suo prezzo
 vorrebbe dire non poterlo mai provare, e i token restano salvati riga per riga —
 `manage.py costi` ricalcola all'indietro appena il listino c'e'.
+
+---
+
+## Una sola cosa entra da fuori, e solo se la premi
+
+La decisione del 30/08 diceva **fonte unica Defeatbeta, niente provider
+esterni**. Il 04/09 e' stata rivista, per un dato solo e con un confine
+scritto.
+
+Il motivo e' verificabile: **Defeatbeta non sa dire chi e' nato da uno
+spin-off.** Misurato su SNDK — 182 depositi nell'indice dei filing, il piu'
+vecchio del 2026-01-21, nessun modulo **10-12B**, che sarebbe *il* documento con
+cui uno spin-off si registra. L'indice e' recente-only. Senza sapere chi si e'
+separato, il rilevatore non ha una popolazione da cercare: non e' un segnale
+che manca, e' l'elenco dei candidati.
+
+Il confine nuovo, per esteso:
+
+* si prende **un elenco di nomi** — data, madre, nata — da
+  `stockanalysis.com/actions/spinoffs/<anno>/`. **Non** prezzi, **non**
+  bilanci: quelli restano di Defeatbeta e non hanno un secondo fornitore;
+* si prende **solo premendo un pulsante**. Nessun aggiornamento all'avvio, a
+  scadenza, o «se il file sembra vecchio». Un fetch che parte da solo resta
+  esattamente cio' che qui non si fa;
+* l'elenco si salva in `data/spinoff.json` e resta li' finche' non lo ripremi,
+  con scritto **quando e' stato preso**: un elenco di tre mesi fa non e'
+  sbagliato, e' incompleto;
+* la pagina si legge con la libreria standard, nessuna dipendenza nuova per
+  cinque colonne, e ci si presenta con uno User-Agent che dice chi siamo;
+* se la pagina cambia forma e non si legge piu' niente, **il file di prima
+  resta dov'e'**: sostituire un elenco buono con uno vuoto sarebbe perdere
+  l'unica cosa che questo modulo non sa ricostruire.
+
+La lettura passa da `registry.job` e da `calls.track` come tutte le altre: si
+vede in Operazioni, lascia la sua riga col `source = network`, e si puo'
+fermare. Un provider nuovo che non passasse di li' sarebbe il difetto del
+vecchio sistema che ricomincia.
+
+**Una discrepanza da ricordare**: stockanalysis data lo spin di SNDK al
+2025-02-24, mentre la prima seduta nei prezzi di Defeatbeta e' del 2025-02-13.
+Sono due cose diverse — la distribuzione e l'inizio degli scambi — e per
+contare i mesi la piu' affidabile e' la nostra, che e' il primo prezzo davvero
+esistente.
