@@ -13,6 +13,7 @@
 
     import Assente from "../components/Assente.svelte";
     import Errore from "../components/Errore.svelte";
+    import Spinoff from "../components/Spinoff.svelte";
     import Testo from "../components/Testo.svelte";
     import Valore from "../components/Valore.svelte";
     import { api } from "../lib/api.js";
@@ -90,6 +91,10 @@
 </script>
 
 <h1 class="h4 mb-3">Scanner</h1>
+
+<!-- Sta qui e non in una pagina sua: e' un elenco da cui si parte per cercare,
+     ed e' questa la pagina in cui si cerca. -->
+<Spinoff />
 
 <div class="card mb-3">
     <div class="card-body">

@@ -142,6 +142,10 @@ export const api = {
     glossario: () => chiama("/glossario"),
 
     // --- lavori e chiamate: la regola 1 vista dal frontend ---
+    // --- spin-off: si scarica solo premendo ---
+    spinoff: () => chiama("/spinoff"),
+    spinoffAggiorna: () => chiama("/spinoff/aggiorna", { method: "POST" }),
+
     // --- impostazioni ---
     impostazioniLlm: () => chiama("/impostazioni/llm"),
     scegliModello: (modello) =>
