@@ -1584,7 +1584,14 @@ di stile.
 
 ---
 
-## Una palette che non ho scelto io
+## Una palette che non ho scelto io (e la quarta, che e' quella buona)
+
+> **Nota del 05/09/2026**: anche Gruvbox e' stata giudicata poco leggibile, ed
+> e' stata sostituita da Catppuccin Mocha. La voce qui sotto resta perche' e'
+> dove si e' imparata la cosa utile — *validata dall'uso* non vuol dire *ad alto
+> contrasto* — e perche' il confronto misurato fra le due sta nella voce
+> «Il colore non era l'unico problema» piu' sotto.
+
 
 Dopo aver schiarito fondo e testo a mano — con i numeri dalla parte giusta — il
 giudizio e' stato «uhm, brutto». Ed era vero: i grigi caldi scelti a occhio
@@ -1635,3 +1642,47 @@ giallo `faded` su fondo crema sta a 3,3.
 
 Fonte: [morhetz/gruvbox](https://github.com/morhetz/gruvbox), file
 `colors/gruvbox.vim`.
+
+---
+
+## Il colore non era l'unico problema: erano 12,25 pixel
+
+Tre palette di fila giudicate poco leggibili, e alla terza e' venuto fuori che
+una parte del difetto non era di colore. Il corpo del testo era **14px** —
+scelto per far stare piu' righe in una tabella da undicimila — ma la riga piu'
+letta della pagina non e' una cella di tabella: e' la frase che spiega, che
+Bootstrap scrive a `0,875em`. A 14px quella frase veniva **12,25 pixel**, chiara
+su scuro, in un sans a filo sottile. Nessuna palette puo' rimediare a quella
+misura.
+
+Adesso il corpo e' 15px: la frase sale a 13,1 e le tabelle perdono una riga ogni
+venti. E' il cambio piu' economico fra tutti quelli tentati, ed e' arrivato per
+terzo.
+
+**E la palette e' Catppuccin Mocha**, scelta misurandola contro Gruvbox voce per
+voce sui tre livelli della pagina:
+
+| sulle card | Mocha | Gruvbox |
+|---|---:|---:|
+| testo | 8,69 | 9,57 |
+| la riga che spiega | 7,10 | 7,65 |
+| accento, link | **9,89** | 7,74 |
+| verde | **8,46** | 6,36 |
+| rosso | **5,43** | 4,57 |
+| arancio | **7,10** | 5,20 |
+| blu | **5,97** | 4,88 |
+| *il piu' basso di tutti* | **5,43** | 4,57 |
+
+Mocha perde di poco sui due grigi e vince su tutti i colori, che sono quelli che
+in questa interfaccia portano un significato — un numero rosso dice una perdita.
+E soprattutto: **nessun valore e' stato ritoccato**. Gruvbox, per essere usabile,
+aveva richiesto di schiarirle il rosso e di scegliere un gradino piu' chiaro per
+il testo secondario, cioe' di ricominciare a metterci le mani.
+
+Il prezzo e' dichiarato: Mocha e' fredda. Il fondo tira al viola scuro e
+l'accento e' un giallo pallido; l'identita' calda delle prime tre palette qui
+non c'e' piu'. Fra i temi pubblici, caldo e ad alto contrasto sono in tensione —
+Gruvbox e' il caldo, ed e' morbido per costruzione.
+
+Fonte: [catppuccin/palette](https://github.com/catppuccin/palette),
+`palette.json`, sapore `mocha`.
