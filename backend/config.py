@@ -216,6 +216,15 @@ WSL_PREFISSO_UNC = "\\\\wsl.localhost"
 # legge come l'elenco intero.
 REGISTRY_EVENTI_MAX = 40
 
+# Le impostazioni che decidi tu: oggi il modello, domani quello che verra'.
+# Sono un file JSON e non una tabella per lo stesso motivo della watchlist —
+# `manage.py rebuild` cancella il database, e una scelta che sparisce con la
+# ricostruzione tornerebbe al predefinito senza dirlo.
+PRODUCTION_IMPOSTAZIONI_PATH = BASE_DIR / "data" / "impostazioni.json"
+IMPOSTAZIONI_PATH = Path(os.environ.get("TRADASH2_IMPOSTAZIONI",
+                                        PRODUCTION_IMPOSTAZIONI_PATH))
+IMPOSTAZIONI_VERSIONE = 1
+
 PRODUCTION_FILING_DIR = BASE_DIR / "data" / "filings"
 FILING_DIR = Path(os.environ.get("TRADASH2_FILINGS", PRODUCTION_FILING_DIR))
 
@@ -285,6 +294,10 @@ VERDETTO_GIORNI_VECCHIO = 30
 # dell'analisi qualitativa** — su Q ha prodotto un submit invalido bruciando
 # $0,24, mentre Sonnet ha chiuso a $0,99. Haiku resta buono per compressione e
 # triage, non per le fasi.
+# Il modello predefinito. E' il PIANO B, non la scelta: quella la fa il
+# selettore e sta in `data/impostazioni.json`, che sopravvive a un rebuild.
+# Questo vale finche' nessuno ha scelto, e quando il file dice un modello che
+# non esiste piu'.
 LLM_MODELLO = os.environ.get("TRADASH2_MODELLO", "gpt-5.5")
 LLM_MODELLO_COMPRESSIONE = "gpt-5.4-mini"
 

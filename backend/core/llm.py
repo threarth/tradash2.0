@@ -34,7 +34,7 @@ import threading
 from datetime import UTC, datetime
 
 import config
-from core import calls, registry
+from core import calls, impostazioni, registry
 from core.db import db_read, db_session
 
 logger = logging.getLogger(__name__)
@@ -257,7 +257,11 @@ def chiedi(fase: str, sistema: str, messaggio: str, scope: str | None = None,
     la fase delle citazioni deve produrre una risposta molto piu' lunga delle
     altre, e col tetto normale usciva TAGLIATA a meta' di un JSON.
     """
-    scelto = modello or config.LLM_MODELLO
+    # L'ordine e' questo e conta: chi chiede un modello preciso lo ottiene, chi
+    # non lo chiede prende quello scelto col selettore, e solo se nessuno ha mai
+    # scelto vale il predefinito. Si rilegge a ogni chiamata: cambiare modello
+    # deve valere dall'analisi dopo, non dal prossimo riavvio.
+    scelto = modello or impostazioni.modello()
     tetto = config.LLM_TOKEN_PER_FASE.get(fase, config.LLM_TOKEN_MASSIMI)
     fornitore = provider_di(scelto)
     dove = {"modello": scelto, "fase": fase, "scope": scope, "run_id": run_id}

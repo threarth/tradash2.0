@@ -26,6 +26,11 @@ backend/data/referti.jsonl
 backend/data/referti.jsonl.prima
 backend/data/grafici.json.tmp
 
+# le impostazioni sono TUE: quale modello usi e' una scelta di questa macchina,
+# non del progetto. Il predefinito sta in config.py ed e' quello del repo.
+backend/data/impostazioni.json
+backend/data/impostazioni.json.tmp
+
 # i documenti SEC che scarichi tu: sono grossi e sono pubblici,
 # il repo non e' il posto giusto per tenerli
 backend/data/filings/
