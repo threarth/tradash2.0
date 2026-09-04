@@ -545,6 +545,11 @@ def simulatore_psicologico(simbolo: str):
         "symbol": simbolo.strip().upper(), "da": quando, "base": base,
         "capitale": capitale,
         "griglia": simulatore.griglia(mostrate),
+        # La corsa in fila, per ripercorrerla un giorno alla volta. Sempre sulla
+        # variazione giorno su giorno, qualunque sia la `base` scelta per la
+        # tabella: li' la base decide come si LEGGE una casella, qui il tempo
+        # scorre e basta, e il rendimento dal carico e' gia' un campo suo.
+        "andamento": simulatore.andamento(dentro, capitale),
         "esperienza": simulatore.esperienza(dentro, capitale),
         "prima_seduta_disponibile": tutte[0]["data"] if tutte else None,
         "source": lettura.source,

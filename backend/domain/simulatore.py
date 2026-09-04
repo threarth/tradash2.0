@@ -22,6 +22,18 @@ Le celle vuote non sono zeri: sono giorni in cui la borsa era chiusa, oppure
 giorni che quel mese non ha. Un calendario che disegna lo zero dove non c'e'
 stata contrattazione fa sembrare piatti i fine settimana.
 
+## La corsa giorno per giorno
+
+La tabella mostra tutto insieme, e tutto insieme e' esattamente cio' che chi
+teneva il titolo non vedeva. `andamento()` restituisce la stessa storia in
+fila — quanto valeva la posizione quel giorno, quanto si era sopra o sotto il
+prezzo pagato, quanto si era scesi dal massimo raggiunto **fino ad allora** —
+perche' l'interfaccia possa ripercorrerla un giorno alla volta.
+
+Sapere che sarebbe risalito e' l'unica informazione che chi lo viveva non
+aveva: per questo la discesa di un giorno si misura dal massimo di allora e
+non da quello di tutta la storia.
+
 ## Il periodo come base
 
 Ogni variazione si puo' leggere in due modi, e la differenza non e' estetica:
@@ -119,29 +131,28 @@ def griglia(sedute: list[dict]) -> dict:
     }
 
 
-def esperienza(sedute: list[dict], capitale: float) -> dict:
-    """Cosa si sarebbe vissuto: il valore, il peggio attraversato, il tempo perso.
+def andamento(sedute: list[dict], capitale: float) -> list[dict]:
+    """La corsa giorno per giorno: quanto valeva, quanto si era sotto, da quanto.
 
-    Il «peggio attraversato» non e' la perdita finale: e' la discesa massima dal
-    punto piu' alto raggiunto fino ad allora, che e' il numero che si guarda
-    mentre sta succedendo. E i «giorni sotto» sono quelli passati in perdita
-    rispetto al prezzo pagato — il tempo, che nessun rendimento annuo racconta.
+    E' la stessa passeggiata che serve a `esperienza()` per ricavare le sue
+    misure — e infatti quella la fa su questa invece di rifarla per conto suo:
+    due passeggiate sugli stessi giorni sono due occasioni di non essere
+    d'accordo, e il giorno che divergessero l'una smentirebbe l'altra sotto gli
+    occhi di chi guarda la stessa schermata.
+
+    La `discesa` di un giorno e' quella dal massimo raggiunto **fino a quel
+    giorno**, non dal massimo di tutta la storia: sapere che sarebbe risalito e'
+    esattamente l'informazione che chi lo viveva non aveva.
     """
-    if len(sedute) < SEDUTE_MINIME:
-        return {"available": False,
-                "reason": f"servono almeno {SEDUTE_MINIME} sedute per raccontare "
-                          f"un'esperienza, ce ne sono {len(sedute)}",
-                "action": "scegli una data d'acquisto piu' lontana"}
+    if not sedute:
+        return []
 
     prezzo_pagato = sedute[0]["chiusura"]
     quote = capitale / prezzo_pagato if prezzo_pagato else 0.0
 
     massimo = prezzo_pagato
-    discesa_peggiore = 0.0
-    giorni_sotto = 0
     giorni_dal_massimo = 0
-    attesa_piu_lunga = 0
-    migliore = peggiore = None
+    corsa = []
 
     for seduta in sedute:
         chiusura = seduta["chiusura"]
@@ -150,30 +161,64 @@ def esperienza(sedute: list[dict], capitale: float) -> dict:
             giorni_dal_massimo = 0
         else:
             giorni_dal_massimo += 1
-            attesa_piu_lunga = max(attesa_piu_lunga, giorni_dal_massimo)
-        discesa_peggiore = min(discesa_peggiore, chiusura / massimo - 1)
-        giorni_sotto += int(chiusura < prezzo_pagato)
 
-        movimento = seduta.get("variazione")
-        if movimento is not None:
-            if migliore is None or movimento > migliore["variazione"]:
-                migliore = seduta
-            if peggiore is None or movimento < peggiore["variazione"]:
-                peggiore = seduta
+        corsa.append({
+            "data": seduta["data"],
+            "chiusura": chiusura,
+            "variazione": seduta.get("variazione"),
+            "valore": round(quote * chiusura, 2),
+            "rendimento": round(chiusura / prezzo_pagato - 1, 6) if prezzo_pagato else None,
+            "discesa": round(chiusura / massimo - 1, 6) if massimo else None,
+            "giorni_dal_massimo": giorni_dal_massimo,
+        })
 
-    ultima = sedute[-1]
+    return corsa
+
+
+def _estremi(sedute: list[dict]) -> tuple[dict | None, dict | None]:
+    """Il giorno migliore e il peggiore. `None` se nessuno si e' mosso."""
+    mossi = [s for s in sedute if s.get("variazione") is not None]
+    if not mossi:
+        return None, None
+    return (max(mossi, key=lambda s: s["variazione"]),
+            min(mossi, key=lambda s: s["variazione"]))
+
+
+def esperienza(sedute: list[dict], capitale: float) -> dict:
+    """Cosa si sarebbe vissuto: il valore, il peggio attraversato, il tempo perso.
+
+    Il «peggio attraversato» non e' la perdita finale: e' la discesa massima dal
+    punto piu' alto raggiunto fino ad allora, che e' il numero che si guarda
+    mentre sta succedendo. E i «giorni sotto» sono quelli passati in perdita
+    rispetto al prezzo pagato — il tempo, che nessun rendimento annuo racconta.
+
+    Tutte le misure escono dalla stessa corsa che l'interfaccia ripercorre: il
+    riassunto e il film raccontano gli stessi giorni per costruzione.
+    """
+    if len(sedute) < SEDUTE_MINIME:
+        return {"available": False,
+                "reason": f"servono almeno {SEDUTE_MINIME} sedute per raccontare "
+                          f"un'esperienza, ce ne sono {len(sedute)}",
+                "action": "scegli una data d'acquisto piu' lontana"}
+
+    corsa = andamento(sedute, capitale)
+    prezzo_pagato = sedute[0]["chiusura"]
+    sotto = [p for p in corsa if p["chiusura"] < prezzo_pagato]
+    migliore, peggiore = _estremi(sedute)
+    ultima = corsa[-1]
+
     return {
         "available": True,
-        "reason": f"{len(sedute)} sedute dal {sedute[0]['data']} al {ultima['data']}",
+        "reason": f"{len(corsa)} sedute dal {corsa[0]['data']} al {ultima['data']}",
         "prezzo_pagato": round(prezzo_pagato, 4),
-        "quote": round(quote, 6),
+        "quote": round(capitale / prezzo_pagato if prezzo_pagato else 0.0, 6),
         "capitale": round(capitale, 2),
-        "valore_oggi": round(quote * ultima["chiusura"], 2),
-        "rendimento": round(ultima["chiusura"] / prezzo_pagato - 1, 6),
-        "discesa_peggiore": round(discesa_peggiore, 6),
-        "giorni_sotto_il_prezzo_pagato": giorni_sotto,
-        "quota_del_tempo_in_perdita": round(giorni_sotto / len(sedute), 4),
-        "attesa_piu_lunga_sotto_il_massimo": attesa_piu_lunga,
+        "valore_oggi": ultima["valore"],
+        "rendimento": ultima["rendimento"],
+        "discesa_peggiore": min(p["discesa"] for p in corsa),
+        "giorni_sotto_il_prezzo_pagato": len(sotto),
+        "quota_del_tempo_in_perdita": round(len(sotto) / len(corsa), 4),
+        "attesa_piu_lunga_sotto_il_massimo": max(p["giorni_dal_massimo"] for p in corsa),
         "giorno_migliore": migliore,
         "giorno_peggiore": peggiore,
     }
