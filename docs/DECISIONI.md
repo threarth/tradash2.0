@@ -1157,3 +1157,46 @@ volte per tornare al punto di prima. Chiusa diventa una striscia verticale:
 occupa una colonna sottile invece di una riga in mezzo al contenuto. E la
 colonna del menu resta appiccicata in alto, perche' l'interruttore dev'essere
 raggiungibile a qualunque altezza della pagina.
+
+---
+
+## L'import buttava via il perche'
+
+Il prompt di scoperta chiede sei cose per ogni titolo proposto, e due sono
+prosa: **`perche`** — cosa fa, a chi vende, da dove viene il legame col tema —
+e **`cosa_lo_distingue`**, che il prompt pretende al punto di dire «se non lo
+sai dire, quel titolo non serve».
+
+L'import ne accettava tre: temi, profilo e maturity. Le altre le leggeva e le
+lasciava cadere, senza una riga di resoconto. Il difetto si vede solo dopo:
+entra una classificazione su un tema nuovo, e mesi dopo in watchlist c'e' un
+simbolo con due etichette addosso e nessuna traccia del motivo per cui e'
+entrato — cioe' l'unica parte che non si sarebbe potuta ricalcolare, perche'
+tutto il resto il sistema lo deriva da se'.
+
+Le due note adesso restano, e sono modificabili: **un perche' scritto da un
+modello vale finche' non lo si riscrive.**
+
+Tre scelte dentro la scelta.
+
+**Non stanno nella copia SQLite.** La copia esiste per filtrare e per fare JOIN
+con l'universo, e su un testo libero non si filtra. `elenco()` le rimette
+accanto ai titoli leggendo il file, che ha gia' in mano — nessuna lettura in
+piu', e nessuna colonna che vive solo per essere ricopiata.
+
+**Chi non le manda non le sta svuotando.** Il prompt di classificazione le due
+note non le produce: se «assente» valesse «cancella», riclassificare la
+watchlist porterebbe via i perche' scritti mesi prima, e non se ne
+accorgerebbe nessuno finche' non servono. Vale la stessa regola dell'editor di
+un titolo: non passare un campo significa lasciarlo com'e'.
+
+**Il testo troppo lungo si rifiuta, non si taglia.** Un taglio silenzioso fa
+credere di aver salvato tutto. Il tetto — 2000 caratteri — lo dichiara il
+backend nella risposta dell'elenco, e la casella lo mostra mentre si scrive
+invece di farlo scoprire da un errore a salvataggio gia' tentato.
+
+Il campo si scrive in un posto solo, la watchlist, che e' dove quella decisione
+si prende. La pagina del titolo lo mostra sotto alla descrizione e basta: la
+descrizione dice cosa fa la societa', la nota dice cosa ci fa **qui**, e due
+punti in cui si modifica lo stesso campo sono due punti che prima o poi si
+contraddicono.

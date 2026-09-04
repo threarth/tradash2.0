@@ -19,7 +19,7 @@ import pytest
 import config
 from core import freshness
 from core.db import db_session
-from data import watchlist
+from data import defeatbeta, watchlist
 from data.watchlist import WatchlistError
 
 AMBITO = "Semiconductor"
@@ -355,6 +355,109 @@ def test_si_filtra_per_profilo_e_maturity(universo_finto):
     assert [t["symbol"] for t in watchlist.elenco(maturity="OPERATIONAL")] == ["MU"]
 
 
+# --- le due note: perche' lo guardi, e cosa lo distingue --------------------
+#
+# Il difetto da cui nascono: il prompt di scoperta chiedeva `perche` e
+# `cosa_lo_distingue` fin dal primo giorno, e l'import li buttava via senza
+# dirlo. Entravano i temi, il profilo e la maturity, e il ragionamento che li
+# aveva prodotti spariva — cioe' l'unica parte che sei mesi dopo non si sarebbe
+# potuta ricostruire da soli.
+
+def test_l_import_tiene_il_perche_invece_di_buttarlo(universo_finto):
+    """La risposta del prompt di scoperta entra intera, non a meta'."""
+    esito = watchlist.importa({"titoli": [
+        {"symbol": "MU", "nome": "Micron", "tag": [], "profilo": "CORE",
+         "maturity": "SCALED", "perche": "Fa memorie HBM per gli acceleratori.",
+         "cosa_lo_distingue": "E' l'unico dei tre a produrre in casa."},
+    ]})
+
+    assert esito["aggiunti"] == ["MU"]
+    titolo = watchlist.elenco()[0]
+    assert titolo["perche"] == "Fa memorie HBM per gli acceleratori."
+    assert titolo["cosa_lo_distingue"] == "E' l'unico dei tre a produrre in casa."
+
+
+def test_una_riclassificazione_non_cancella_il_perche(universo_finto):
+    """Il prompt di classificazione le note non le produce: chi non le manda
+    non le sta svuotando, e cancellarle sarebbe una perdita silenziosa."""
+    watchlist.importa({"titoli": [
+        {"symbol": "MU", "tag": [], "perche": "scritto a mano mesi fa"},
+    ]})
+
+    watchlist.importa({"titoli": [{"symbol": "MU", "tag": [], "profilo": "EMERGING"}]})
+
+    titolo = watchlist.elenco()[0]
+    assert titolo["profilo"] == "EMERGING", "la riclassificazione e' arrivata"
+    assert titolo["perche"] == "scritto a mano mesi fa", "e non ha portato via il resto"
+
+
+def test_le_note_si_correggono_a_mano(universo_finto):
+    """Un perche' scritto da un modello vale finche' non lo si riscrive."""
+    watchlist.aggiungi("MU")
+    watchlist.imposta_attributi("MU", perche="versione del modello")
+
+    watchlist.imposta_attributi("MU", perche="  versione mia  ")
+    assert watchlist.elenco()[0]["perche"] == "versione mia", "gli spazi si tolgono"
+
+    watchlist.imposta_attributi("MU", perche=None)
+    assert watchlist.elenco()[0]["perche"] is None, "None svuota"
+
+    watchlist.imposta_attributi("MU", profilo="CORE")
+    assert watchlist.elenco()[0]["perche"] is None, "non passarlo non lo tocca"
+
+
+def test_una_nota_troppo_lunga_si_rifiuta_invece_di_troncarla(universo_finto):
+    """Un taglio silenzioso fa credere di aver salvato tutto."""
+    watchlist.aggiungi("MU")
+    troppo = "x" * (config.WATCHLIST_NOTA_MAX_CARATTERI + 1)
+
+    with pytest.raises(WatchlistError, match=str(config.WATCHLIST_NOTA_MAX_CARATTERI)):
+        watchlist.imposta_attributi("MU", perche=troppo)
+
+    assert watchlist.elenco()[0]["perche"] is None, "non ne ha salvato un pezzo"
+
+
+def test_una_nota_smisurata_non_lascia_il_titolo_a_meta(universo_finto):
+    """Chi viene rifiutato dev'essere rifiutato INTERO: un titolo che finisce
+    fra i rifiutati e intanto si porta a casa i temi nuovi e' peggio di un
+    errore, perche' l'esito dice una cosa e il file ne contiene un'altra."""
+    watchlist.aggiungi("MU")
+    watchlist.imposta_attributi("MU", profilo="CORE")
+
+    esito = watchlist.importa({"titoli": [
+        {"symbol": "MU", "tag": ["inventato"], "profilo": "EMERGING",
+         "perche": "x" * (config.WATCHLIST_NOTA_MAX_CARATTERI + 1)},
+    ]})
+
+    assert [r["symbol"] for r in esito["rifiutati"]] == ["MU"]
+    titolo = watchlist.elenco()[0]
+    assert titolo["profilo"] == "CORE", "non e' stato toccato"
+    assert titolo["temi"] == [], "e non ha preso il tema della voce rifiutata"
+
+
+def test_le_note_non_stanno_nella_copia_sqlite(universo_finto):
+    """Non e' una dimenticanza: la copia serve a filtrare, e su un testo libero
+    non si filtra. L'elenco le rimette accanto ai titoli leggendo la verita'."""
+    watchlist.aggiungi("MU")
+    watchlist.imposta_attributi("MU", perche="sta nel file, non in tabella")
+
+    with db_session() as conn:
+        colonne = {r["name"] for r in conn.execute("PRAGMA table_info(watchlist)")}
+    assert not colonne & set(watchlist.CAMPI_NOTA)
+    assert watchlist.elenco()[0]["perche"] == "sta nel file, non in tabella"
+
+
+def test_le_note_di_un_titolo_solo(universo_finto):
+    """Cio' che legge la pagina di un titolo. Chi non e' in watchlist non ha
+    note: `None`, che e' diverso da note vuote."""
+    watchlist.aggiungi("MU")
+    watchlist.imposta_attributi("MU", cosa_lo_distingue="produce in casa")
+
+    assert watchlist.note("mu ") == {"perche": None,
+                                     "cosa_lo_distingue": "produce in casa"}
+    assert watchlist.note("AAPL") is None
+
+
 def test_esportare_e_reimportare_non_cambia_niente(universo_finto):
     """Il giro completo: esci, torni, e la watchlist e' quella di prima."""
     ambito = watchlist.tag_crea(AMBITO)
@@ -468,6 +571,48 @@ def test_le_route_di_attributi_e_import(client, universo_finto):
     elenco = client.get("/api/watchlist?profilo=CORE").get_json()["data"]
     assert len(elenco["titoli"]) == 1
     assert elenco["profili"] == list(config.PROFILI)
+
+
+def test_le_route_portano_le_note_e_dichiarano_il_tetto(client, universo_finto):
+    """Il tetto lo dichiara il backend: l'interfaccia lo mostra mentre si
+    scrive, invece di farlo scoprire da un errore a salvataggio gia' tentato."""
+    client.post("/api/watchlist", json={"testo": "MU"})
+
+    modificato = client.patch("/api/watchlist/MU",
+                              json={"perche": "fa memorie HBM"}).get_json()
+    assert modificato["data"]["perche"] == "fa memorie HBM"
+
+    elenco = client.get("/api/watchlist").get_json()["data"]
+    assert elenco["titoli"][0]["perche"] == "fa memorie HBM"
+    assert elenco["nota_max_caratteri"] == config.WATCHLIST_NOTA_MAX_CARATTERI
+
+    troppo = "x" * (config.WATCHLIST_NOTA_MAX_CARATTERI + 1)
+    assert client.patch("/api/watchlist/MU", json={"perche": troppo}).status_code == 400
+
+    esportato = client.get("/api/watchlist/esporta").get_json()["data"]
+    assert esportato["titoli"][0]["perche"] == "fa memorie HBM"
+
+
+def test_la_pagina_di_un_titolo_riceve_il_perche(client, universo_finto, monkeypatch):
+    """La descrizione dice cosa fa la societa', la nota dice cosa ci fa QUI.
+
+    Si legge anche quando l'anagrafica non c'e': sono due dati diversi e da due
+    fonti diverse, e far dipendere il proprio giudizio dalla disponibilita' di
+    Defeatbeta non avrebbe senso.
+    """
+    class _AnagraficaAssente:
+        available = False
+        reason = "in questo test non serve"
+        action = None
+
+    monkeypatch.setattr(defeatbeta, "profile", lambda *a, **k: _AnagraficaAssente())
+    client.post("/api/watchlist", json={"testo": "MU"})
+    client.patch("/api/watchlist/MU", json={"perche": "fa memorie HBM"})
+
+    scheda = client.get("/api/titolo/MU").get_json()["data"]
+
+    assert scheda["note_watchlist"]["perche"] == "fa memorie HBM"
+    assert client.get("/api/titolo/AAPL").get_json()["data"]["note_watchlist"] is None
 
 
 # --- Flask serve anche la SPA ----------------------------------------------
