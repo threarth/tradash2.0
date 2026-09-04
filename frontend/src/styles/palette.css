@@ -28,10 +28,9 @@
  *   della pagina che ha un colore tutto suo: un ticker si cerca con l'occhio
  *   prima di leggerlo.
  *
- * I numeri, sulle card che sono la superficie peggiore: testo 13,90, la riga
- * che spiega 10,18, simboli 10,52, verde 7,89, rosso 5,64. La palette
- * precedente stava rispettivamente a 8,69, 7,10, 9,89, 8,46 e 5,43 — e questa
- * e' calda.
+ * I numeri, sulle card: testo 16,74, la riga che spiega 11,74, simboli 12,13,
+ * verde 9,10, rosso 6,50. La palette precedente (Mocha) stava rispettivamente a
+ * 8,69, 7,10, 9,89, 8,46 e 5,43 — e questa e' calda.
  *
  * I nomi delle variabili restano `--monitor-*`: cambiare anche quelli
  * vorrebbe dire toccare ottanta punti del foglio per un rinominare, e il
@@ -47,23 +46,26 @@
 :root {
     /* I colori del monitor, con i loro nomi. Le mappature su Bootstrap
        vengono dopo, cosi' si vede quale valore sta andando dove. */
-    /* I tre livelli della pagina sono tre gradini della scala `stone`, che e' la
-       grigia calda di Tailwind. Un riquadro si distingue perche' e' un gradino
-       piu' chiaro, non perche' ha un bordo attorno. */
+    /* Due livelli e non tre, e il salto e' piccolo apposta: la pagina e cio' che
+       ci sta sopra. Le card erano `stone-800` e sono scese a `stone-900` —
+       schiarire un riquadro per farlo notare costa contrasto a tutto quello che
+       ci sta dentro, e li' dentro c'e' il testo. Adesso la card si distingue per
+       un gradino appena piu' chiaro **e per il suo bordo**, che infatti e' stato
+       schiarito di un gradino a sua volta. */
     --monitor-fondo: #0c0a09;      /* tailwind stone-950 */
     --monitor-sezione: #1c1917;    /* tailwind stone-900 */
-    --monitor-pannello: #292524;   /* tailwind stone-800 */
-    --monitor-linea: #44403c;      /* tailwind stone-700 */
+    --monitor-pannello: #1c1917;   /* tailwind stone-900 */
+    --monitor-linea: #57534e;      /* tailwind stone-600 */
 
     /* Il testo e' `stone-100`, non bianco: il bianco puro su fondo scuro vibra.
 
        L'ATTENUATO e' la riga che spiega, la piu' difficile da leggere di tutta
        l'interfaccia per quattro palette di fila. Qui e' `stone-300` e sta a
-       **10,18 sulle card**: e' il gradino piu' chiaro che resti distinguibile
+       **11,74 sulle card**: e' il gradino piu' chiaro che resti distinguibile
        dal testo pieno, e la differenza fra i due si vede ancora perche' e' il
        testo pieno a essere quasi bianco. Nelle palette precedenti lo stesso
        posto stava fra 6,0 e 7,7. */
-    --monitor-testo: #f5f5f4;      /* tailwind stone-100 */
+    --monitor-testo: #fafaf9;      /* tailwind stone-50 */
     --monitor-attenuato: #d6d3d1;  /* tailwind stone-300 */
 
     /* L'accento e' il giallo di Gruvbox: si nota senza gridare, e non e' il
@@ -171,7 +173,7 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     --bs-body-bg: var(--monitor-fondo);
     --bs-body-bg-rgb: 12, 10, 9;
     --bs-body-color: var(--monitor-testo);
-    --bs-body-color-rgb: 245, 245, 244;
+    --bs-body-color-rgb: 250, 250, 249;
     --bs-emphasis-color: #ffffff;
 
     --bs-secondary-color: var(--monitor-attenuato);

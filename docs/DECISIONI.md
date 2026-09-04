@@ -1716,16 +1716,23 @@ Sulle card, che sono la superficie peggiore:
 
 | | qui | Mocha | Gruvbox |
 |---|---:|---:|---:|
-| testo | **13,90** | 8,69 | 9,57 |
-| la riga che spiega | **10,18** | 7,10 | 7,65 |
-| simboli | **10,52** | — | — |
-| collegamenti | 8,99 | 9,89 | 7,74 |
-| verde | 7,89 | 8,46 | 6,36 |
-| rosso | **5,64** | 5,43 | 4,57 |
+| testo | **16,74** | 8,69 | 9,57 |
+| la riga che spiega | **11,74** | 7,10 | 7,65 |
+| simboli | **12,13** | — | — |
+| collegamenti | 10,37 | 9,89 | 7,74 |
+| verde | 9,10 | 8,46 | 6,36 |
+| rosso | **6,50** | 5,43 | 4,57 |
 
-La riga che spiega passa da 7,10 a **10,18**: e' il numero che questa voce
+La riga che spiega passa da 7,10 a **11,74**: e' il numero che questa voce
 esiste per cambiare, ed e' stato il difetto piu' longevo dell'interfaccia — tre
 palette e un cambio di corpo del testo prima di essere chiuso.
+
+**Due livelli, non tre.** Le card erano un gradino piu' chiare della pagina
+(`stone-800`) e sono scese a `stone-900`: schiarire un riquadro per farlo notare
+costa contrasto a tutto quello che ci sta dentro, e li' dentro c'e' il testo.
+Adesso la card si distingue per un gradino appena — 1,13 — **e per il suo
+bordo**, che e' stato schiarito a `stone-600` per reggere quel lavoro da solo.
+Il testo pieno e' salito a `stone-50`.
 
 Fonti: la scala `stone` da
 [tailwindlabs/tailwindcss](https://github.com/tailwindlabs/tailwindcss),
