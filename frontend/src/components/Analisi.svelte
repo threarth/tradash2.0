@@ -8,6 +8,12 @@
 
     Il costo si vede: un'analisi che gira senza che si sappia quanto brucia e'
     esattamente il difetto che il registro esiste per chiudere.
+
+    E mentre gira si vede COSA sta facendo. Prima il pulsante scriveva «fase 1
+    di 4» e restava fermo su quella scritta fino alla fine — anche quando era
+    alla terza, anche quando era andata storta. Il registro sapeva tutto e
+    nessuno glielo chiedeva: adesso la scheda guarda il lavoro che porta il
+    proprio simbolo, e ne mostra la scia riga per riga.
 -->
 <script>
     import { onMount } from "svelte";
@@ -15,11 +21,21 @@
     import Errore from "./Errore.svelte";
     import Referto from "./Referto.svelte";
     import Riquadro from "./Riquadro.svelte";
+    import Scia from "./Scia.svelte";
     import Testo from "./Testo.svelte";
     import { api } from "../lib/api.js";
+    import { lavori } from "../lib/lavori.svelte.js";
     import { richiedi } from "../lib/carica.svelte.js";
 
     let { simbolo } = $props();
+
+    // Il lavoro che riguarda QUESTO titolo, se ce n'e' uno. Lo si riconosce
+    // dall'ambito che il registro dichiara, non leggendo l'etichetta:
+    // un'etichetta e' una frase per gli occhi, e cercarci dentro un simbolo
+    // vorrebbe dire che cambiarla romperebbe questo.
+    const mio = $derived(lavori.per(simbolo));
+
+    $effect(() => lavori.guarda());
 
     let inCorso = $state(null);
     let referto = $state(null);
@@ -89,9 +105,13 @@
                             <button class="btn btn-sm btn-primary"
                                     disabled={inCorso !== null}
                                     onclick={() => esegui(metodo.metodo)}>
-                                {inCorso === metodo.metodo
-                                ? (metodo.passi > 1 ? `fase 1 di ${metodo.passi}…` : "sto chiedendo…")
-                                : "Esegui"}
+                                {#if inCorso !== metodo.metodo}
+                                    Esegui
+                                {:else if mio?.total}
+                                    fase {Math.max(mio.done, 1)} di {mio.total}…
+                                {:else}
+                                    sto chiedendo…
+                                {/if}
                             </button>
                         {:else}
                             <span class="badge text-bg-secondary">non ancora</span>
@@ -102,6 +122,19 @@
         </div>
     {/snippet}
 </Riquadro>
+
+<!-- La scia sta QUI, sotto ai metodi: e' la parte di pagina che si sta
+     guardando mentre si aspetta, e mandarla a cercare nel pannello in alto
+     vorrebbe dire spostare gli occhi da quello che si e' appena premuto. -->
+{#if inCorso && mio}
+    <div class="scia-analisi mb-3">
+        <div class="small text-secondary">
+            <Testo testo={mio.label} />
+            {#if mio.total} · passo {mio.done} di {mio.total}{/if}
+        </div>
+        <Scia lavoro={mio} />
+    </div>
+{/if}
 
 {#if errore}
     <Errore {errore} />
@@ -147,3 +180,14 @@
         {/if}
     {/snippet}
 </Riquadro>
+
+<style>
+    /* Un riquadro che si distingue dal resto della scheda senza gridare: qui
+       dentro le righe arrivano da sole mentre guardi. */
+    .scia-analisi {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.375rem;
+        background: var(--bs-tertiary-bg);
+    }
+</style>

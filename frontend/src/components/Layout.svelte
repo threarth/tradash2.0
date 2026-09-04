@@ -4,28 +4,24 @@
 
     Il conteggio non e' un ornamento: la regola 1 dice che ogni lavoro dev'essere
     visibile, e un lavoro visibile solo su una pagina che non stai guardando e'
-    visibile a meta'.
+    visibile a meta'. Il numero pero' dice solo QUANTI: a che punto sono lo dice
+    il pannello, che sta qui accanto e compare da solo quando serve.
+
+    Il battito non e' piu' qui dentro: sta in `lavori.svelte.js`, uno per tutti.
+    Tre componenti che chiedono lo stesso elenco ogni due secondi sarebbero tre
+    richieste per la stessa risposta.
 -->
 <script>
     import { onMount } from "svelte";
 
-    import { api } from "../lib/api.js";
     import { glossario } from "../lib/glossario.svelte.js";
+    import { lavori } from "../lib/lavori.svelte.js";
     import { intercettaClick, percorso } from "../lib/router.js";
     import { alternaTema, SCURO, temaAttuale } from "../lib/tema.js";
     import PannelloGlossario from "./PannelloGlossario.svelte";
+    import PannelloLavori from "./PannelloLavori.svelte";
 
     let { children } = $props();
-
-    // Ogni quanto si chiede se c'e' qualcosa in corso. Due ritmi, non uno:
-    // svelto mentre qualcosa gira, lento quando non gira niente.
-    //
-    // Con un ritmo solo, una scheda dimenticata continuerebbe a chiedere per
-    // giorni — e "il costo di una pagina non dipende da quanto resta aperta" e'
-    // la regola 2 alla lettera. Il vecchio sistema e' morto proprio cosi', con
-    // una scheda aperta che al riavvio del backend ha rilanciato 500 download.
-    const RITMO_ATTIVO_MS = 2000;
-    const RITMO_FERMO_MS = 30000;
 
     const PAGINE = [
         { percorso: "/", etichetta: "Universo", icona: "bi-globe2" },
@@ -36,7 +32,6 @@
     ];
 
     let tema = $state(SCURO);
-    let lavoriAttivi = $state(0);
 
     onMount(() => {
         tema = temaAttuale();
@@ -44,31 +39,6 @@
         // serve perche' la sottolineatura funzioni ovunque senza che ogni
         // pagina se la vada a prendere per conto suo.
         glossario.carica();
-
-        let vivo = true;
-        let prossimo = null;
-
-        async function guarda() {
-            try {
-                const lavori = await api.lavoriAttivi();
-                if (vivo) lavoriAttivi = lavori.length;
-            } catch {
-                // Il backend spento non deve far lampeggiare un errore nella barra:
-                // se ne accorge la pagina che sta chiedendo davvero qualcosa.
-                if (vivo) lavoriAttivi = 0;
-            }
-            if (vivo) {
-                prossimo = setTimeout(
-                    guarda, lavoriAttivi > 0 ? RITMO_ATTIVO_MS : RITMO_FERMO_MS
-                );
-            }
-        }
-
-        guarda();
-        return () => {
-            vivo = false;
-            clearTimeout(prossimo);
-        };
     });
 
     const attiva = (destinazione) =>
@@ -88,8 +58,8 @@
                        href={pagina.percorso}>
                         <i class="bi {pagina.icona}" aria-hidden="true"></i>
                         {pagina.etichetta}
-                        {#if pagina.percorso === "/operazioni" && lavoriAttivi > 0}
-                            <span class="badge text-bg-warning ms-1">{lavoriAttivi}</span>
+                        {#if pagina.percorso === "/operazioni" && lavori.quanti > 0}
+                            <span class="badge text-bg-warning ms-1">{lavori.quanti}</span>
                         {/if}
                     </a>
                 </li>
@@ -120,3 +90,4 @@
 </main>
 
 <PannelloGlossario />
+<PannelloLavori />
