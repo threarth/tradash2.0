@@ -1686,3 +1686,47 @@ Gruvbox e' il caldo, ed e' morbido per costruzione.
 
 Fonte: [catppuccin/palette](https://github.com/catppuccin/palette),
 `palette.json`, sapore `mocha`.
+
+---
+
+## La quinta palette: calda come Claude, e con i numeri di prima
+
+Mocha risolveva la leggibilita' e sbagliava famiglia: fondo viola scuro, accento
+giallo pallido, in un'interfaccia che da tre versioni cercava di essere calda. E
+la riga che spiega — quella sotto ai titoli — continuava a non leggersi bene
+nemmeno li'.
+
+Questa tiene i due requisiti insieme, e li prende da due posti pubblici:
+
+* i grigi sono la scala **`stone` di Tailwind**, che e' la grigia CALDA. Tre
+  gradini ufficiali — 950, 900, 800 — usati come i tre livelli della pagina,
+  senza mescolarne nessuno;
+* l'accento e' l'**arancio di Claude** (#d97757) nei pieni, con `orange-300` per
+  il testo e i collegamenti: il terracotta pieno su fondo scuro sta a 4,86, e
+  per una riga piccola non basta. Sul pulsante, dove sotto c'e' il colore e
+  sopra un testo scuro, la stessa tinta fa 5,6;
+* **i simboli dei titoli hanno un colore tutto loro, l'ambra.** E' l'unica cosa
+  della pagina con un colore suo, ed e' voluto: in una tabella di venti righe un
+  ticker si cerca con l'occhio prima di leggerlo, e se ha lo stesso colore di
+  ogni altro collegamento va cercato leggendo. Non cambia nemmeno al passaggio
+  del mouse — li' cambiarlo vorrebbe dire perdere l'unico segno che lo
+  distingue.
+
+Sulle card, che sono la superficie peggiore:
+
+| | qui | Mocha | Gruvbox |
+|---|---:|---:|---:|
+| testo | **13,90** | 8,69 | 9,57 |
+| la riga che spiega | **10,18** | 7,10 | 7,65 |
+| simboli | **10,52** | — | — |
+| collegamenti | 8,99 | 9,89 | 7,74 |
+| verde | 7,89 | 8,46 | 6,36 |
+| rosso | **5,64** | 5,43 | 4,57 |
+
+La riga che spiega passa da 7,10 a **10,18**: e' il numero che questa voce
+esiste per cambiare, ed e' stato il difetto piu' longevo dell'interfaccia — tre
+palette e un cambio di corpo del testo prima di essere chiuso.
+
+Fonti: la scala `stone` da
+[tailwindlabs/tailwindcss](https://github.com/tailwindlabs/tailwindcss),
+`src/public/colors.js`; l'arancio da Claude.

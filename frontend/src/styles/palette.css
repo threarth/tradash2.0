@@ -1,32 +1,37 @@
 /*
- * palette.css — i colori: Catppuccin Mocha, non piu' inventati qui.
- * feat: la palette pubblica che misura meglio, non quella che mi piaceva.
+ * palette.css — i colori: caldi come Claude, e misurati.
+ * feat: la scala grigia calda di Tailwind, l'arancio di Claude, l'ambra per i simboli.
  *
- * Ci sono state tre palette prima di questa, e la storia serve perche' dice
- * cosa NON funziona:
+ * Ci sono state quattro palette prima di questa, e la storia dice cosa NON
+ * funziona:
  *
- * 1. quella del thematic-equity-monitor — blu notte con accento ciano, cioe'
- *    l'aria che hanno tutti i cruscotti generati;
- * 2. una fatta a mano, calda, coi toni scelti uno per uno: i numeri erano
- *    buoni e i grigi tiravano all'oliva;
- * 3. **Gruvbox dark**, presa da una palette pubblica e collaudata. Ed e' qui
- *    che si e' imparata la cosa utile: *validata dall'uso* non vuol dire *ad
- *    alto contrasto*. Gruvbox e' morbida per scelta — il suo rosso sulle card
- *    sta a 3,82, sotto il minimo per un testo piccolo — e per usarla bisognava
- *    schiarirne i gradini, cioe' ricominciare a metterci le mani.
+ * 1. il blu notte del thematic-equity-monitor, cioe' l'aria che hanno tutti i
+ *    cruscotti generati;
+ * 2. una calda fatta a mano, coi toni scelti uno per uno: i grigi tiravano
+ *    all'oliva;
+ * 3. **Gruvbox dark**, e qui si e' imparata la cosa utile: *validata dall'uso*
+ *    non vuol dire *ad alto contrasto*. E' morbida per scelta, il suo rosso
+ *    sulle card sta a 3,82, e per usarla bisognava schiarirne i gradini —
+ *    cioe' ricominciare a metterci le mani;
+ * 4. **Catppuccin Mocha**, che misurava benissimo ed era **fredda**: fondo
+ *    viola scuro, accento giallo pallido. Leggibile e sbagliata di famiglia.
  *
- * Questa e' **Catppuccin Mocha**, dal file `palette.json` del progetto
- * ufficiale. E' stata scelta misurandola contro Gruvbox voce per voce, e vince
- * su tutte quelle che contano: rosso 5,43 contro 4,57 sulle card, verde 8,46
- * contro 6,36, accento 9,89 contro 7,74, e il piu' basso di tutta la pagina
- * passa da 4,57 a 5,43. **Nessun colore e' stato ritoccato**: sono tutti valori
- * originali della palette, ed e' la prova che la scelta e' stata la sua e non
- * la mia.
+ * Questa tiene i due requisiti insieme, e li prende da due posti pubblici:
  *
- * Il prezzo e' dichiarato: Mocha e' fredda. Il fondo tira al viola scuro e
- * l'accento e' un giallo pallido, quindi l'identita' "calda" delle prime due
- * palette qui non c'e' piu'. Fra i temi pubblici, caldo e ad alto contrasto
- * sono in tensione: Gruvbox e' il caldo, ed e' morbido per costruzione.
+ * - i grigi sono la scala **`stone` di Tailwind**, che e' la grigia CALDA — tre
+ *   gradini ufficiali (950, 900, 800) usati come i tre livelli della pagina,
+ *   senza mescolarne nessuno;
+ * - l'accento e' l'**arancio di Claude** (#d97757) per i pieni, con `orange-300`
+ *   per il testo e i collegamenti, perche' il terracotta pieno su fondo scuro
+ *   sta a 4,86 e per un testo piccolo non basta;
+ * - **i simboli dei titoli sono ambra** (`amber-300`), e sono l'unica cosa
+ *   della pagina che ha un colore tutto suo: un ticker si cerca con l'occhio
+ *   prima di leggerlo.
+ *
+ * I numeri, sulle card che sono la superficie peggiore: testo 13,90, la riga
+ * che spiega 10,18, simboli 10,52, verde 7,89, rosso 5,64. La palette
+ * precedente stava rispettivamente a 8,69, 7,10, 9,89, 8,46 e 5,43 — e questa
+ * e' calda.
  *
  * I nomi delle variabili restano `--monitor-*`: cambiare anche quelli
  * vorrebbe dire toccare ottanta punti del foglio per un rinominare, e il
@@ -42,24 +47,24 @@
 :root {
     /* I colori del monitor, con i loro nomi. Le mappature su Bootstrap
        vengono dopo, cosi' si vede quale valore sta andando dove. */
-    /* I tre livelli della pagina sono i tre fondi di Catppuccin, nell'ordine in
-       cui il progetto stesso li consiglia: `mantle` per la pagina, `base` per le
-       sezioni, `surface0` per cio' che sta sopra. Un riquadro si distingue
-       perche' e' un gradino piu' chiaro, non perche' ha un bordo attorno. */
-    --monitor-fondo: #181825;      /* mocha mantle */
-    --monitor-sezione: #1e1e2e;    /* mocha base */
-    --monitor-pannello: #313244;   /* mocha surface0 */
-    --monitor-linea: #45475a;      /* mocha surface1 */
+    /* I tre livelli della pagina sono tre gradini della scala `stone`, che e' la
+       grigia calda di Tailwind. Un riquadro si distingue perche' e' un gradino
+       piu' chiaro, non perche' ha un bordo attorno. */
+    --monitor-fondo: #0c0a09;      /* tailwind stone-950 */
+    --monitor-sezione: #1c1917;    /* tailwind stone-900 */
+    --monitor-pannello: #292524;   /* tailwind stone-800 */
+    --monitor-linea: #44403c;      /* tailwind stone-700 */
 
-    /* Il testo non e' bianco puro: il bianco su un fondo scuro vibra, e su una
-       tabella lunga si sente.
+    /* Il testo e' `stone-100`, non bianco: il bianco puro su fondo scuro vibra.
 
-       L'ATTENUATO e' la riga che spiega, ed e' stata la piu' difficile da
-       leggere di tutta l'interfaccia per tre palette di fila. Qui e' `subtext1`
-       — 7,10 sulle card e 9,91 sul fondo della pagina — e non `subtext0`, che
-       sarebbe il gradino piu' spento e ripeterebbe l'errore. */
-    --monitor-testo: #cdd6f4;      /* mocha text */
-    --monitor-attenuato: #bac2de;  /* mocha subtext1 */
+       L'ATTENUATO e' la riga che spiega, la piu' difficile da leggere di tutta
+       l'interfaccia per quattro palette di fila. Qui e' `stone-300` e sta a
+       **10,18 sulle card**: e' il gradino piu' chiaro che resti distinguibile
+       dal testo pieno, e la differenza fra i due si vede ancora perche' e' il
+       testo pieno a essere quasi bianco. Nelle palette precedenti lo stesso
+       posto stava fra 6,0 e 7,7. */
+    --monitor-testo: #f5f5f4;      /* tailwind stone-100 */
+    --monitor-attenuato: #d6d3d1;  /* tailwind stone-300 */
 
     /* L'accento e' il giallo di Gruvbox: si nota senza gridare, e non e' il
        ciano elettrico che hanno tutti i cruscotti. Il nome della variabile dice
@@ -67,17 +72,26 @@
        punti del foglio per un rinominare, e il rinominare non e' cio' che serve.
        Il chiaro serve al passaggio del mouse sui collegamenti: schiarisce verso
        il crema invece di cambiare colore. */
-    --monitor-ciano: #f9e2af;         /* mocha yellow */
-    --monitor-ciano-chiaro: #f5e0dc;  /* mocha rosewater: schiarisce al passaggio */
+    --monitor-ciano: #fdba74;         /* tailwind orange-300: testo e collegamenti */
+    --monitor-ciano-chiaro: #fed7aa;  /* tailwind orange-200: al passaggio del mouse */
 
-    /* Su e giu', l'arancio per gli avvisi, il blu per le note. Nessuno di questi
-       e' stato ritoccato: il piu' basso di tutti, il rosso, sta a 5,43 sulle
-       card contro un minimo di 4,5 — e nella palette precedente lo stesso posto
-       era occupato da un colore che avevo dovuto schiarire io. */
-    --monitor-verde: #a6e3a1;      /* mocha green */
-    --monitor-ambra: #fab387;      /* mocha peach */
-    --monitor-rosa: #f38ba8;       /* mocha red */
-    --monitor-blu: #89b4fa;        /* mocha blue */
+    /* L'arancio di Claude. Sta nei PIENI — pulsanti, barre — dove sopra ci va
+       un testo scuro: come testo su fondo scuro starebbe a 4,86, e per una
+       riga piccola non basta. */
+    --monitor-accento-pieno: #d97757;
+
+    /* I simboli dei titoli. Sono l'unica cosa della pagina con un colore tutto
+       suo, ed e' voluto: un ticker si cerca con l'occhio prima di leggerlo, e
+       in una tabella di venti righe deve saltare fuori da solo. */
+    --monitor-simbolo: #fcd34d;       /* tailwind amber-300 */
+
+    /* Su e giu', l'ambra per gli avvisi, l'azzurro per le note. Nessuno
+       ritoccato: il piu' basso di tutti, il rosso, sta a 5,64 sulle card contro
+       un minimo di 4,5. */
+    --monitor-verde: #34d399;      /* tailwind emerald-400 */
+    --monitor-ambra: #fbbf24;      /* tailwind amber-400 */
+    --monitor-rosa: #fb7185;       /* tailwind rose-400 */
+    --monitor-blu: #7dd3fc;        /* tailwind sky-300 */
 
     /* Su fondo chiaro gli stessi toni servono piu' scuri, o spariscono. */
     --monitor-ciano-scuro: #8a6414;
@@ -87,7 +101,7 @@
 
     /* Il testo che va SOPRA un fondo pieno d'accento: il gradino piu' scuro
        della palette, cosi' su un pulsante giallo si legge da lontano. */
-    --monitor-su-accento: #11111b;  /* mocha crust */
+    --monitor-su-accento: #1c1917;  /* tailwind stone-900 */
 
     /* I caratteri. Tre famiglie con tre mestieri diversi, ospitate in casa:
        chiederle a un servizio di font vorrebbe dire una chiamata verso
@@ -135,6 +149,17 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     letter-spacing: 0.04em;
 }
 
+/* E ha un colore tutto suo, l'ambra: in una tabella di venti righe un ticker si
+   cerca con l'occhio prima di leggerlo, e se ha lo stesso colore di ogni altro
+   collegamento va cercato leggendo. Vale anche al passaggio del mouse: cambiare
+   colore li' vorrebbe dire perdere proprio l'unico segno che lo distingue. */
+[data-bs-theme="dark"] .simbolo,
+[data-bs-theme="dark"] .ticker a,
+[data-bs-theme="dark"] a.simbolo:hover,
+[data-bs-theme="dark"] .ticker a:hover {
+    color: var(--monitor-simbolo);
+}
+
 /* --- tema scuro: la palette del monitor, per intero -------------------- */
 
 [data-bs-theme="dark"] {
@@ -144,40 +169,40 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
        ombre fredde, che e' esattamente il genere di stonatura che si vede senza
        sapere dire cosa sia. */
     --bs-body-bg: var(--monitor-fondo);
-    --bs-body-bg-rgb: 24, 24, 37;
+    --bs-body-bg-rgb: 12, 10, 9;
     --bs-body-color: var(--monitor-testo);
-    --bs-body-color-rgb: 205, 214, 244;
+    --bs-body-color-rgb: 245, 245, 244;
     --bs-emphasis-color: #ffffff;
 
     --bs-secondary-color: var(--monitor-attenuato);
-    --bs-secondary-color-rgb: 186, 194, 222;
+    --bs-secondary-color-rgb: 214, 211, 209;
     --bs-secondary-bg: var(--monitor-pannello);
     --bs-tertiary-bg: var(--monitor-sezione);
     --bs-border-color: var(--monitor-linea);
     --bs-border-color-translucent: var(--monitor-linea);
 
     --bs-primary: var(--monitor-ciano);
-    --bs-primary-rgb: 249, 226, 175;
+    --bs-primary-rgb: 253, 186, 116;
     --bs-success: var(--monitor-verde);
-    --bs-success-rgb: 166, 227, 161;
+    --bs-success-rgb: 52, 211, 153;
     --bs-warning: var(--monitor-ambra);
-    --bs-warning-rgb: 250, 179, 135;
+    --bs-warning-rgb: 251, 191, 36;
     --bs-danger: var(--monitor-rosa);
-    --bs-danger-rgb: 243, 139, 168;
+    --bs-danger-rgb: 251, 113, 133;
     --bs-info: var(--monitor-blu);
-    --bs-info-rgb: 137, 180, 250;
+    --bs-info-rgb: 125, 211, 252;
 
     --bs-link-color: var(--monitor-ciano);
     --bs-link-hover-color: var(--monitor-ciano-chiaro);
-    --bs-link-color-rgb: 249, 226, 175;
+    --bs-link-color-rgb: 253, 186, 116;
 
     /* Gli avvisi: sfondo appena accennato sul tono giusto, testo leggibile. */
     --bs-secondary-text-emphasis: var(--monitor-attenuato);
     --bs-secondary-bg-subtle: var(--monitor-sezione);
     --bs-secondary-border-subtle: var(--monitor-linea);
     --bs-danger-text-emphasis: var(--monitor-rosa);
-    --bs-danger-bg-subtle: #302331;
-    --bs-danger-border-subtle: #57324a;
+    --bs-danger-bg-subtle: #3a1f24;
+    --bs-danger-border-subtle: #6b2f3a;
     --bs-warning-text-emphasis: var(--monitor-ambra);
     --bs-success-text-emphasis: var(--monitor-verde);
     --bs-info-text-emphasis: var(--monitor-blu);
@@ -207,8 +232,8 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
 /* --- i pulsanti, che hanno i colori compilati dentro ------------------- */
 
 [data-bs-theme="dark"] .btn-primary {
-    --bs-btn-bg: var(--monitor-ciano);
-    --bs-btn-border-color: var(--monitor-ciano);
+    --bs-btn-bg: var(--monitor-accento-pieno);
+    --bs-btn-border-color: var(--monitor-accento-pieno);
     --bs-btn-color: var(--monitor-su-accento);
     --bs-btn-hover-bg: var(--monitor-ciano-chiaro);
     --bs-btn-hover-border-color: var(--monitor-ciano-chiaro);
@@ -219,7 +244,7 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     --bs-btn-disabled-bg: var(--monitor-linea);
     --bs-btn-disabled-border-color: var(--monitor-linea);
     --bs-btn-disabled-color: var(--monitor-attenuato);
-    --bs-btn-focus-shadow-rgb: 249, 226, 175;
+    --bs-btn-focus-shadow-rgb: 217, 119, 87;
 }
 
 [data-bs-theme="dark"] .btn-outline-primary {
@@ -232,7 +257,7 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     --bs-btn-active-border-color: var(--monitor-ciano);
     --bs-btn-active-color: var(--monitor-su-accento);
     --bs-btn-disabled-color: var(--monitor-attenuato);
-    --bs-btn-focus-shadow-rgb: 249, 226, 175;
+    --bs-btn-focus-shadow-rgb: 217, 119, 87;
 }
 
 [data-bs-theme="dark"] .btn-outline-secondary {
@@ -329,7 +354,7 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
 [data-bs-theme="dark"] .form-control:focus,
 [data-bs-theme="dark"] .form-select:focus {
     border-color: var(--monitor-ciano);
-    box-shadow: 0 0 0 .2rem rgba(249, 226, 175, .22);
+    box-shadow: 0 0 0 .2rem rgba(217, 119, 87, .25);
 }
 
 [data-bs-theme="dark"] .nav-tabs {
