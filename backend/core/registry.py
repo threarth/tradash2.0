@@ -8,13 +8,27 @@ nessuno Stop. L'unico modo di fermarlo era uccidere il processo.
 
 Qui non ci sono lavori privilegiati: chi non passa da `job()` non compare in
 `active()` e non si puo' fermare, quindi non deve esistere.
+
+## La scia
+
+Un lavoro non dice solo a che punto e': dice **cosa ha fatto finora**. Una barra
+che avanza e una scritta che si sostituisce raccontano un istante; quando
+un'analisi impiega tre minuti e sta in silenzio per quaranta secondi alla volta,
+la domanda vera e' «e' ferma o sta pensando», e a quella risponde solo l'ora
+dell'ultima riga.
+
+La scia vive in memoria e muore col lavoro: e' una cosa che si guarda mentre
+succede. La storia sta altrove e non si perde — l'esito in `jobs`, ogni chiamata
+al modello con i suoi token e il suo costo in `llm_calls`.
 """
 import logging
 import threading
 import uuid
+from collections import deque
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
+import config
 from core.db import db_session
 
 logger = logging.getLogger(__name__)
@@ -37,15 +51,21 @@ class JobStopped(Exception):
 class Job:
     """Un lavoro in corso, con il suo interruttore."""
 
-    def __init__(self, kind: str, label: str, total: int | None):
+    def __init__(self, kind: str, label: str, total: int | None, ambito: str | None = None):
         self.run_id = uuid.uuid4().hex
         self.kind = kind
         self.label = label
+        self.ambito = ambito
         self.total = total
         self.done = 0
         self.detail: str | None = None
         self.status = STATUS_RUNNING
         self.cancel_event = threading.Event()
+
+        # La scia tiene le ultime righe e conta tutte quelle passate: cosi' chi
+        # la mostra puo' dire che ne sta mostrando una parte.
+        self.eventi: deque = deque(maxlen=config.REGISTRY_EVENTI_MAX)
+        self.eventi_totali = 0
 
     def stop_requested(self) -> bool:
         """True se qualcuno ha premuto Stop."""
@@ -56,19 +76,37 @@ class Job:
         if self.stop_requested():
             raise JobStopped(f"lavoro {self.run_id} fermato su richiesta")
 
+    def nota(self, testo: str) -> None:
+        """Aggiunge una riga alla scia SENZA far avanzare il contatore.
+
+        Serve ai passi dentro a un passo — una chiamata al modello parte e
+        torna, e in mezzo ci sono i quaranta secondi in cui sembra bloccata.
+
+        **Non controlla lo stop**, a differenza di `advance()`: viene chiamata
+        anche da dentro `llm.chiedi`, e far uscire un'eccezione da una riga di
+        racconto vorrebbe dire far fallire il lavoro per colpa del racconto.
+        """
+        self.eventi.append({"quando": _now_iso(), "testo": testo})
+        self.eventi_totali += 1
+
     def advance(self, detail: str | None = None) -> None:
-        """Segna un passo fatto e controlla se bisogna fermarsi."""
+        """Segna un passo fatto, lo scrive nella scia, e controlla se fermarsi."""
         self.done += 1
         if detail is not None:
             self.detail = detail
+            self.nota(detail)
         self.check_stop()
 
     def as_dict(self) -> dict:
         """Rappresentazione per l'API e per il log."""
         return {
             "run_id": self.run_id, "kind": self.kind, "label": self.label,
+            "ambito": self.ambito,
             "status": self.status, "total": self.total, "done": self.done,
             "detail": self.detail, "stop_requested": self.stop_requested(),
+            "eventi": list(self.eventi),
+            "eventi_totali": self.eventi_totali,
+            "eventi_max": self.eventi.maxlen,
         }
 
 
@@ -98,15 +136,20 @@ def _close(lavoro: Job) -> None:
 
 
 @contextmanager
-def job(kind: str, label: str, total: int | None = None):
+def job(kind: str, label: str, total: int | None = None, ambito: str | None = None):
     """Apre un lavoro tracciato. Unico modo legittimo di fare lavoro lungo.
+
+    `ambito` e' il titolo su cui si sta lavorando, quando ce n'e' uno: serve
+    alla pagina di quel titolo per riconoscere il PROPRIO lavoro fra quelli in
+    corso, senza doverlo indovinare leggendo l'etichetta. Resta in memoria — la
+    tabella `jobs` non cambia forma, e nessuno deve ricostruire il database.
 
     Uso:
         with registry.job("ingestion", "prezzi S&P", total=500) as lavoro:
             for simbolo in simboli:
                 lavoro.advance(simbolo)
     """
-    lavoro = Job(kind, label, total)
+    lavoro = Job(kind, label, total, ambito)
     with _lock:
         _lavori[lavoro.run_id] = lavoro
     _insert(lavoro)
@@ -133,6 +176,22 @@ def active() -> list[dict]:
     """I lavori vivi adesso, quelli che si possono ancora fermare."""
     with _lock:
         return [lavoro.as_dict() for lavoro in _lavori.values()]
+
+
+def nota(run_id: str | None, testo: str) -> None:
+    """Aggiunge una riga alla scia di un lavoro vivo, se quel lavoro esiste.
+
+    Non protesta quando non lo trova, ed e' voluto: una chiamata al modello puo'
+    avvenire fuori da qualsiasi lavoro, e una riga di racconto non deve mai
+    diventare il motivo per cui qualcosa fallisce.
+    """
+    if not run_id:
+        return
+
+    with _lock:
+        lavoro = _lavori.get(run_id)
+    if lavoro is not None:
+        lavoro.nota(testo)
 
 
 def request_stop(run_id: str) -> tuple[bool, str | None]:

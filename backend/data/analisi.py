@@ -576,8 +576,13 @@ def esegui(metodo: str, simbolo: str) -> dict:
              "costo_usd": 0.0, "motivo": "fermata prima di completare"}
 
     passi = definizione.get("passi", PASSI_PREDEFINITI)
-    with registry.job(JOB_KIND, f"{definizione['nome']} su {ambito}", total=passi) as lavoro:
+    with registry.job(JOB_KIND, f"{definizione['nome']} su {ambito}",
+                      total=passi, ambito=ambito) as lavoro:
         esito["run_id"] = lavoro.run_id
+        # Prima della prima domanda al modello c'e' la lettura dei dati, che su
+        # un titolo mai visto non e' istantanea: senza questa riga la scia resta
+        # vuota proprio nei secondi in cui ci si chiede se sia partita.
+        lavoro.nota(f"preparo i dati per {definizione['nome']}")
         referto = ESECUTORI[metodo](ambito, lavoro)
         esito["referto_id"] = _salva(ambito, metodo, referto, lavoro.run_id)
         esito.update({"costo_usd": referto.get("costo_usd", 0.0),

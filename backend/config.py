@@ -209,6 +209,13 @@ WSL_DISTRO = os.environ.get("WSL_DISTRO_NAME") or None
 # Il prefisso dei percorsi UNC con cui Windows raggiunge i file di WSL.
 WSL_PREFISSO_UNC = "\\\\wsl.localhost"
 
+# Quante righe di scia tiene un lavoro mentre gira. La scia serve a guardare
+# una cosa che sta succedendo — sopra un certo numero non si legge piu', e le
+# righe vecchie le tiene gia' il registro delle chiamate. Il conteggio totale
+# viaggia insieme alla scia: un elenco tagliato che non dice di esserlo si
+# legge come l'elenco intero.
+REGISTRY_EVENTI_MAX = 40
+
 PRODUCTION_FILING_DIR = BASE_DIR / "data" / "filings"
 FILING_DIR = Path(os.environ.get("TRADASH2_FILINGS", PRODUCTION_FILING_DIR))
 

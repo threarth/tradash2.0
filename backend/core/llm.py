@@ -34,7 +34,7 @@ import threading
 from datetime import UTC, datetime
 
 import config
-from core import calls
+from core import calls, registry
 from core.db import db_read, db_session
 
 logger = logging.getLogger(__name__)
@@ -263,6 +263,13 @@ def chiedi(fase: str, sistema: str, messaggio: str, scope: str | None = None,
     dove = {"modello": scelto, "fase": fase, "scope": scope, "run_id": run_id}
     cliente = _client(fornitore)
 
+    # La chiamata si racconta da qui, e non da dentro a ogni analisi: e' l'unico
+    # punto da cui passano tutte, comprese quelle che verranno. Chi guarda vede
+    # partire la domanda e vede tornare la risposta — e nel mezzo, se non torna
+    # niente per un minuto, sa che sta aspettando il modello e non altro.
+    registry.nota(run_id, f"chiedo a {scelto} — {fase} · "
+                          f"{len(sistema) + len(messaggio)} caratteri")
+
     with calls.track(fornitore, f"messaggio:{fase}", scope=scope, run_id=run_id) as chiamata:
         chiamata.from_network()
         try:
@@ -270,12 +277,17 @@ def chiedi(fase: str, sistema: str, messaggio: str, scope: str | None = None,
         except Exception as exc:
             _registra(dove, None, {"stato": calls.STATUS_ERROR,
                                    "errore": f"{type(exc).__name__}: {exc}"})
+            registry.nota(run_id, f"{scelto} non ha risposto: {type(exc).__name__}")
             raise LlmNonDisponibile(
                 f"chiamata a {scelto} fallita: {type(exc).__name__}: {exc}"
             ) from exc
 
     speso = _registra(dove, esito, {"stato": calls.STATUS_OK,
                                     "stop_reason": esito["stop_reason"]})
+    registry.nota(run_id, f"{scelto} ha risposto: {esito['entrata']} token dentro, "
+                          f"{esito['uscita']} fuori · ${speso:.4f}"
+                          + (" · TAGLIATA" if esito["tagliata"] else "")
+                          + (" · RIFIUTATA" if esito["rifiutata"] else ""))
 
     # Un rifiuto non e' una risposta vuota: va distinto, perche' significa che
     # il modello ha DECISO di non rispondere, e riprovare non serve.
