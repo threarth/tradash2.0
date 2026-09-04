@@ -80,16 +80,35 @@ ORIGINE_BILANCIO = "voce di bilancio"
 ORIGINE_METRICA = "metrica calcolata"
 
 
-def _da_voci_di_bilancio() -> list[dict]:
-    """Una voce di glossario per ogni riga dei prospetti che sappiamo tradurre."""
-    return [{
+def _una_voce_di_bilancio(nome: str, etichetta: str, spiegazione: str) -> dict:
+    """Una voce di glossario per una riga dei prospetti.
+
+    Le voci su cui si sbaglia davvero — ricavi, margine lordo, reddito
+    operativo, EBIT, EBITDA, utile, cassa libera, patrimonio, debito,
+    circolante — hanno una spiegazione estesa, la loro formula e, dove c'e', la
+    trappola. Le altre tengono la riga sola: centottanta paragrafi generici non
+    sarebbero informazione, sarebbero testo.
+    """
+    dettaglio = voci_bilancio.dettaglio(nome) or {}
+    contesto = f"Compare nei Fondamentali col nome originale «{nome.replace('_', ' ')}»."
+    if dettaglio.get("attenzione"):
+        contesto += f" Attenzione: {dettaglio['attenzione']}"
+
+    return {
         "id": nome, "label": etichetta, "short": spiegazione,
-        "full": spiegazione,
-        "formula": None, "example": None,
-        "context": f"Compare nei Fondamentali col nome originale «{nome.replace('_', ' ')}».",
+        "full": dettaglio.get("esteso") or spiegazione,
+        "formula": dettaglio.get("formula"), "example": None,
+        "context": contesto,
         "source_label": "Defeatbeta", "source_url": None,
         "related": [], "origine": ORIGINE_BILANCIO, "nome_originale": nome,
-    } for nome, (etichetta, spiegazione) in voci_bilancio.VOCI.items()]
+        "approfondita": bool(dettaglio),
+    }
+
+
+def _da_voci_di_bilancio() -> list[dict]:
+    """Una voce di glossario per ogni riga dei prospetti che sappiamo tradurre."""
+    return [_una_voce_di_bilancio(nome, etichetta, spiegazione)
+            for nome, (etichetta, spiegazione) in voci_bilancio.VOCI.items()]
 
 
 def _da_metriche() -> list[dict]:

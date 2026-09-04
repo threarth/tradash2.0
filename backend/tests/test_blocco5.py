@@ -119,7 +119,7 @@ def test_il_glossario_ha_i_termini_attesi():
     voci, errore = glossary.termini()
 
     assert errore is None
-    assert len(voci) == 171
+    assert len(voci) == 175
     assert all({"id", "label", "short", "full"} <= set(v) for v in voci)
 
 
@@ -152,7 +152,7 @@ def test_le_route_del_glossario(client):
     assert elenco["success"] is True
 
     per_origine = Counter(v["origine"] for v in elenco["data"])
-    assert per_origine["curata"] == 171, "le curate non si perdono per strada"
+    assert per_origine["curata"] == 175, "le curate non si perdono per strada"
     assert per_origine["voce di bilancio"] > 150
     assert per_origine["metrica calcolata"] > 10
 
@@ -227,3 +227,60 @@ def test_un_glossario_illeggibile_lo_dice(tmp_path, monkeypatch):
 
     assert voci == []
     assert "non e' leggibile" in errore
+
+
+def test_le_tre_voci_che_mancavano_adesso_ci_sono(client):
+    """Cinque rimandi puntavano a termini mai scritti; due erano rimandi da
+    togliere, tre erano voci da scrivere. Queste sono quelle."""
+    voci = {v["id"]: v for v in client.get("/api/glossario").get_json()["data"]}
+
+    for id_atteso in ("volatility", "market_tailwind", "sector_leadership"):
+        voce = voci[id_atteso]
+        assert voce["origine"] == "curata", id_atteso
+        assert len(voce["full"]) > 200, f"{id_atteso} e' scritta troppo corta"
+        assert voce["related"], id_atteso
+
+
+def test_nessun_rimando_del_glossario_punta_nel_vuoto(client):
+    """Un rimando a un termine che non esiste e' un vicolo cieco, e nel vecchio
+    sistema ce n'erano cinque."""
+    voci = client.get("/api/glossario").get_json()["data"]
+    esistenti = {v["id"] for v in voci}
+
+    rotti = sorted({r for v in voci for r in (v.get("related") or [])
+                    if r not in esistenti})
+
+    assert not rotti, f"questi rimandi non portano da nessuna parte: {rotti}"
+
+
+def test_le_voci_di_bilancio_che_contano_hanno_piu_di_una_riga(client):
+    """Centottanta paragrafi generici non sarebbero informazione, sarebbero
+    testo: le approfondite sono quelle su cui si sbaglia davvero."""
+    voci = {v["id"]: v for v in client.get("/api/glossario").get_json()["data"]}
+
+    for nome in ("total_revenue", "gross_profit", "operating_income", "ebit",
+                 "ebitda", "net_income", "free_cash_flow", "stockholders_equity",
+                 "total_debt", "working_capital"):
+        voce = voci[nome]
+        # Alcune di queste — `ebit`, `free_cash_flow` — erano gia' scritte a
+        # mano, e la curata vince sulla generata: e' la regola, non un'eccezione.
+        # Quello che conta e' che in un modo o nell'altro siano approfondite.
+        approfondita = voce.get("approfondita") or voce["origine"] == "curata"
+        assert approfondita, nome
+        assert len(voce["full"]) > len(voce["short"]) + 100, nome
+
+    # E una che non merita il paragrafo tiene la sua riga, senza fingere.
+    terreni = voci["land_and_improvements"]
+    assert terreni["full"] == terreni["short"]
+    assert terreni["approfondita"] is False
+
+
+def test_dove_c_e_una_trappola_la_voce_la_dice(client):
+    """La differenza fra EBIT e reddito operativo su NVDA vale 16 miliardi: se
+    il glossario non la nomina, la spiegazione e' incompleta dove serve."""
+    voci = {v["id"]: v for v in client.get("/api/glossario").get_json()["data"]}
+
+    assert "Attenzione:" in voci["operating_income"]["context"]
+    assert "EBIT" in voci["operating_income"]["context"]
+    assert voci["gross_profit"]["formula"]
+    assert voci["working_capital"]["formula"]

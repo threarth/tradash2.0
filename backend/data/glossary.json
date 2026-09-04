@@ -2521,5 +2521,68 @@
       "fcf-vs-earnings",
       "health-score"
     ]
+  },
+  {
+    "id": "volatility",
+    "label": "Volatilita'",
+    "short": "Quanto il prezzo si muove, in su e in giu', attorno alla propria media.",
+    "full": "La volatilita' misura l'ampiezza delle oscillazioni di prezzo in un periodo, di solito come deviazione standard dei rendimenti giornalieri annualizzata. Non dice la DIREZIONE: un titolo che sale del 3% al giorno e uno che scende del 3% al giorno hanno la stessa volatilita'. Serve a sapere quanto e' largo il campo di gioco — quanto ci si puo' aspettare che il prezzo si allontani da dove sta adesso — non dove andra'. Confonderla col rischio e' l'errore piu' comune: la volatilita' e' un'oscillazione, la perdita permanente e' un'altra cosa, e un titolo poco volatile che perde il 60% in tre anni ne e' la dimostrazione.",
+    "formula": "Volatilita' annualizzata = deviazione standard dei rendimenti giornalieri x radice di 252 (le sedute in un anno)",
+    "example": "Due titoli fermi sullo stesso prezzo dopo un anno: uno c'e' arrivato con oscillazioni dell'1% al giorno, l'altro passando da -40% a +65%. Il rendimento e' identico, l'esperienza no — ed e' quello che il simulatore psicologico mostra.",
+    "context": "In tradash2.0 la volatilita' non e' calcolata come misura a se': il suo posto e' preso dalla DISCESA attraversata, che risponde alla domanda piu' utile — quanto si e' arrivati a perdere — invece che a quanto si e' oscillato. Vedi il punteggio di rischio e il simulatore.",
+    "source_label": "Investopedia — Volatility",
+    "source_url": "https://www.investopedia.com/terms/v/volatility.asp",
+    "related": [
+      "drawdown_shape",
+      "momentum",
+      "beta"
+    ]
+  },
+  {
+    "id": "market_tailwind",
+    "label": "Vento a favore del mercato",
+    "short": "Quando un titolo sale perche' sale tutto, non per meriti suoi.",
+    "full": "Un vento a favore e' una spinta che viene da fuori l'azienda: un settore in espansione, tassi che scendono, una politica industriale, un ciclo di investimenti. Riconoscerlo conta perche' cambia la domanda da farsi: se un titolo ha fatto +40% mentre il suo settore ne faceva +38%, la domanda non e' «cosa ha fatto di buono» ma «cosa succede quando il vento cala». Il contrario — headwind, vento contrario — vale allo stesso modo: un'azienda che tiene i margini mentre il settore li perde sta facendo qualcosa, e quel qualcosa e' il pezzo che interessa.",
+    "formula": null,
+    "example": "Nel 2024-2026 quasi tutto cio' che tocca l'infrastruttura per l'AI ha avuto lo stesso vento: distinguere chi ha guadagnato quota da chi e' solo stato trasportato richiede di guardare i margini e la quota, non il prezzo.",
+    "context": "Il confronto con la media dell'industria, che arriva da Defeatbeta accanto a ogni metrica del pannello, e' il modo con cui questo sistema separa il merito dal vento: un ROE del 33% sopra un'industria al 60% racconta una storia diversa da un ROE del 33% sopra un'industria al 12%.",
+    "source_label": "Investopedia — Tailwind",
+    "source_url": "https://www.investopedia.com/terms/t/tailwind.asp",
+    "related": [
+      "sector_leadership",
+      "momentum",
+      "industry_outlook"
+    ]
+  },
+  {
+    "id": "sector_leadership",
+    "label": "Leadership di settore",
+    "short": "Se un titolo guida il proprio settore o lo insegue.",
+    "full": "La leadership di settore confronta un titolo coi suoi pari invece che col mercato intero: chi sale di piu' quando il settore sale, e chi scende di meno quando scende. Non e' una misura di qualita' dell'azienda — e' una misura di come il mercato la sta trattando rispetto a chi fa lo stesso mestiere. Serve a due cose: distinguere il merito dal vento a favore, e accorgersi presto quando un leader smette di esserlo, che di solito succede prima che i numeri lo dicano.",
+    "formula": "Forza relativa = rendimento del titolo / rendimento del settore, sullo stesso periodo. Sopra 1 guida, sotto 1 insegue.",
+    "example": "Un titolo che fa +12% mentre la sua industria fa +30% sta INSEGUENDO, anche se il suo grafico da solo sembra buono: il confronto e' cio' che rende leggibile il numero.",
+    "context": "Qui il confronto di settore c'e' sulle METRICHE — ROE, ROIC, margini, multipli — e non sui rendimenti: Defeatbeta porta le medie di industria per i fondamentali, non un indice settoriale di prezzo. E' una differenza da tenere presente: si confronta la redditivita', non la performance.",
+    "source_label": "Investopedia — Relative Strength",
+    "source_url": "https://www.investopedia.com/terms/r/relativestrength.asp",
+    "related": [
+      "market_tailwind",
+      "momentum",
+      "industry_outlook"
+    ]
+  },
+  {
+    "id": "industry_outlook",
+    "label": "Prospettive del settore",
+    "short": "Come sta il mestiere nel suo insieme, a prescindere da chi lo fa meglio.",
+    "full": "Le prospettive di settore guardano la struttura del mercato in cui un'azienda opera: quanto cresce nel lungo periodo, se e' ciclico, quanto e' concentrato, e quali rischi tecnologici o regolatori lo sovrastano. E' un livello DIVERSO da quello dell'azienda, e tenerli separati e' tutto il punto: la crescita del settore e la capacita' di guadagnarne quota sono due cose che si confondono di continuo. Un settore che cresce del 30% dove l'azienda perde quota e' una storia peggiore di un settore fermo dove l'azienda la guadagna.",
+    "formula": null,
+    "example": "Nel report qualitativo di NVDA il settore risulta in crescita ma ciclico: due affermazioni che convivono, e che cambiano la domanda da «quanto cresce» a «cosa succede quando il ciclo gira».",
+    "context": "E' una delle nove sezioni scritte del report qualitativo, prodotta dalla fase competitiva. Quel prompt la segnala come il campo che viene dimenticato piu' spesso, proprio perche' si scivola a parlare dell'azienda quando la domanda era sul settore.",
+    "source_label": "Investopedia — Industry Analysis",
+    "source_url": "https://www.investopedia.com/terms/i/industry.asp",
+    "related": [
+      "market_tailwind",
+      "sector_leadership"
+    ]
   }
 ]
