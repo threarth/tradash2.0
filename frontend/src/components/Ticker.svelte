@@ -16,6 +16,15 @@
     **Non parte al montaggio.** Un elenco di venti simboli che si prepara
     l'anteprima di tutti sarebbe venti richieste per una che ne servira': si
     legge quando il mouse si ferma davvero, dopo un attimo di ritardo.
+
+    **La cartellina e' `fixed`, non `absolute`, e non e' un dettaglio di stile.**
+    Le tabelle in cui compare scorrono dentro un contenitore alto al massimo
+    ventisei righe: un elemento posizionato dentro a quel contenitore viene
+    TAGLIATO dal suo bordo, e sulla prima riga — dove l'anteprima si apre verso
+    l'alto — spariva la meta' superiore. Con `fixed` le coordinate si contano
+    sullo schermo e nessun contenitore la ritaglia; in cambio vanno calcolate a
+    mano al momento, e l'anteprima si chiude se la pagina scorre, perche' resta
+    ferma mentre la riga sotto se ne va.
 -->
 <script module>
     import { api } from "../lib/api.js";
@@ -23,6 +32,14 @@
     // Quanto sta fermo il mouse prima che valga la pena chiedere: attraversare
     // una colonna non deve diventare una raffica di richieste.
     const RITARDO_MS = 250;
+
+    // Quanto spazio prende la cartellina, per decidere da che parte aprirla.
+    // E' una stima: misurarla davvero vorrebbe dire disegnarla, guardarla e
+    // spostarla, cioe' vederla saltare. Sbagliare di poco non fa danno, perche'
+    // le coordinate vengono comunque tenute dentro allo schermo.
+    const ALTEZZA_STIMATA_PX = 170;
+    const LARGHEZZA_PX = 240;
+    const MARGINE_PX = 8;
 
     // Cio' che si e' gia' letto, e cio' che si sta leggendo adesso.
     const memoria = new Map();
@@ -61,10 +78,31 @@
 
     let dato = $state(memoria.get(simbolo) ?? null);
     let sopra = $state(false);
+    let posizione = $state("");
+    let ancora;
     let attesa = null;
+
+    /** Dove disegnare la cartellina, in coordinate dello schermo.
+
+        Sopra al simbolo se c'e' posto, sotto altrimenti — e in ogni caso dentro
+        ai bordi della finestra: su una tabella che scorre, la prima riga ha il
+        bordo del contenitore appena sopra, e quella era la meta' che spariva. */
+    function collocazione() {
+        const punto = ancora.getBoundingClientRect();
+        const ciSta = punto.top > ALTEZZA_STIMATA_PX + MARGINE_PX;
+        const alto = ciSta
+            ? punto.top - MARGINE_PX - ALTEZZA_STIMATA_PX
+            : punto.bottom + MARGINE_PX;
+
+        const massimo = window.innerWidth - LARGHEZZA_PX - MARGINE_PX;
+        const sinistra = Math.max(MARGINE_PX, Math.min(punto.left, massimo));
+        return `top: ${Math.max(MARGINE_PX, alto)}px; left: ${sinistra}px; ` +
+               `width: ${LARGHEZZA_PX}px;`;
+    }
 
     function entra() {
         attesa = setTimeout(async () => {
+            posizione = collocazione();
             sopra = true;
             dato = await anagrafica(simbolo);
         }, RITARDO_MS);
@@ -76,13 +114,18 @@
     }
 </script>
 
-<span class="ticker" onmouseenter={entra} onmouseleave={esce}
+<!-- Una cartellina ferma sullo schermo mentre la riga scorre via indicherebbe
+     un titolo che non e' piu' li' sotto: alla prima rotella si chiude. -->
+<svelte:window onscroll={esce} onresize={esce} />
+
+<span class="ticker" bind:this={ancora}
+      onmouseenter={entra} onmouseleave={esce}
       onfocusin={entra} onfocusout={esce}>
     <a class="numerico {classe}" class:fw-semibold={grassetto}
        href="/titolo/{simbolo}">{simbolo}</a>
 
     {#if sopra}
-        <span class="anteprima small" role="tooltip">
+        <span class="anteprima small" role="tooltip" style={posizione}>
             <span class="numerico fw-semibold">{simbolo}</span>
             {#if !dato}
                 <span class="d-block text-secondary">leggo…</span>
@@ -113,22 +156,19 @@
 </span>
 
 <style>
+    /* Niente `position: relative` qui: la cartellina e' `fixed` e non si ancora
+       al genitore. Lasciarlo suggerirebbe che qualcosa lo faccia. */
     .ticker {
-        position: relative;
         white-space: nowrap;
     }
 
-    /* Sopra alla riga e non sotto: in una tabella lunga il posto sotto e'
-       occupato dalla riga dopo, e l'anteprima la coprirebbe proprio mentre la
-       si sta confrontando. */
+    /* `fixed` e non `absolute`: dentro a una tabella che scorre, un elemento
+       assoluto viene tagliato dal bordo del contenitore, e sulla prima riga
+       spariva la meta' di sopra. Le coordinate le mette lo script. */
     .anteprima {
-        position: absolute;
-        bottom: 100%;
-        left: 0;
+        position: fixed;
         z-index: 1050;
-        width: 15rem;
         padding: 0.5rem 0.65rem;
-        margin-bottom: 0.25rem;
         white-space: normal;
         border: 1px solid var(--bs-border-color);
         border-radius: 0.375rem;
