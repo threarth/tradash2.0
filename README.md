@@ -26,7 +26,7 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 cd frontend
 pnpm install                 # SOLO pnpm: vedi la nota qui sotto
 npm run build   # oppure pnpm build — produce dist/, che Flask serve
-npm run dev     # oppure pnpm dev — ricarica a caldo su :5173, /api va a Flask
+npm run dev     # oppure pnpm dev — ricarica a caldo su :5101, /api va a Flask
 npm run test    # oppure pnpm test — i test della logica pura
 ```
 
@@ -38,6 +38,20 @@ senza dire niente. `npm run <script>` invece esegue e basta, e funziona.
 
 In uso reale gira **solo Flask**: niente SvelteKit, quindi niente processo Node
 accanto. In sviluppo si tengono aperti tutti e due perche' Vite ricarica a caldo.
+
+**Due modi di guardare l'applicazione, e non sono lo stesso indirizzo:**
+
+| | indirizzo | cosa serve | quando |
+|---|---|---|---|
+| Flask da solo | `:5001` | l'ultimo `npm run build` | uso normale; dopo ogni modifica al frontend va rifatto il build |
+| Vite + Flask | `:5101` | i sorgenti, ricaricati a caldo | mentre si lavora al frontend: si salva un file e la pagina si aggiorna da sola, senza build |
+
+Il server di sviluppo **non e' sulla 5173**, che e' la porta predefinita di Vite:
+su questa macchina ce l'ha gia' un altro progetto, e Vite in quel caso si sposta
+in silenzio su un'altra scrivendolo in una riga del log — chi apre 5173 come al
+solito trova l'altro progetto e conclude che `npm run dev` non funziona. Adesso
+la porta e' la 5101 (dal 5001 del backend) e `strictPort` fa fermare Vite con un
+errore se e' occupata, invece di cercarne una a caso.
 
 `requirements.txt` contiene solo cio' che serve a far girare l'applicazione;
 `requirements-dev.txt` aggiunge gli strumenti di sviluppo. Chi installa per
