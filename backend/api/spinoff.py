@@ -26,6 +26,22 @@ def elenco():
     return ok(spinoff_elenco.elenco())
 
 
+@bp.post("/calcola")
+def calcola():
+    """Misura i sei segnali su tutti i candidati salvati. Parte solo da qui.
+
+    Ritorna subito il `run_id`: sono decine di letture da Defeatbeta, ognuna
+    lenta la prima volta, e una richiesta HTTP appesa per minuti sarebbe
+    un'altra forma di lavoro che non si puo' fermare. Il pannello in alto lo
+    mostra mentre avanza, con dentro il titolo che sta guardando.
+    """
+    try:
+        run_id = spinoff_elenco.calcola_in_background()
+    except SpinoffError as exc:
+        return fail(str(exc))
+    return ok({"run_id": run_id, "stop": f"/api/ops/stop/{run_id}"})
+
+
 @bp.post("/aggiorna")
 def aggiorna():
     """Riscarica la pagina e salva l'elenco. Parte solo da qui."""
