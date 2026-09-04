@@ -1536,7 +1536,16 @@ industria e dimensione: li' l'anteprima ripeterebbe la riga sotto il mouse.
 
 ---
 
-## Il tema scuro era misurabilmente troppo scuro
+## Il tema scuro era misurabilmente troppo scuro (e poi l'ho rifatto da capo)
+
+> **Nota del 05/09/2026**: la palette descritta qui sotto e' durata mezz'ora. I
+> numeri erano giusti — la riga che spiega passava da 6,36 a 8,34 — ma il
+> risultato era brutto: i grigi caldi tiravano all'oliva. La sostituzione, e il
+> motivo per cui scegliere una palette pubblica e' stata la mossa giusta, sono
+> nella voce «Una palette che non ho scelto io» piu' sotto. Quello che resta
+> valido di questa voce e' la seconda meta': i cinque pezzi di palette blu
+> rimasti accesi, che sono stati trovati qui e tolti per sempre.
+
 
 La riga che spiega — quella sotto ai titoli, in corpo piccolo, che dice cosa fa
 una cosa — stava a **6,36 di contrasto** sul fondo e a **5,86** dentro a una
@@ -1572,3 +1581,57 @@ prima erano rimasti accesi cinque pezzi che nessuno aveva visto:
 Nessuno di questi si notava da solo. Insieme erano il motivo per cui
 l'interfaccia sembrava fredda a chi la guardava e calda a chi leggeva il foglio
 di stile.
+
+---
+
+## Una palette che non ho scelto io
+
+Dopo aver schiarito fondo e testo a mano — con i numeri dalla parte giusta — il
+giudizio e' stato «uhm, brutto». Ed era vero: i grigi caldi scelti a occhio
+tiravano all'oliva, e nessuna misura di contrasto se ne accorge.
+
+Adesso i colori sono **Gruvbox dark** di Pavel Pertsev, presi dal file originale
+dello schema. E' la scelta di rinunciare a decidere: dodici anni di uso
+quotidiano su editor e terminali sono una validazione che nessuna sessione di
+aggiustamenti a occhio puo' dare, e la sua famiglia — fondo caldo, testo crema,
+accento giallo — e' la stessa che questa interfaccia stava cercando da tre
+tentativi.
+
+**Ma "validata" non vuol dire "ad alto contrasto", e i numeri lo dicono.**
+Gruvbox e' validata dall'uso, non dal contrasto misurato: presa cosi' com'e', il
+suo testo secondario `light3` sulle card sta a **6,03** — cioe' peggio della
+palette fatta a mano che stavo sostituendo, e proprio sul difetto da cui era
+partito tutto. Due gradini sono stati scelti dentro la palette invece che presi
+di prima mano:
+
+* **testo secondario `light2` e non `light3`**: 7,65 sulle card invece di 6,03;
+* **il rosso ha un gradino che nella palette non c'e'.** Il `bright_red`
+  #fb4934 sulle card sta a 3,82, sotto il minimo per un testo piccolo — e i
+  numeri in perdita sono testo piccolo. Quello in uso e' lo stesso rosso
+  schiarito di un quarto verso il colore del testo, #f76e54, che fa 4,57.
+
+Come sta adesso, misurato sui tre livelli della pagina:
+
+| | fondo | sezione | card |
+|---|---:|---:|---:|
+| testo | 11,95 | 10,75 | 9,57 |
+| la riga che spiega | 9,56 | 8,59 | 7,65 |
+| giallo (accento, link) | 9,67 | 8,69 | 7,74 |
+| verde | 7,94 | 7,14 | 6,36 |
+| rosso | 5,71 | 5,13 | 4,57 |
+| arancio | 6,49 | 5,84 | 5,20 |
+| blu (note) | 6,09 | 5,48 | 4,88 |
+
+Il piu' basso di tutti e' 4,57, e il minimo per un testo piccolo e' 4,5.
+
+I tre gradini del fondo sono i tre modi in cui Gruvbox dice «sfondo» —
+`dark0_hard`, `dark0`, `dark0_soft` — usati qui come i tre livelli della pagina:
+fondo, sezione, pannello. Un riquadro si distingue perche' e' un gradino piu'
+chiaro, non perche' ha un bordo attorno.
+
+**Il tema chiaro non e' stato toccato**: i suoi accenti misurano fra 5,1 e 6,4 e
+il difetto non era li'. Gruvbox light, provata, avrebbe peggiorato — il suo
+giallo `faded` su fondo crema sta a 3,3.
+
+Fonte: [morhetz/gruvbox](https://github.com/morhetz/gruvbox), file
+`colors/gruvbox.vim`.
