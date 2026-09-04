@@ -9,6 +9,12 @@
     nel mezzo e' sceso del 63% e ci ha messo 343 sedute a tornare sopra il
     prezzo pagato, quella buona idea l'avrebbero tenuta in pochi.
 
+    Sopra alla tabella c'e' il film: la stessa corsa, ma un giorno alla volta.
+    La tabella mostra tutto insieme, ed e' esattamente cio' che chi teneva il
+    titolo non vedeva — una discesa del 60% a consuntivo e' una macchia rossa
+    larga tre colonne, vissuta e' quattordici mesi in cui ogni mattina il numero
+    e' ancora sotto.
+
     La tabella ha **i mesi in colonna e i giorni in riga**. Il giorno della
     settimana cambia da un mese all'altro — il 5 e' lunedi' a marzo e giovedi'
     ad aprile — quindi ogni cella se lo porta dietro: senza, si legge una
@@ -22,9 +28,11 @@
 -->
 <script>
     import Assente from "./Assente.svelte";
+    import Cinema from "./Cinema.svelte";
     import Errore from "./Errore.svelte";
     import Testo from "./Testo.svelte";
     import { api } from "../lib/api.js";
+    import { percento, soldi } from "../lib/numeri.js";
 
     let { simbolo } = $props();
 
@@ -60,16 +68,6 @@
         return Math.max(1, (oggi.getUTCFullYear() - inizio.getUTCFullYear()) * 12
                            + (oggi.getUTCMonth() - inizio.getUTCMonth()));
     });
-
-    const percento = (frazione, cifre = 1) =>
-        frazione === null || frazione === undefined
-            ? "—"
-            : `${frazione >= 0 ? "+" : ""}${(frazione * 100).toFixed(cifre)}%`;
-
-    const soldi = (valore) =>
-        valore === null || valore === undefined
-            ? "—"
-            : `$${Number(valore).toLocaleString("it", { maximumFractionDigits: 0 })}`;
 
     const nomeMese = (colonna) => `${MESI[colonna.mese - 1]} ${String(colonna.anno).slice(2)}`;
 
@@ -176,6 +174,8 @@
                 </div>
             </div>
         </div>
+
+        <Cinema andamento={esito.andamento ?? []} capitale={e.capitale} />
 
         <!-- Larga quanto i mesi che ha: scorre dentro il suo contenitore invece
              di far scorrere la pagina. -->
