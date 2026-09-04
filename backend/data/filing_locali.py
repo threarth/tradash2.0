@@ -34,6 +34,7 @@ Il protocollo si confronta anche senza trattini, perche' nell'URL sta cosi':
 `0001045810-26-000075` nel documento, `000104581026000075` nel percorso.
 """
 import logging
+import platform
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -125,6 +126,15 @@ def nome_atteso(simbolo: str, voce: dict, estensione: str = ".html") -> str:
 # proprieta' di un'altra libreria, e una difesa che dipende dal comportamento di
 # un pezzo che non controlliamo non e' una difesa. Adesso il rifiuto e' qui.
 SIMBOLO_AMMESSO = re.compile(r"^[A-Z][A-Z0-9.\-]{0,14}$")
+
+
+# Siamo dentro WSL? Il kernel lo dice nel proprio nome, e lo dice una volta
+# sola: e' una proprieta' della macchina, non della richiesta.
+SU_WSL = "microsoft" in platform.release().lower()
+
+# Il separatore dei percorsi di Windows. Scritto una volta perche' dentro a una
+# f-string una barra rovesciata raddoppiata si legge male e si sbaglia.
+SEPARATORE_WINDOWS = "\\"
 
 
 class FilingError(ValueError):
@@ -285,6 +295,30 @@ def _trova(simbolo: str, voce: dict) -> Path | None:
     return trovato if trovato is not None else _per_convenzione(simbolo, voce)
 
 
+def percorso_windows(percorso: Path) -> tuple[str | None, str | None]:
+    """Lo stesso posto, scritto come lo vede Windows. Ritorna `(percorso, motivo)`.
+
+    Serve perche' il giro dei documenti SEC attraversa due sistemi: la pagina
+    gira qui, ma il salvataggio lo fa il browser, che sta su Windows — e in una
+    finestra di salvataggio di Windows un percorso che comincia con `/home` non
+    porta da nessuna parte. Su WSL i due nomi dello stesso posto sono due, e
+    finora ne mostravamo uno solo: quello sbagliato per chi deve incollarlo.
+
+    Fuori da WSL non c'e' niente da tradurre e non c'e' niente da spiegare:
+    `(None, None)`. Sotto WSL senza il nome della distribuzione c'e' un motivo,
+    perche' un campo che sparisce senza dire perche' si legge come un guasto.
+    """
+    if not SU_WSL:
+        return None, None
+    if not config.WSL_DISTRO:
+        return None, ("WSL non ha detto come si chiama questa distribuzione "
+                      "(WSL_DISTRO_NAME): il percorso di Windows non si compone, "
+                      "e indovinarlo darebbe una cartella che non esiste")
+
+    dentro = str(percorso).replace("/", SEPARATORE_WINDOWS)
+    return f"{config.WSL_PREFISSO_UNC}{SEPARATORE_WINDOWS}{config.WSL_DISTRO}{dentro}", None
+
+
 def testo(simbolo: str, voce: dict) -> tuple[str | None, str | None]:
     """Il testo di un documento salvato. Ritorna `(testo, errore)`, mai un None muto.
 
@@ -350,10 +384,16 @@ def stato(simbolo: str, run_id: str | None = None) -> dict:
     ambito = simbolo.strip().upper()
     voci = richiesti(ambito, run_id)
     mancanti = [v for v in voci if not v["presente"]]
+    dove = cartella(ambito)
+    da_windows, perche_no = percorso_windows(dove)
 
     return {
         "symbol": ambito,
-        "cartella": str(cartella(ambito)),
+        "cartella": str(dove),
+        # Lo stesso posto visto da Windows, che e' dove sta il browser che
+        # salva. `None` fuori da WSL: li' i due percorsi sono lo stesso.
+        "cartella_windows": da_windows,
+        "cartella_windows_reason": perche_no,
         "documenti": voci,
         "pronti": len(voci) - len(mancanti),
         "richiesti": len(voci),

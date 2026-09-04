@@ -197,6 +197,18 @@ TRASCRIZIONE_RISPOSTA_CARATTERI = 1200
 # Defeatbeta non ha: ha l'indice (tipo, date, URL) ma non il contenuto. Il testo
 # lo scarichi tu da sec.gov e lo salvi qui; il sistema ti dice QUALI servono e
 # con quale nome.
+# Il nome con cui Windows vede questa distribuzione WSL. Serve a comporre il
+# percorso da incollare in Esplora risorse: i documenti SEC si salvano dal
+# browser, che gira su Windows, e li' dentro un percorso Linux non si apre.
+#
+# Lo dichiara WSL stesso nell'ambiente del processo. Se non c'e' non lo si
+# indovina: la registrazione della distribuzione sta dalla parte di Windows, e
+# «Ubuntu» e «Ubuntu-26.04» sono due percorsi diversi di cui uno non esiste.
+WSL_DISTRO = os.environ.get("WSL_DISTRO_NAME") or None
+
+# Il prefisso dei percorsi UNC con cui Windows raggiunge i file di WSL.
+WSL_PREFISSO_UNC = "\\\\wsl.localhost"
+
 PRODUCTION_FILING_DIR = BASE_DIR / "data" / "filings"
 FILING_DIR = Path(os.environ.get("TRADASH2_FILINGS", PRODUCTION_FILING_DIR))
 
