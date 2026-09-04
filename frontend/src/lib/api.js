@@ -145,6 +145,7 @@ export const api = {
     // --- spin-off: si scarica solo premendo ---
     spinoff: () => chiama("/spinoff"),
     spinoffAggiorna: () => chiama("/spinoff/aggiorna", { method: "POST" }),
+    spinoffCalcola: () => chiama("/spinoff/calcola", { method: "POST" }),
 
     // --- impostazioni ---
     impostazioniLlm: () => chiama("/impostazioni/llm"),
