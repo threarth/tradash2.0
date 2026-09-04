@@ -25,6 +25,12 @@
     sullo schermo e nessun contenitore la ritaglia; in cambio vanno calcolate a
     mano al momento, e l'anteprima si chiude se la pagina scorre, perche' resta
     ferma mentre la riga sotto se ne va.
+
+    E si ancora **per il bordo che tocca il simbolo**: il suo fondo se si apre in
+    alto, la sua cima se si apre in basso. Ancorare la cima calcolandola da
+    un'altezza stimata la lasciava lontana dal simbolo di tutta la differenza fra
+    la stima e l'altezza vera — che cambia a ogni titolo, perche' una cartellina
+    che dice «leggo…» e una piena di dati non sono alte uguale.
 -->
 <script module>
     import { api } from "../lib/api.js";
@@ -33,13 +39,15 @@
     // una colonna non deve diventare una raffica di richieste.
     const RITARDO_MS = 250;
 
-    // Quanto spazio prende la cartellina, per decidere da che parte aprirla.
-    // E' una stima: misurarla davvero vorrebbe dire disegnarla, guardarla e
-    // spostarla, cioe' vederla saltare. Sbagliare di poco non fa danno, perche'
-    // le coordinate vengono comunque tenute dentro allo schermo.
-    const ALTEZZA_STIMATA_PX = 170;
+    // Quanto spazio serve sopra al simbolo perche' valga la pena aprirla in su.
+    // E' una stima, e serve SOLO a scegliere il lato: la posizione non la usa,
+    // perche' l'anteprima si ancora per il bordo che tocca il simbolo.
+    const SPAZIO_MINIMO_SOPRA_PX = 120;
     const LARGHEZZA_PX = 240;
-    const MARGINE_PX = 8;
+
+    // Quanto sta staccata dal simbolo. Piccolo apposta: una cartellina lontana
+    // dal suo simbolo, in una tabella di venti righe, sembra riferita a un'altra.
+    const DISTANZA_PX = 6;
 
     // Cio' che si e' gia' letto, e cio' che si sta leggendo adesso.
     const memoria = new Map();
@@ -84,20 +92,26 @@
 
     /** Dove disegnare la cartellina, in coordinate dello schermo.
 
-        Sopra al simbolo se c'e' posto, sotto altrimenti — e in ogni caso dentro
-        ai bordi della finestra: su una tabella che scorre, la prima riga ha il
-        bordo del contenitore appena sopra, e quella era la meta' che spariva. */
+        Si ancora per il bordo che TOCCA il simbolo: aprendosi in alto si fissa
+        il suo fondo, aprendosi in basso la sua cima. Cosi' resta attaccata al
+        simbolo qualunque altezza abbia — e l'altezza cambia davvero, perche'
+        una riga che dice «leggo…» e una con nome, settore, industria, taglia e
+        ultima chiusura non sono alte uguale.
+
+        Ancorare la cima calcolando `top = simbolo - altezza stimata` e' invece
+        quello che la teneva lontana: se la cartellina veniva piu' bassa della
+        stima, il suo fondo restava indietro di tutta la differenza. */
     function collocazione() {
         const punto = ancora.getBoundingClientRect();
-        const ciSta = punto.top > ALTEZZA_STIMATA_PX + MARGINE_PX;
-        const alto = ciSta
-            ? punto.top - MARGINE_PX - ALTEZZA_STIMATA_PX
-            : punto.bottom + MARGINE_PX;
+        const verticale = punto.top > SPAZIO_MINIMO_SOPRA_PX
+            ? `bottom: ${window.innerHeight - punto.top + DISTANZA_PX}px`
+            : `top: ${punto.bottom + DISTANZA_PX}px`;
 
-        const massimo = window.innerWidth - LARGHEZZA_PX - MARGINE_PX;
-        const sinistra = Math.max(MARGINE_PX, Math.min(punto.left, massimo));
-        return `top: ${Math.max(MARGINE_PX, alto)}px; left: ${sinistra}px; ` +
-               `width: ${LARGHEZZA_PX}px;`;
+        // A destra la si tiene dentro lo schermo: un simbolo nell'ultima
+        // colonna la spingerebbe fuori.
+        const massimo = window.innerWidth - LARGHEZZA_PX - DISTANZA_PX;
+        const sinistra = Math.max(DISTANZA_PX, Math.min(punto.left, massimo));
+        return `${verticale}; left: ${sinistra}px; width: ${LARGHEZZA_PX}px;`;
     }
 
     function entra() {
