@@ -1533,3 +1533,42 @@ non una lettura da Defeatbeta, e per questo si puo' fare mentre si scorre.
 Sta dove il simbolo compare **da solo** — la tabella degli spin-off, i risultati
 dello scanner. Non nell'universo, dove la riga porta gia' nome, settore,
 industria e dimensione: li' l'anteprima ripeterebbe la riga sotto il mouse.
+
+---
+
+## Il tema scuro era misurabilmente troppo scuro
+
+La riga che spiega — quella sotto ai titoli, in corpo piccolo, che dice cosa fa
+una cosa — stava a **6,36 di contrasto** sul fondo e a **5,86** dentro a una
+card. Sopra il minimo di legge, sotto il minimo del buon senso: e' il testo piu'
+lungo e piu' piccolo dell'interfaccia, e leggerlo voleva dire avvicinarsi allo
+schermo.
+
+Due gradini, misurati e non scelti a occhio:
+
+* il fondo sale da `#17150f` a `#211e16` — resta nero caldo, smette di essere
+  quasi-nero. Un quasi-nero fa vibrare il testo chiaro sopra, e su una pagina
+  lunga si sente dopo dieci minuti;
+* l'attenuato sale da `#a09883` a `#c0b7a1`.
+
+Risultato: la riga che spiega passa da **6,36 a 8,34** sul fondo e da 5,86 a
+7,33 dentro a una card, restando chiaramente secondaria rispetto al testo
+pieno, che sta a 13,8. I colori semantici perdono qualche decimo perche' il
+fondo si e' schiarito — il rosso d'errore passa da 5,73 a 5,22 — e restano
+tutti sopra 4,5.
+
+**E cercando il perche', e' venuto fuori dell'altro.** Della palette blu di
+prima erano rimasti accesi cinque pezzi che nessuno aveva visto:
+
+* la **barra in alto** partiva da `#102234`, un blu, in cima a una pagina calda;
+* le **triple `-rgb`** di Bootstrap — quelle che governano le trasparenze —
+  erano ancora quelle del blu notte: un fondo caldo con le sue ombre fredde;
+* il **bordo dei pulsanti «outline»** era `#345064`, un grigio-blu, e sono i
+  pulsanti piu' numerosi della pagina;
+* l'**alone del fuoco** su pulsanti e caselle era ciano;
+* nel **tema chiaro**, il colore del link al passaggio del mouse era blu mentre
+  l'accento e' un ocra: si passava sopra un collegamento e cambiava famiglia.
+
+Nessuno di questi si notava da solo. Insieme erano il motivo per cui
+l'interfaccia sembrava fredda a chi la guardava e calda a chi leggeva il foglio
+di stile.

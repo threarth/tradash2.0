@@ -29,16 +29,24 @@
     /* I colori del monitor, con i loro nomi. Le mappature su Bootstrap
        vengono dopo, cosi' si vede quale valore sta andando dove. */
     /* Il fondo: nero caldo, non blu. Tre gradini appena percettibili, perche'
-       un pannello si deve distinguere dallo sfondo senza diventare un riquadro. */
-    --monitor-fondo: #17150f;
-    --monitor-pannello: #201d16;
-    --monitor-sezione: #1b1812;
-    --monitor-linea: #3a352b;
+       un pannello si deve distinguere dallo sfondo senza diventare un riquadro.
+       Non e' nero pieno: un fondo quasi-nero fa vibrare il testo chiaro sopra,
+       e su una pagina lunga si sente dopo dieci minuti. */
+    --monitor-fondo: #211e16;
+    --monitor-pannello: #2d2820;
+    --monitor-sezione: #272319;
+    --monitor-linea: #4a4334;
 
     /* Il testo ha lo stesso tono del fondo, schiarito: bianco puro su nero
-       caldo vibra, e su una tabella lunga si sente. */
-    --monitor-testo: #ece5d6;
-    --monitor-attenuato: #a09883;
+       caldo vibra, e su una tabella lunga si sente.
+
+       L'ATTENUATO e' la riga che spiega, e per mesi e' stata la piu' difficile
+       da leggere di tutta l'interfaccia: 6,4 di contrasto sul fondo, cioe' il
+       minimo sindacale, su testi lunghi e in corpo piccolo. Adesso e' 8,3 —
+       resta chiaramente secondario rispetto al testo pieno, che sta a 13,8, ma
+       si legge senza avvicinarsi allo schermo. */
+    --monitor-testo: #efe9dc;
+    --monitor-attenuato: #c0b7a1;
 
     /* L'accento e' un ocra. Non e' un vezzo: il ciano elettrico e' il colore
        predefinito di ogni cruscotto, e qui serviva qualcosa che si notasse
@@ -103,33 +111,38 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
 /* --- tema scuro: la palette del monitor, per intero -------------------- */
 
 [data-bs-theme="dark"] {
+    /* Le triple `-rgb` devono combaciare col colore che sta sopra: Bootstrap le
+       usa dove serve una trasparenza (`bg-opacity`, i `text-bg-*`), e queste
+       erano rimaste quelle del blu notte di prima — un fondo caldo con le sue
+       ombre fredde, che e' esattamente il genere di stonatura che si vede senza
+       sapere dire cosa sia. */
     --bs-body-bg: var(--monitor-fondo);
-    --bs-body-bg-rgb: 8, 16, 25;
+    --bs-body-bg-rgb: 33, 30, 22;
     --bs-body-color: var(--monitor-testo);
-    --bs-body-color-rgb: 233, 240, 245;
+    --bs-body-color-rgb: 239, 233, 220;
     --bs-emphasis-color: #ffffff;
 
     --bs-secondary-color: var(--monitor-attenuato);
-    --bs-secondary-color-rgb: 143, 164, 181;
+    --bs-secondary-color-rgb: 192, 183, 161;
     --bs-secondary-bg: var(--monitor-pannello);
     --bs-tertiary-bg: var(--monitor-sezione);
     --bs-border-color: var(--monitor-linea);
     --bs-border-color-translucent: var(--monitor-linea);
 
     --bs-primary: var(--monitor-ciano);
-    --bs-primary-rgb: 98, 212, 255;
+    --bs-primary-rgb: 214, 169, 75;
     --bs-success: var(--monitor-verde);
-    --bs-success-rgb: 102, 209, 158;
+    --bs-success-rgb: 139, 179, 122;
     --bs-warning: var(--monitor-ambra);
-    --bs-warning-rgb: 242, 193, 102;
+    --bs-warning-rgb: 216, 167, 92;
     --bs-danger: var(--monitor-rosa);
-    --bs-danger-rgb: 255, 123, 141;
+    --bs-danger-rgb: 205, 122, 107;
     --bs-info: var(--monitor-ciano-chiaro);
-    --bs-info-rgb: 184, 234, 255;
+    --bs-info-rgb: 240, 205, 131;
 
     --bs-link-color: var(--monitor-ciano);
     --bs-link-hover-color: var(--monitor-ciano-chiaro);
-    --bs-link-color-rgb: 98, 212, 255;
+    --bs-link-color-rgb: 214, 169, 75;
 
     /* Gli avvisi: sfondo appena accennato sul tono giusto, testo leggibile. */
     --bs-secondary-text-emphasis: var(--monitor-attenuato);
@@ -160,7 +173,7 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     --bs-info-rgb: 10, 111, 150;
 
     --bs-link-color: var(--monitor-ciano-scuro);
-    --bs-link-hover-color: #084f6c;
+    --bs-link-hover-color: #6b4d10;
     --bs-link-color-rgb: 10, 111, 150;
 }
 
@@ -179,12 +192,12 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     --bs-btn-disabled-bg: var(--monitor-linea);
     --bs-btn-disabled-border-color: var(--monitor-linea);
     --bs-btn-disabled-color: var(--monitor-attenuato);
-    --bs-btn-focus-shadow-rgb: 98, 212, 255;
+    --bs-btn-focus-shadow-rgb: 214, 169, 75;
 }
 
 [data-bs-theme="dark"] .btn-outline-primary {
     --bs-btn-color: var(--monitor-ciano);
-    --bs-btn-border-color: #345064;
+    --bs-btn-border-color: var(--monitor-linea);
     --bs-btn-hover-bg: var(--monitor-ciano);
     --bs-btn-hover-border-color: var(--monitor-ciano);
     --bs-btn-hover-color: var(--monitor-su-accento);
@@ -192,12 +205,12 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     --bs-btn-active-border-color: var(--monitor-ciano);
     --bs-btn-active-color: var(--monitor-su-accento);
     --bs-btn-disabled-color: var(--monitor-attenuato);
-    --bs-btn-focus-shadow-rgb: 98, 212, 255;
+    --bs-btn-focus-shadow-rgb: 214, 169, 75;
 }
 
 [data-bs-theme="dark"] .btn-outline-secondary {
     --bs-btn-color: var(--monitor-attenuato);
-    --bs-btn-border-color: #345064;
+    --bs-btn-border-color: var(--monitor-linea);
     --bs-btn-hover-bg: var(--monitor-pannello);
     --bs-btn-hover-border-color: var(--monitor-ciano);
     --bs-btn-hover-color: var(--monitor-testo);
@@ -255,9 +268,15 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
 
 /* --- la barra in alto e le superfici ----------------------------------- */
 
+/* La barra partiva da #102234, un blu: era l'ultimo pezzo della palette
+   precedente rimasto acceso, e stonava con tutto il resto della pagina senza
+   che si capisse da dove venisse. Adesso e' lo stesso nero caldo, un gradino
+   piu' chiaro del fondo: si stacca perche' e' piu' chiara, non perche' e' di
+   un altro colore. */
 [data-bs-theme="dark"] .navbar,
 [data-bs-theme="dark"] .bg-body-tertiary {
-    background: linear-gradient(135deg, #102234, var(--monitor-fondo) 70%) !important;
+    background: linear-gradient(135deg, var(--monitor-pannello),
+                                var(--monitor-fondo) 70%) !important;
 }
 
 [data-bs-theme="dark"] .card {
@@ -283,7 +302,7 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
 [data-bs-theme="dark"] .form-control:focus,
 [data-bs-theme="dark"] .form-select:focus {
     border-color: var(--monitor-ciano);
-    box-shadow: 0 0 0 .2rem rgba(98, 212, 255, .18);
+    box-shadow: 0 0 0 .2rem rgba(214, 169, 75, .22);
 }
 
 [data-bs-theme="dark"] .nav-tabs {
