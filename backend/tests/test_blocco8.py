@@ -336,6 +336,43 @@ def test_il_costo_si_calcola_sui_prezzi_dichiarati():
     assert llm.costo("claude-haiku-4-5", 1_000_000, 1_000_000) == 6.0
 
 
+def test_la_chiamata_al_modello_si_racconta_nella_scia_del_lavoro(monkeypatch):
+    """Il racconto sta in `llm.chiedi` e non dentro a ogni analisi: e' l'unico
+    punto da cui passano tutte, comprese quelle che verranno.
+
+    Chi guarda vede partire la domanda e vede tornare la risposta — e se nel
+    mezzo non succede niente per un minuto, sa che sta aspettando il modello."""
+    monkeypatch.setattr(llm, "_client",
+                        lambda f: _ClienteFinto(_RispostaAnthropic("va bene")))
+
+    with registry.job("prova", "analisi finta", total=1, ambito="AAPL") as lavoro:
+        llm.chiedi(fase="prova", sistema="sei un test", messaggio="ciao",
+                   scope="AAPL", run_id=lavoro.run_id, modello="claude-opus-5")
+        righe = [e["testo"] for e in lavoro.as_dict()["eventi"]]
+
+    assert len(righe) == 2, "una quando parte, una quando torna"
+    assert righe[0].startswith("chiedo a claude-opus-5 — prova")
+    assert "1000 token dentro" in righe[1] and "$" in righe[1]
+
+
+def test_un_modello_che_non_risponde_lo_scrive_nella_scia(monkeypatch):
+    """Il fallimento si legge dove si stava guardando, non solo nel log del
+    server: la scia e' l'unica cosa che sta davanti agli occhi di chi aspetta."""
+    def _esplode(*args, **kwargs):
+        raise TimeoutError("niente risposta")
+
+    monkeypatch.setattr(llm, "_client", lambda f: object())
+    monkeypatch.setitem(llm.ADATTATORI, "anthropic", _esplode)
+
+    with registry.job("prova", "analisi finta", total=1) as lavoro:
+        with pytest.raises(llm.LlmNonDisponibile):
+            llm.chiedi(fase="prova", sistema="s", messaggio="m",
+                       run_id=lavoro.run_id, modello="claude-opus-5")
+        righe = [e["testo"] for e in lavoro.as_dict()["eventi"]]
+
+    assert righe[-1] == "claude-opus-5 non ha risposto: TimeoutError"
+
+
 def test_un_modello_senza_listino_non_inventa_un_costo():
     """Un costo su prezzi che non abbiamo e' peggio di nessun costo: sembra un dato."""
     assert llm.costo("modello-mai-visto", 1_000_000, 1_000_000) == 0.0

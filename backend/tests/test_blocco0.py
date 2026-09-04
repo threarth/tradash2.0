@@ -90,6 +90,70 @@ def test_il_lavoro_fermato_resta_nella_storia_con_il_suo_esito():
     assert 0 < riga["done"] < PASSI_LAVORO_FINTO
 
 
+# --- 1-bis. la scia: cosa ha fatto finora, non solo a che punto e' ---------
+#
+# Una barra che avanza racconta un istante. Quando un'analisi impiega tre minuti
+# e sta zitta quaranta secondi alla volta, la domanda vera e' «e' ferma o sta
+# pensando», e a quella risponde solo l'ora dell'ultima riga.
+
+def test_ogni_passo_lascia_una_riga_nella_scia():
+    with registry.job("prova", "con la scia", total=2, ambito="NVDA") as lavoro:
+        lavoro.advance(detail="primo passo")
+        lavoro.advance(detail="secondo passo")
+        visto = lavoro.as_dict()
+
+    assert visto["ambito"] == "NVDA", "il titolo si dichiara, non si legge dall'etichetta"
+    assert [e["testo"] for e in visto["eventi"]] == ["primo passo", "secondo passo"]
+    assert all(e["quando"] for e in visto["eventi"]), "una riga senza ora non dice se e' ferma"
+    assert visto["done"] == 2
+
+
+def test_una_nota_racconta_senza_far_avanzare_il_contatore():
+    """I passi dentro a un passo: la chiamata parte e torna, e in mezzo ci sono
+    i quaranta secondi in cui sembra bloccata."""
+    with registry.job("prova", "con le note", total=1) as lavoro:
+        lavoro.advance(detail="fase 1")
+        lavoro.nota("chiedo al modello")
+        lavoro.nota("il modello ha risposto")
+        visto = lavoro.as_dict()
+
+    assert visto["done"] == 1, "le note non sono passi"
+    assert len(visto["eventi"]) == 3
+
+
+def test_la_scia_tiene_le_ultime_righe_e_dice_quante_erano():
+    """Un elenco tagliato che non dice di esserlo si legge come l'elenco intero."""
+    quante = config.REGISTRY_EVENTI_MAX + 5
+    with registry.job("prova", "scia lunga", total=1) as lavoro:
+        for indice in range(quante):
+            lavoro.nota(f"riga {indice}")
+        visto = lavoro.as_dict()
+
+    assert len(visto["eventi"]) == config.REGISTRY_EVENTI_MAX
+    assert visto["eventi_totali"] == quante
+    assert visto["eventi"][-1]["testo"] == f"riga {quante - 1}", "restano le ultime"
+
+
+def test_una_riga_di_racconto_non_puo_far_fallire_il_lavoro():
+    """`nota()` non controlla lo stop, a differenza di `advance()`: viene
+    chiamata da dentro `llm.chiedi`, e un'eccezione che esce da li' farebbe
+    fallire il lavoro per colpa del suo racconto."""
+    with registry.job("prova", "fermato ma che racconta", total=1) as lavoro:
+        registry.request_stop(lavoro.run_id)
+        lavoro.nota("una riga dopo lo stop")
+
+        assert lavoro.stop_requested() is True
+        assert len(lavoro.as_dict()["eventi"]) == 1
+        with pytest.raises(registry.JobStopped):
+            lavoro.check_stop()
+
+
+def test_una_nota_a_un_lavoro_che_non_c_e_non_protesta():
+    """Una chiamata al modello puo' avvenire fuori da qualsiasi lavoro."""
+    registry.nota("run_id_che_non_esiste", "nessuno la leggera'")
+    registry.nota(None, "e nemmeno questa")
+
+
 # --- 2. ogni chiamata e' loggata, con la provenienza ------------------------
 
 def test_una_chiamata_di_rete_lascia_una_riga_con_provenienza_rete():

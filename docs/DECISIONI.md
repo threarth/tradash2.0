@@ -1269,3 +1269,57 @@ diversi di cui uno non esiste. Se quel nome manca, la riga non compare **e la
 pagina dice perche'**: un campo che sparisce in silenzio si legge come un
 guasto. Fuori da WSL non compare e non c'e' niente da spiegare, perche' li' i
 due percorsi sono lo stesso.
+
+---
+
+## Il registro sapeva tutto, e nessuno glielo chiedeva
+
+Ogni analisi gira gia' dentro `registry.job`, con i suoi passi e il suo
+`detail`, e `/api/ops/active` lo espone da sempre. Di quel dato, pero', la barra
+in alto usava **solo la lunghezza dell'elenco** — un pallino giallo con dentro
+un numero — e la scheda di un titolo non lo chiedeva affatto: il pulsante
+scriveva «fase 1 di 4» e restava fermo su quella scritta per tre minuti, anche
+quando era alla terza fase, anche quando era andata storta.
+
+Il pannello con tutto c'era, ed era nella pagina Operazioni: cioe' la pagina che
+NON stai guardando mentre lanci un'analisi. La regola 1 dice che ogni lavoro
+dev'essere visibile, e un lavoro visibile solo altrove e' visibile a meta'.
+
+Tre pezzi, e ognuno chiude un difetto diverso.
+
+**La scia.** Il registro teneva l'ULTIMO `detail`, non la storia. Una barra che
+avanza racconta un istante; quando un'analisi sta zitta quaranta secondi alla
+volta la domanda vera e' «e' ferma o sta pensando», e a quella risponde solo
+l'ora dell'ultima riga. Ora ogni lavoro accumula le sue righe — con un tetto, e
+col conteggio di quelle passate, perche' un elenco tagliato che non dice di
+esserlo si legge come l'elenco intero. Vive in memoria e muore col lavoro: e'
+una cosa che si guarda mentre succede, e la storia sta gia' in `jobs` e
+`llm_calls`.
+
+**Il racconto della chiamata sta in `llm.chiedi`**, non dentro a ogni analisi:
+e' l'unico punto da cui passano tutte, comprese quelle che verranno. Si vede
+partire la domanda («chiedo a claude-sonnet-5 — fase 2 · 21.312 caratteri») e
+tornare la risposta, coi token e il costo. E se il modello non risponde, il
+motivo si legge li' dove si stava guardando invece che solo nel log del server.
+
+`nota()` **non controlla lo stop**, a differenza di `advance()`: viene chiamata
+da dentro `llm.chiedi`, e far uscire un'eccezione da una riga di racconto
+vorrebbe dire far fallire il lavoro per colpa del suo racconto.
+
+**Un battito solo.** La barra, il pannello e la scheda del titolo chiedono lo
+stesso elenco: con un poller ciascuno, un'analisi in corso sarebbero tre
+richieste ogni due secondi per la stessa risposta. Il battito sta in
+`lavori.svelte.js` e conta i lettori — parte col primo, si ferma con l'ultimo —
+e tiene i due ritmi che aveva la barra: svelto mentre qualcosa gira, lento
+quando non gira niente, perche' «il costo di una pagina non dipende da quanto
+resta aperta» e il vecchio sistema e' morto proprio di una scheda dimenticata.
+
+Un lavoro finito resta a video qualche secondo col suo esito: un pannello che si
+svuota nell'istante in cui finisce non lascia il tempo di leggere com'e' andata,
+ed e' la fine il momento in cui si guarda.
+
+E il titolo su cui si sta lavorando adesso lo **dichiara** il lavoro (`ambito`)
+invece di doverlo indovinare leggendo l'etichetta: un'etichetta e' una frase per
+gli occhi, e cercarci dentro un simbolo vorrebbe dire che riscriverla romperebbe
+la scheda. Resta in memoria — la tabella `jobs` non cambia forma, e nessuno deve
+ricostruire il database.
