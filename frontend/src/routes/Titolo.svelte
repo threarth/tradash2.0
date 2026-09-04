@@ -90,6 +90,7 @@
     <Errore errore={scheda.errore} riprova={scheda.ricarica} />
 {:else if scheda.dato}
     {@const profilo = scheda.dato.profilo}
+    {@const note = scheda.dato.note_watchlist}
 
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div>
@@ -174,6 +175,28 @@
                  caso. Adesso e' una sezione come le altre. -->
             <Sezione id="descrizione" titolo="Descrizione" aperta={false}>
                 <p class="small mb-0"><Testo testo={profilo.long_business_summary} /></p>
+            </Sezione>
+        {/if}
+
+        <!-- Subito sotto alla descrizione, e non per caso: quella dice cosa fa
+             la societa', questa dice cosa ci fa QUI. Sono le due meta' della
+             stessa domanda, e leggerle staccate costringerebbe a ricordarsi
+             l'una mentre si legge l'altra.
+
+             Qui si LEGGE soltanto. Si scrive nella watchlist, che e' il posto
+             dove quella decisione si prende: due punti in cui si modifica lo
+             stesso campo sono due punti che prima o poi si contraddicono. -->
+        {#if note?.perche || note?.cosa_lo_distingue}
+            <Sezione id="perche-watchlist" titolo="Perche' e' in watchlist" aperta={false}
+                     descrizione="Le note scritte nella watchlist. Si correggono da li'.">
+                {#if note.perche}
+                    <p class="small mb-2"><Testo testo={note.perche} /></p>
+                {/if}
+                {#if note.cosa_lo_distingue}
+                    <p class="small text-secondary mb-0">
+                        Cosa lo distingue: <Testo testo={note.cosa_lo_distingue} />
+                    </p>
+                {/if}
             </Sezione>
         {/if}
 

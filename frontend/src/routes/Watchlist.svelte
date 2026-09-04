@@ -163,6 +163,7 @@
             {#each visibili as titolo (titolo.symbol)}
                 <SchedaTitolo {titolo} tag={dati.tag} profili={dati.profili}
                               maturity={dati.maturity}
+                              notaMax={dati.nota_max_caratteri}
                               onSalva={salvaAttributi} onRimuovi={rimuovi}
                               onPreferito={cambiaPreferito} />
             {/each}

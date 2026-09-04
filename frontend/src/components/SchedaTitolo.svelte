@@ -5,14 +5,23 @@
     Nel monitor la classificazione la scriveva un LLM in un file. Qui la scheda
     si apre e si cambia: temi, profilo e maturity sono attributi tuoi, e il
     posto giusto per correggerli e' quello in cui li stai guardando.
+
+    Sotto agli attributi ci sono le due note: **perche'** questo titolo e' qui, e
+    **cosa lo distingue** dagli altri dello stesso tema. Sono le due domande a
+    cui il prompt di scoperta risponde gia' — e la cui risposta l'import
+    buttava via. Adesso arrivano fin qui, e si correggono come tutto il resto:
+    un perche' scritto da un modello sei mesi fa vale finche' non lo si
+    riscrive.
 -->
 <script>
     import { untrack } from "svelte";
 
+    import Nota from "./Nota.svelte";
     import Pillola from "./Pillola.svelte";
     import Valore from "./Valore.svelte";
 
-    let { titolo, tag, profili, maturity, onSalva, onRimuovi, onPreferito } = $props();
+    let { titolo, tag, profili, maturity, notaMax, onSalva, onRimuovi,
+          onPreferito } = $props();
 
     /** "Semiconductors / " davanti a un sotto-ambito: l'etichetta del padre,
         non il suo nome interno, che e' uno slug e si legge male. */
@@ -27,13 +36,24 @@
     let temiScelti = $state([]);
     let profiloScelto = $state("");
     let maturityScelta = $state("");
+    let perche = $state("");
+    let cosaLoDistingue = $state("");
     let salvataggio = $state(null);
 
+    /** La firma di uno stato della scheda: due firme uguali, due schede uguali.
+
+        E' JSON e non testo incollato con un separatore perche' le note sono
+        testo libero: qualunque separatore si scegliesse, prima o poi qualcuno
+        lo scriverebbe dentro una nota e due schede diverse sembrerebbero uguali.
+    */
+    const firma = (temi, profilo, maturita, motivo, distinzione) =>
+        JSON.stringify([temi, profilo ?? "", maturita ?? "", motivo ?? "", distinzione ?? ""]);
+
     /** Com'e' il titolo adesso, secondo il backend. */
-    const firmaSalvata = $derived(
-        [titolo.temi.map((t) => t.nome).join("|"), titolo.profilo ?? "",
-         titolo.maturity ?? ""].join("\u00b7")
-    );
+    const firmaSalvata = $derived(firma(
+        titolo.temi.map((t) => t.nome), titolo.profilo, titolo.maturity,
+        titolo.perche, titolo.cosa_lo_distingue
+    ));
 
     // Ultima versione del backend che l'editor ha adottato.
     let firmaAdottata = $state(null);
@@ -53,12 +73,24 @@
             temiScelti = titolo.temi.map((t) => t.nome);
             profiloScelto = titolo.profilo ?? "";
             maturityScelta = titolo.maturity ?? "";
+            perche = titolo.perche ?? "";
+            cosaLoDistingue = titolo.cosa_lo_distingue ?? "";
         }
     });
 
     const sporco = $derived(
-        [temiScelti.join("|"), profiloScelto, maturityScelta].join("\u00b7") !== firmaSalvata
+        firma(temiScelti, profiloScelto, maturityScelta, perche, cosaLoDistingue)
+            !== firmaSalvata
     );
+
+    /** Quale nota sfora il tetto, se una sfora. Il backend rifiuta un testo
+        troppo lungo invece di tagliarlo: qui lo si dice prima di provarci, e
+        col numero, perche' «troppo lungo» senza un numero non dice di quanto. */
+    const troppoLunga = $derived.by(() => {
+        if (perche.trim().length > notaMax) return "Il perche'";
+        if (cosaLoDistingue.trim().length > notaMax) return "Cosa lo distingue";
+        return null;
+    });
 
     function alterna(nome) {
         temiScelti = temiScelti.includes(nome)
@@ -72,7 +104,9 @@
             await onSalva(titolo.symbol, {
                 tag: temiScelti,
                 profilo: profiloScelto || null,
-                maturity: maturityScelta || null
+                maturity: maturityScelta || null,
+                perche: perche.trim() || null,
+                cosa_lo_distingue: cosaLoDistingue.trim() || null
             });
         } catch (problema) {
             salvataggio = problema.message;
@@ -160,6 +194,18 @@
                     {/each}
                 </select>
             </div>
+
+            <div class="col-12 col-lg-6">
+                <Nota id="perche-{titolo.symbol}" etichetta="Perche' e' in watchlist"
+                      segnaposto="Cosa fa, a chi vende, e da dove viene il legame col tema."
+                      massimo={notaMax} bind:valore={perche} />
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <Nota id="distingue-{titolo.symbol}" etichetta="Cosa lo distingue"
+                      segnaposto="Che cosa ha, che gli altri dello stesso tema non hanno."
+                      massimo={notaMax} bind:valore={cosaLoDistingue} />
+            </div>
         </div>
 
         <div class="d-flex justify-content-between align-items-center mt-3">
@@ -173,11 +219,18 @@
                         onclick={() => onRimuovi(titolo.symbol)}>
                     Togli dalla watchlist
                 </button>
-                <button class="btn btn-sm btn-primary" disabled={!sporco} onclick={salva}>
+                <button class="btn btn-sm btn-primary"
+                        disabled={!sporco || troppoLunga !== null} onclick={salva}>
                     {sporco ? "Salva" : "Salvato"}
                 </button>
             </div>
         </div>
+
+        {#if troppoLunga}
+            <div class="alert alert-warning py-2 small mt-2 mb-0">
+                {troppoLunga} supera il tetto di {notaMax} caratteri: accorcialo per salvare.
+            </div>
+        {/if}
 
         {#if salvataggio}
             <div class="alert alert-danger py-2 small mt-2 mb-0">{salvataggio}</div>
