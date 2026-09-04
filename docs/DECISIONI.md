@@ -1200,3 +1200,47 @@ si prende. La pagina del titolo lo mostra sotto alla descrizione e basta: la
 descrizione dice cosa fa la societa', la nota dice cosa ci fa **qui**, e due
 punti in cui si modifica lo stesso campo sono due punti che prima o poi si
 contraddicono.
+
+---
+
+## La tabella mostra tutto insieme, ed e' il problema
+
+Il simulatore psicologico e' arrivato col Blocco 9 come **matrice**: mesi in
+colonna, giorni in riga, verde e rosso. E' una vista onesta e si legge in un
+colpo d'occhio — che e' esattamente il suo limite.
+
+Una discesa del 60%, guardata a consuntivo, e' una macchia rossa larga tre
+colonne. Vissuta, e' quattordici mesi in cui ogni mattina il numero e' ancora
+sotto. Sono due informazioni diverse, e la seconda e' quella che decide se una
+posizione la si sarebbe tenuta davvero: la domanda del simulatore non e' «quanto
+avrei guadagnato» ma «cosa avrei passato», e la matrice risponde alla prima
+meglio che alla seconda.
+
+Nel vecchio tradash quella parte c'era: `psycho-backtest-dialog.tsx`, modalita'
+«cinema», cursore che avanza giorno per giorno con la velocita' regolabile.
+Riportata, con tre scelte diverse.
+
+**Il grafico non conosce il futuro.** La scala verticale si ricalcola sui soli
+giorni gia' scoperti. Con una scala fissa su tutta la corsa si vedrebbe dal
+primo fotogramma quanto in alto si arrivera' — che e' precisamente
+l'informazione che chi lo viveva non aveva, e senza la quale il film non serve
+a niente. Vale la stessa regola gia' scritta nel dominio: la discesa di un
+giorno si misura dal massimo di **allora**, non da quello di tutta la storia.
+
+**Una passeggiata sola.** `esperienza()` faceva il suo giro sui giorni per
+ricavare le misure e lo buttava via; adesso quel giro e' `andamento()`, e il
+riassunto si calcola su di lui. Due passeggiate sugli stessi giorni sono due
+occasioni di non essere d'accordo, e il giorno che divergessero il numero grande
+in cima e il punto dove si e' fermato il film si smentirebbero nella stessa
+schermata.
+
+**Sopra i sessanta scatti al secondo si allunga il passo, non la cadenza.** A
+120 sedute al secondo un fotogramma per seduta vorrebbe dire uno scatto ogni 8
+millisecondi: il tempo lo si guadagna avanzando di due sedute per scatto, non
+chiedendo al browser di disegnare piu' spesso di quanto un occhio veda. E oltre
+i 1200 punti la linea si assottiglia — un punto ogni N sedute — con scritto
+sotto che lo sta facendo: i numeri sopra restano quelli esatti del giorno.
+
+Niente doppia valuta, a differenza del vecchio: non abbiamo una fonte per i
+cambi, e l'effetto valuta qui non c'e' e non viene stimato. Era gia' dichiarato
+nella pagina, e resta vero.

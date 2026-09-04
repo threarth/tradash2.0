@@ -516,6 +516,79 @@ def test_con_pochissime_sedute_non_c_e_niente_da_rivivere():
     assert "20 sedute" in e["reason"] and e["action"]
 
 
+# --- il film: la stessa corsa, ma un giorno alla volta ---------------------
+#
+# La tabella mostra tutto insieme, ed e' cio' che chi teneva il titolo non
+# vedeva. `andamento()` rimette i giorni in fila perche' si possano ripercorrere
+# uno alla volta — e le misure del riassunto escono da quella stessa fila, cosi'
+# il film e il consuntivo non possono raccontare due storie diverse.
+
+def test_la_corsa_e_quella_di_cui_parla_il_riassunto():
+    """Se divergessero, la stessa schermata mostrerebbe due verita' sullo stesso
+    giorno: il numero grande in cima e il punto dove si e' fermato il film."""
+    sedute = simulatore.variazioni(_salita([100] * 5 + [200] * 5 + [100] * 5 + [210] * 5))
+
+    corsa = simulatore.andamento(sedute, 10_000)
+    e = simulatore.esperienza(sedute, 10_000)
+
+    assert len(corsa) == len(sedute)
+    assert corsa[-1]["valore"] == e["valore_oggi"]
+    assert corsa[-1]["rendimento"] == e["rendimento"]
+    assert min(p["discesa"] for p in corsa) == e["discesa_peggiore"]
+    assert max(p["giorni_dal_massimo"] for p in corsa) == e["attesa_piu_lunga_sotto_il_massimo"]
+    assert len([p for p in corsa if p["chiusura"] < 100]) == e["giorni_sotto_il_prezzo_pagato"]
+
+
+def test_la_discesa_di_un_giorno_e_quella_che_si_vedeva_quel_giorno():
+    """Non quella del consuntivo: sapere che sarebbe risalito e' esattamente
+    l'informazione che chi lo viveva non aveva."""
+    corsa = simulatore.andamento(
+        simulatore.variazioni(_salita([100] * 5 + [200] * 5 + [100] * 5 + [210] * 5)), 10_000
+    )
+
+    nel_mezzo = corsa[12]
+    assert nel_mezzo["discesa"] == pytest.approx(-0.5), "quel giorno era a meta' del massimo"
+    assert nel_mezzo["giorni_dal_massimo"] > 0
+    assert corsa[-1]["discesa"] == pytest.approx(0.0), "alla fine il massimo e' lui"
+    assert corsa[-1]["giorni_dal_massimo"] == 0
+
+
+def test_il_valore_e_quello_delle_quote_comprate_il_primo_giorno():
+    """Una posizione sola, comprata e tenuta: le quote non cambiano mai piu'."""
+    corsa = simulatore.andamento(simulatore.variazioni(_salita([100] * 10 + [200] * 10)), 10_000)
+
+    assert corsa[0]["valore"] == pytest.approx(10_000)
+    assert corsa[-1]["valore"] == pytest.approx(20_000), "cento quote a duecento"
+    assert corsa[-1]["rendimento"] == pytest.approx(1.0)
+
+
+def test_senza_sedute_non_c_e_niente_da_ripercorrere():
+    assert simulatore.andamento([], 10_000) == []
+
+
+def test_la_rotta_del_simulatore_porta_la_corsa_giorno_per_giorno(client, monkeypatch):
+    """Senza, l'interfaccia dovrebbe ricavarsela dalle celle della tabella:
+    la stessa storia ricostruita una seconda volta, in un altro linguaggio."""
+    giorni = 60
+    inizio = date.today() - timedelta(days=giorni - 1)
+    monkeypatch.setattr(defeatbeta, "prices", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame({
+            "report_date": [(inizio + timedelta(days=i)).isoformat() for i in range(giorni)],
+            "open": [100.0 + i for i in range(giorni)],
+            "high": [100.0 + i for i in range(giorni)],
+            "low": [100.0 + i for i in range(giorni)],
+            "close": [100.0 + i for i in range(giorni)],
+            "volume": [1e6] * giorni,
+        }),
+        scope=s, category="price", source="cache", available=True, reason="finto"))
+
+    d = client.get("/api/titolo/X/simulatore?capitale=10000").get_json()["data"]
+
+    assert len(d["andamento"]) == giorni
+    assert d["andamento"][-1]["valore"] == d["esperienza"]["valore_oggi"]
+    assert d["andamento"][0]["variazione"] is None, "il primo giorno non ha un giorno prima"
+
+
 def test_la_rotta_del_simulatore_rifiuta_un_capitale_impossibile(client):
     for valore in ("0", "-100", "molti"):
         risposta = client.get(f"/api/titolo/NVDA/simulatore?capitale={valore}")
