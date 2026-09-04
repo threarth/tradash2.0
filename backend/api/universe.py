@@ -57,6 +57,23 @@ def elenco():
                "action": stato.get("action")})
 
 
+@bp.get("/titolo/<simbolo>")
+def titolo(simbolo: str):
+    """Cosa sa l'universo di un titolo: nome, settore, industria, dimensione.
+
+    E' l'anteprima che compare passando il mouse su un simbolo. Un titolo che
+    l'universo non conosce non e' un errore del server: e' un'assenza, e si
+    dichiara col motivo — capita ai simboli nuovi finche' l'universo non viene
+    ricostruito, e a quelli che non stanno nel dataset.
+    """
+    trovata = universe.riga(simbolo)
+    if trovata is None:
+        return ok({"disponibile": False, "symbol": simbolo.strip().upper(),
+                   "motivo": "non e' nell'universo: o e' troppo nuovo, o "
+                             "l'universo non e' stato ancora ricostruito"})
+    return ok({"disponibile": True, **trovata})
+
+
 @bp.get("/stato")
 def stato():
     """Quanti titoli ci sono, quanto e' vecchio l'universo, e cosa gli manca."""

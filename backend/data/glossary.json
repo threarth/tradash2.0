@@ -2584,5 +2584,117 @@
       "market_tailwind",
       "sector_leadership"
     ]
+  },
+  {
+    "id": "troppo_presto",
+    "label": "Troppo presto",
+    "short": "Lo spin-off ha meno di due trimestri suoi: l'accelerazione non è misurabile, e non perché il titolo vada male.",
+    "full": "È lo stato di un candidato che non ha ancora abbastanza bilanci propri. I trimestri chiusi PRIMA della separazione non si guardano — descrivono una società che non esisteva ancora, e le loro cifre per azione sono quelle della madre — quindi serve aspettare che ne siano stati depositati almeno due dopo lo spin. «Troppo presto» non è un giudizio negativo: è il rifiuto di darne uno. Un punteggio basso perché mancano i dati e un punteggio basso perché i dati dicono di no sono due cose opposte, e confonderle è il difetto principale del rilevatore da cui questo viene.",
+    "formula": "trimestri utili = quelli chiusi dopo la data dello spin e già depositati; se sono meno di 2 → troppo presto",
+    "example": "MFP, separata da Middleby a luglio 2026: due mesi di vita, un solo trimestre suo. Prima della guardia il suo EPS risultava «da 270,80 a 0,26» — cifre della società di prima.",
+    "context": "Accanto al punteggio c'è sempre scritto su quanti segnali dei sei è stato calcolato: è l'altra metà della stessa informazione.",
+    "related": [
+      "spinoff",
+      "punti_disponibili",
+      "eps"
+    ]
+  },
+  {
+    "id": "in_movimento",
+    "label": "In movimento",
+    "short": "Prezzo e volume si sono accesi, i bilanci non ancora: è la posizione in cui SanDisk aveva davanti tredici volte il capitale.",
+    "full": "Lo stato di un candidato in cui i tre segnali di mercato — volume, prezzo sulla media a sei mesi, prezzo sulla media a cinquanta sedute — sono accesi mentre i tre fondamentali non lo sono ancora. È il momento più interessante e il più incerto insieme: su SanDisk corrispondeva a settembre 2025, quando il volume era triplicato e il prezzo passava da 41 a 113 dollari, ma i conti del trimestre non erano ancora stati depositati. Da lì restava il +1.276%. È anche lo stato in cui un candidato può semplicemente non confermare mai: il mercato si muove prima di sapere, e a volte si muove per niente.",
+    "formula": "segnali di mercato accesi ≥ 2/3 e fondamentali sotto la soglia di conferma",
+    "example": "SNDK, settembre 2025: volume +170% sui tre mesi, prezzo sopra entrambe le medie, ricavi ancora al +12% e EPS negativo.",
+    "context": "È lo stato che il rilevatore vecchio non sapeva vedere: col volume pesato al 5%, un titolo così restava in fondo alla classifica.",
+    "related": [
+      "numeri_girati",
+      "volume_anomaly",
+      "momentum",
+      "spinoff"
+    ]
+  },
+  {
+    "id": "numeri_girati",
+    "label": "Numeri girati",
+    "short": "Ricavi, margine ed EPS confermano insieme: l'inflessione non è più un'ipotesi di prezzo, è nei bilanci depositati.",
+    "full": "Lo stato di un candidato i cui tre segnali fondamentali sono accesi: i ricavi accelerano trimestre su trimestre, il margine lordo sale, l'EPS è positivo e in crescita. È la conferma, e arriva tardi per costruzione — un bilancio si deposita settimane dopo la fine del trimestre. Su SanDisk è scattato il 3 novembre 2025, col titolo già a 207 dollari dopo essere partito da 36: cinque volte il capitale erano già andate. Restava comunque il +651%, ed è la ragione per cui questo stato vale ancora qualcosa: tardi non è mai.",
+    "formula": "quota media dei segnali fondamentali (ricavi, margine, EPS) ≥ 0,75",
+    "example": "SNDK al 30 novembre 2025: ricavi +21% QoQ, margine dal 26% al 30%, EPS da -0,16 a 0,75. Punteggio pieno, e ancora +596% davanti.",
+    "context": "Se il volume nel frattempo si è girato lo stato diventa «in raffreddamento», che è un'altra cosa.",
+    "related": [
+      "in_movimento",
+      "in_raffreddamento",
+      "revenue_acceleration",
+      "eps"
+    ]
+  },
+  {
+    "id": "in_raffreddamento",
+    "label": "In raffreddamento",
+    "short": "I bilanci sono al massimo ma il volume si è girato: su SanDisk questo stato ha anticipato il calo del prezzo.",
+    "full": "Lo stato di un candidato che ha i fondamentali accesi e il volume in contrazione rispetto ai tre mesi precedenti. È la combinazione che conta di più fra quelle scomode: i numeri raccontano il passato migliore che il titolo abbia avuto, mentre chi compra e vende ha già smesso di accorrere. Su SanDisk è comparso a maggio 2026 — margine dal 51% al 78%, ricavi +97%, EPS da 5,15 a 23,03, e volume a -23% — e da lì il prezzo ha fatto -8% mentre il punteggio scendeva da 100 a 75. Il punteggio ha cominciato a scendere prima del prezzo.",
+    "formula": "fondamentali accesi e segnale volume a zero (ultimo mese sotto la media dei tre precedenti)",
+    "example": "SNDK, 31 maggio 2026: sei segnali su sei calcolabili, cinque pieni, il volume no.",
+    "context": "Non è un segnale di uscita: è il solo stato in cui i numeri e gli scambi dicono cose diverse, e vale la pena guardarlo da vicino.",
+    "related": [
+      "numeri_girati",
+      "volume_anomaly",
+      "spinoff"
+    ]
+  },
+  {
+    "id": "niente_ancora",
+    "label": "Niente ancora",
+    "short": "I segnali si possono misurare tutti, e nessun gruppo è acceso: lo spin-off c'è stato e non è successo niente.",
+    "full": "Lo stato di un candidato che ha abbastanza storia per essere giudicato — di solito sei segnali su sei calcolabili — e in cui né i fondamentali né il mercato superano le soglie. È la risposta più frequente, ed è giusto che lo sia: quasi nessuno spin-off diventa il caso che si cerca, e un rilevatore che promuovesse metà dell'elenco sarebbe rotto. Sedici candidati su ventisei stavano qui alla prima misura del 4 settembre 2026.",
+    "formula": "tutti i gruppi di segnali sotto la loro soglia, con i trimestri sufficienti per misurarli",
+    "example": "GLIBK e GLIBA, quattordici mesi dallo spin: volume a -63%, margine fermo al 72%, ricavi +3%.",
+    "context": "Diverso da «troppo presto», dove il giudizio manca perché mancano i dati.",
+    "related": [
+      "troppo_presto",
+      "in_movimento",
+      "spinoff"
+    ]
+  },
+  {
+    "id": "non_scambiato",
+    "label": "Non piu' scambiato",
+    "short": "Prezzo sotto il centesimo o fermo da settimane: non è un candidato con un punteggio basso, non è un candidato.",
+    "full": "Lo stato di un titolo che il rilevatore si rifiuta di misurare perché non è più un titolo scambiabile. Due condizioni lo fanno scattare: l'ultimo prezzo sotto un centesimo — il centesimo è il passo minimo di quotazione sui listini americani, e sotto si vive fuori dal mercato aperto — oppure nessun prezzo nuovo da più di dieci sedute. Dargli un punteggio, anche zero, produrrebbe un numero che sembra un giudizio su qualcosa che si può ancora comprare.",
+    "formula": "ultimo prezzo < 0,01 dollari, oppure ultima seduta più vecchia di dieci sedute",
+    "example": "TWNPQ, separata da FATAQ: quotata ogni giorno a 0,0001 dollari con volume fra zero e trecento pezzi. La Q finale è il suffisso delle società in bancarotta.",
+    "context": "È l'unico stato che esclude dal punteggio invece di descriverlo.",
+    "related": [
+      "troppo_presto",
+      "spinoff"
+    ]
+  },
+  {
+    "id": "punti_disponibili",
+    "label": "Punti disponibili",
+    "short": "Il punteggio si legge su quanti punti erano misurabili, non su cento: un segnale che manca esce dal denominatore.",
+    "full": "Ogni segnale pesa dei punti — volume 25, margine 20, ricavi 20, EPS 15, prezzo sulla media a sei mesi 10, sulla media a cinquanta sedute 10 — ma il punteggio non si divide sempre per cento: si divide per i punti dei soli segnali che si sono potuti calcolare. È la correzione del difetto peggiore del rilevatore da cui questo deriva, dove un dato mancante contribuiva zero e diventava indistinguibile da un dato che diceva di no. Per questo accanto al punteggio c'è sempre scritto su quanti segnali dei sei è stato ottenuto: 35 su 35 e 90 su 100 non sono la stessa misura, e il primo dei due riguarda un titolo di cui si sa poco.",
+    "formula": "punteggio = somma dei punti presi ; disponibili = somma dei pesi dei soli segnali calcolabili",
+    "example": "OCTV: 35 su 35 con due segnali su sei. EHLD: 90 su 100 con sei su sei. In classifica conta il numero assoluto, altrimenti il primo starebbe davanti.",
+    "context": "I pesi vengono dal caso SanDisk, misurando quale segnale è diventato visibile per primo. Un caso solo non è una taratura.",
+    "related": [
+      "troppo_presto",
+      "spinoff",
+      "volume_anomaly"
+    ]
+  },
+  {
+    "id": "ticker_non_nuovo",
+    "label": "Ticker non nuovo",
+    "short": "Il simbolo aveva già una storia di prezzi prima della separazione: non è una nuova quotazione, e «quotato da poco» lì non vale.",
+    "full": "Succede alle ridenominazioni e ai casi in cui il simbolo eredita la storia della società madre: la data dello spin-off dice una cosa e i prezzi ne dicono un'altra, più vecchia. Il rilevatore lo dichiara invece di correggerlo, perché non è un errore da sistemare ma un fatto da sapere: su quei titoli il ragionamento «società appena nata, ancora poco osservata» non si applica. La tolleranza è di quarantacinque giorni, perché qualche giorno di scambi when-issued prima della data ufficiale è normale — su SanDisk sono undici.",
+    "formula": "prima seduta nei prezzi anteriore di oltre 45 giorni alla data dello spin-off",
+    "example": "NVRI: contando i mesi dai prezzi ne risultavano 381 invece di 3. ANGI 178, RNA 75, LION 54.",
+    "context": "I mesi mostrati si contano sempre dalla data della separazione, mai dalla prima seduta.",
+    "related": [
+      "spinoff",
+      "troppo_presto"
+    ]
   }
 ]

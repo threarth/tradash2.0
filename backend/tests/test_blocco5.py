@@ -118,12 +118,19 @@ def test_le_porte_della_prosa_usano_il_glossario():
 
 # --- il glossario, dal backend ---------------------------------------------
 
+# Quante voci curate a mano contiene il file. E' un numero scritto qui apposta:
+# il glossario e' DATO, non qualcosa che generiamo, e se un giorno ne sparissero
+# venti nessun altro test se ne accorgerebbe. Si aggiorna quando se ne
+# aggiungono, ed e' l'unico momento in cui qualcuno le conta.
+VOCI_CURATE = 183
+
+
 def test_il_glossario_ha_i_termini_attesi():
-    """171 termini curati a mano: il file e' dato, non qualcosa che generiamo."""
+    """Il file e' dato, non qualcosa che generiamo: se si accorcia, si sa."""
     voci, errore = glossary.termini()
 
     assert errore is None
-    assert len(voci) == 175
+    assert len(voci) == VOCI_CURATE
     assert all({"id", "label", "short", "full"} <= set(v) for v in voci)
 
 
@@ -156,7 +163,7 @@ def test_le_route_del_glossario(client):
     assert elenco["success"] is True
 
     per_origine = Counter(v["origine"] for v in elenco["data"])
-    assert per_origine["curata"] == 175, "le curate non si perdono per strada"
+    assert per_origine["curata"] == VOCI_CURATE, "le curate non si perdono per strada"
     assert per_origine["voce di bilancio"] > 150
     assert per_origine["metrica calcolata"] > 10
 

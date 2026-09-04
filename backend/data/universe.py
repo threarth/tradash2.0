@@ -233,6 +233,20 @@ def rows(sector: str | None = None, industry: str | None = None,
     return [dict(r) for r in righe]
 
 
+def riga(simbolo: str) -> dict | None:
+    """Cio' che l'universo sa di UN titolo, o None se non lo conosce.
+
+    Serve all'anteprima che compare passando il mouse su un simbolo: e' una
+    lettura da una tabella locale, non da Defeatbeta, quindi costa quanto una
+    query per chiave e si puo' fare al volo mentre si scorre un elenco.
+    """
+    with db_read() as conn:
+        trovata = conn.execute(
+            "SELECT * FROM universe WHERE symbol = ?", (simbolo.strip().upper(),)
+        ).fetchone()
+    return dict(trovata) if trovata else None
+
+
 def _copertura(conn, totale: int) -> dict:
     """Quanti titoli hanno la casella vuota, colonna per colonna."""
     conteggi = ", ".join(
