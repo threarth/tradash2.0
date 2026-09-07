@@ -1,6 +1,6 @@
 """
-fondamentali.py — i bilanci recenti di TUTTO l'universo, in tabella.
-# feat: lo screening smette di essere solo di prezzo.
+fondamentali.py — i bilanci e lo storico mensile di TUTTO l'universo.
+# feat: lo screening smette di essere solo di prezzo, e diventa rigiocabile.
 
 ## Il buco che chiude
 
@@ -20,6 +20,17 @@ otto trimestri di ogni titolo, **con la data in cui quel trimestre e' stato
 depositato**. Quella data non e' un ornamento: senza, ogni ricostruzione a una
 data passata vedrebbe bilanci che allora non erano pubblici, ed e' il
 look-ahead piu' grave e meno visibile che ci sia.
+
+## E la seconda tabella: le chiusure di fine mese
+
+Sta qui e non altrove perche' e' la stessa idea applicata ai prezzi: **una
+lettura globale al posto di undicimila letture per titolo**. Serve a rigiocare
+un criterio all'indietro — «se lo avessi acceso ogni mese degli ultimi anni,
+cosa avrebbe trovato, e come sarebbe andata?» — e senza di lei quel rigioco
+sarebbe un lavoro da ore.
+
+Mensile e non giornaliera: un rigioco guarda i mesi, e la giornaliera sarebbe
+venti volte piu' grande per una precisione che nessuno userebbe.
 
 ## La copertura si dichiara, non si riempie
 
@@ -194,3 +205,106 @@ def stato() -> dict:
         "copertura": {r["voce"]: r["titoli"] for r in per_voce},
         "con_data_di_deposito": riga["con_deposito"],
     }
+
+
+# --- la seconda derivazione: le chiusure di fine mese ------------------------
+
+JOB_LABEL_PREZZI = "storico mensile dell'universo"
+
+
+def _scrivi_prezzi(frame) -> int:
+    """Riscrive lo storico mensile per intero. Come i bilanci: si svuota e si
+    riempie, perche' una vista aggiornata a pezzi puo' restare a meta' fra due
+    versioni della sorgente senza che nessuno se ne accorga."""
+    istante = _adesso()
+    righe = [(str(r["symbol"]).upper(), str(r["mese"]),
+              float(python_puro(r["chiusura"])), istante)
+             for r in frame.to_dict("records")
+             if python_puro(r.get("chiusura")) is not None]
+
+    with db_session() as conn:
+        conn.execute("DELETE FROM universe_prezzi_mensili")
+        conn.executemany(
+            "INSERT OR REPLACE INTO universe_prezzi_mensili "
+            "(symbol, mese, chiusura, built_at) VALUES (?, ?, ?, ?)",
+            righe,
+        )
+    return len(righe)
+
+
+def _costruisci_prezzi(consegna: queue.Queue | None = None) -> dict:
+    """Legge e scrive lo storico mensile. Sta nel registro, si ferma."""
+    with registry.job(JOB_KIND, JOB_LABEL_PREZZI, total=PASSI_COSTRUZIONE) as lavoro:
+        if consegna is not None:
+            consegna.put(lavoro.run_id)
+
+        lettura = defeatbeta.prezzi_mensili_universo(run_id=lavoro.run_id)
+        if not lettura.available:
+            lavoro.advance(detail=f"non disponibile: {lettura.reason}")
+            return {"scritte": 0, "reason": lettura.reason, "action": lettura.action}
+
+        lavoro.advance(detail=f"lette {len(lettura.frame)} chiusure")
+        scritte = _scrivi_prezzi(lettura.frame)
+        lavoro.advance(detail=f"scritte {scritte} chiusure")
+        freshness.mark_fetched_global(defeatbeta.CATEGORY_PREZZI_MENSILI)
+        lavoro.advance(detail="freschezza aggiornata")
+
+    logger.info("[FONDAMENTALI] storico mensile: %d righe", scritte)
+    return {"scritte": scritte, "reason": None, "action": None}
+
+
+def costruisci_prezzi_in_background() -> str:
+    """Avvia la derivazione dello storico mensile e ritorna il run_id."""
+    consegna: queue.Queue = queue.Queue(maxsize=1)
+    threading.Thread(target=_costruisci_prezzi, args=(consegna,),
+                     name="prezzi-mensili", daemon=True).start()
+    return consegna.get(timeout=ATTESA_AVVIO_S)
+
+
+def chiusure_mensili(simboli: list[str] | None = None) -> dict[str, dict[str, float]]:
+    """`{simbolo: {mese: chiusura}}`. Senza elenco, tutto l'universo.
+
+    Si legge in blocco perche' chi rigioca ha bisogno di tutti insieme: una
+    query per titolo sarebbe la N+1 che rende lento un lavoro che dev'essere
+    aritmetica locale.
+    """
+    with db_read() as conn:
+        if simboli:
+            segnaposti = ", ".join("?" for _ in simboli)
+            righe = conn.execute(
+                f"SELECT symbol, mese, chiusura FROM universe_prezzi_mensili "
+                f"WHERE symbol IN ({segnaposti}) ORDER BY symbol, mese",
+                [s.strip().upper() for s in simboli],
+            ).fetchall()
+        else:
+            righe = conn.execute(
+                "SELECT symbol, mese, chiusura FROM universe_prezzi_mensili "
+                "ORDER BY symbol, mese"
+            ).fetchall()
+
+    per_simbolo: dict[str, dict[str, float]] = {}
+    for riga in righe:
+        per_simbolo.setdefault(riga["symbol"], {})[riga["mese"]] = riga["chiusura"]
+    return per_simbolo
+
+
+def stato_prezzi() -> dict:
+    """Quanto copre lo storico mensile, e da quando."""
+    with db_read() as conn:
+        riga = conn.execute(
+            "SELECT COUNT(*) AS righe, COUNT(DISTINCT symbol) AS titoli, "
+            "MIN(mese) AS dal, MAX(mese) AS al, MAX(built_at) AS costruito_il "
+            "FROM universe_prezzi_mensili"
+        ).fetchone()
+
+    if not riga["righe"]:
+        return {"available": False, "titoli": 0,
+                "reason": "lo storico mensile non e' mai stato derivato",
+                "action": "premi «Deriva lo storico»: e' una lettura sola, "
+                          "circa un minuto"}
+
+    serve, motivo = freshness.should_fetch_global(defeatbeta.CATEGORY_PREZZI_MENSILI)
+    return {"available": True, "righe": riga["righe"], "titoli": riga["titoli"],
+            "dal": riga["dal"], "al": riga["al"],
+            "costruito_il": riga["costruito_il"],
+            "da_riderivare": serve, "reason": motivo}

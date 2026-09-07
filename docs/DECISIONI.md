@@ -1870,3 +1870,70 @@ una crescita pari a zero, non ce l'ha affatto.
 E il taglio a una data passata usa le date di deposito vere: chiedendo allo
 scanner «cosa avresti trovato il 15 luglio», il trimestre depositato il primo
 agosto **non si vede**. Sono due settimane di futuro in meno.
+
+---
+
+## Un criterio si rigioca PRIMA di accenderlo, e il paragone e' il non-filtrare
+
+Il rigioco degli spin-off aveva un buco che si vede solo dopo averlo usato:
+confrontava le fasce di punteggio **fra loro**. Dice che una fascia va meglio di
+un'altra, non la cosa che conta — **meglio di non filtrare affatto?** Un criterio
+che trova titoli col +12% in sei mesi sembra bravo, finche' non si scopre che in
+quei sei mesi tutto il mercato ha fatto +15%.
+
+`manage.py criterio '{"ricavi_qoq_minimo": 0.15}'` rigioca un criterio dello
+scanner su tutti i mesi che i dati coprono e, per ogni mese, mette accanto due
+mediane: quella di chi il criterio ha trovato, e quella di **tutti** i titoli che
+a quella data avevano un prezzo.
+
+E' possibile solo grazie alle due derivazioni globali — bilanci e chiusure
+mensili — che trasformano il rigioco da migliaia di letture in aritmetica
+locale: **15 secondi per 41 mesi su 12.000 titoli**.
+
+### Cosa e' venuto fuori, ed e' scomodo
+
+| criterio | mesi | vinti | vantaggio mediano | trovati/mese |
+|---|---:|---:|---:|---:|
+| ricavi QoQ +15% e margine +3pt | 32 | 3 (9%) | −11,4% | 178 |
+| ricavi QoQ +15%, da solo | 41 | 4 (10%) | −14,0% | 419 |
+| **ricavi anno su anno +20%** | 26 | **7 (27%)** | **−3,6%** | 305 |
+| ricavi YoY +20% e margine +3pt | 23 | 2 (9%) | −19,9% | 69 |
+| margine +3pt, da solo | 38 | 2 (5%) | −10,8% | 392 |
+
+**Nessuno dei cinque batte il non-filtrare.** Il migliore perde il 3,6% mediano
+e vince in un mese su quattro. E combinare due criteri peggiora invece di
+migliorare — che e' quello che ci si aspetta se ognuno dei due e' rumore con
+un'inclinazione negativa.
+
+### La scoperta dentro la scoperta: il trimestre su trimestre misura il calendario
+
+Il salto fra `ricavi QoQ` (−14,0%, vinti il 10% dei mesi) e `ricavi anno su
+anno` (−3,6%, vinti il 27%) e' troppo grande per essere caso. La spiegazione e'
+banale una volta vista: **un trimestre di Natale batte quello prima quasi
+sempre**, quindi un criterio sul trimestre precedente non seleziona la crescita —
+seleziona il calendario, e con esso i settori stagionali nel loro trimestre
+buono.
+
+Da qui il criterio `ricavi_yoy_minimo`, che confronta con lo stesso trimestre
+dell'anno prima. Serve un trimestre in piu' (cinque invece di due) ed e' per
+questo che copre meno titoli.
+
+**E questo riguarda anche il rilevatore spin-off, il cui segnale `ricavi` e'
+QoQ.** Non e' stato cambiato subito, e il motivo e' onesto: uno spin-off di sei
+mesi **non ha cinque trimestri suoi**, quindi il confronto anno su anno non
+esiste proprio per la popolazione che quel rilevatore cerca. E' una tensione
+vera, non una svista, e sta nel backlog.
+
+### Cosa questa misura NON dice
+
+* **Il paragone e' con la mediana di tutto l'universo**, comprese migliaia di
+  societa' minuscole e poco scambiate: non e' un paragone investibile. Un
+  paragone onesto filtrerebbe per capitalizzazione e volume, e quello e' il
+  primo miglioramento da fare.
+* **La finestra e' il 2019-2026** e l'orizzonte sei mesi. Un regime solo.
+* Non e' un backtest di strategia: non si compra, non si vende, non ci sono
+  costi ne' pesi.
+
+Resta il fatto che conta: **il sistema adesso sa dire di no a un'idea prima che
+diventi una colonna in pagina**, e lo ha appena fatto con le prime cinque idee
+che gli sono state date — comprese due che sembravano ovvie.

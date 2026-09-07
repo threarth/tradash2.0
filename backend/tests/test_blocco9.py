@@ -18,7 +18,7 @@ import pytest
 import config
 from core import registry
 from core.db import db_read, db_session
-from data import defeatbeta, forward, scanner, verdetto
+from data import defeatbeta, forward, rigioco, scanner, verdetto
 from domain import dcf, drawdown, rischio, scansione, simulatore
 
 TIMEOUT_S = 5.0
@@ -689,3 +689,75 @@ def test_senza_nessun_componente_il_rischio_non_diventa_basso():
 
     assert esito["banda"] == rischio.IGNOTO
     assert esito["deciso_da"] is None
+
+
+# --- il rigioco di un criterio, contro il non-filtrare ----------------------
+#
+# Il pezzo che al rigioco degli spin-off mancava: confrontare le fasce fra loro
+# dice solo che una va meglio di un'altra. La domanda vera e' «meglio di non
+# filtrare affatto?».
+
+def _storico_finto():
+    """Due titoli e sei mesi, scritti a mano nelle due tabelle derivate."""
+    prezzi = [
+        # BRAVO raddoppia, PIGRO resta fermo.
+        ("BRAVO", "2026-01", 100.0), ("BRAVO", "2026-07", 200.0),
+        ("PIGRO", "2026-01", 100.0), ("PIGRO", "2026-07", 100.0),
+        ("FERMO", "2026-01", 100.0), ("FERMO", "2026-07", 105.0),
+    ]
+    bilanci = [
+        # BRAVO accelera; PIGRO no. Depositati prima di fine gennaio.
+        ("BRAVO", "2025-09-30", "total_revenue", 100.0, "2025-11-01"),
+        ("BRAVO", "2025-12-31", "total_revenue", 150.0, "2026-01-20"),
+        ("PIGRO", "2025-09-30", "total_revenue", 100.0, "2025-11-01"),
+        ("PIGRO", "2025-12-31", "total_revenue", 101.0, "2026-01-20"),
+    ]
+    with db_session() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO universe_prezzi_mensili "
+            "(symbol, mese, chiusura, built_at) VALUES (?, ?, ?, '2026-09-08')", prezzi)
+        conn.executemany(
+            "INSERT OR REPLACE INTO universe_fondamentali "
+            "(symbol, report_date, voce, valore, filing_date, built_at) "
+            "VALUES (?, ?, ?, ?, ?, '2026-09-08')", bilanci)
+
+
+def test_il_rigioco_confronta_col_non_filtrare():
+    """E' l'unica misura onesta di cosa aggiunge un criterio: un criterio che
+    trova titoli col +12% sembra bravo finche' non si scopre che il mercato in
+    quei mesi ha fatto +15%."""
+
+    _storico_finto()
+
+    esito = rigioco.rigioca({"ricavi_qoq_minimo": 0.15}, orizzonte=6)
+    gennaio = next(m for m in esito["mesi"] if m["mese"] == "2026-01")
+
+    assert gennaio["trovati"] == 1, "solo BRAVO accelera"
+    assert gennaio["universo"] == 3, "il paragone e' con tutti quelli che hanno un prezzo"
+    assert gennaio["mediana_trovati"] == pytest.approx(1.0), "BRAVO ha raddoppiato"
+    assert gennaio["mediana_universo"] == pytest.approx(0.05), "la mediana di tutti"
+
+
+def test_un_criterio_troppo_stretto_non_si_giudica():
+    """La mediana di due titoli e' un aneddoto con l'aria di una misura."""
+
+    _storico_finto()
+
+    esito = rigioco.rigioca({"ricavi_qoq_minimo": 0.15}, orizzonte=6)
+
+    assert esito["riepilogo"]["mesi_utili"] == 0
+    assert "troppo stretto" in esito["riepilogo"]["reason"]
+
+
+def test_un_criterio_inventato_si_rifiuta_subito():
+
+    with pytest.raises(ValueError, match="criteri sconosciuti"):
+        rigioco.rigioca({"non_esiste": 1})
+
+
+def test_senza_storico_mensile_il_rigioco_lo_dice():
+    """Senza la derivazione non c'e' niente da rigiocare, e va detto invece di
+    tornare zero mesi come se il criterio non avesse mai vinto."""
+
+    with pytest.raises(ValueError, match="storico mensile"):
+        rigioco.rigioca({"ricavi_qoq_minimo": 0.15})

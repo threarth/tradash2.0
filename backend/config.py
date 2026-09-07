@@ -90,6 +90,7 @@ FRESHNESS_TTL_S: dict[str, int] = {
     # con gli altri bilanci: chi guarda vuole sapere se e' di oggi, non se e' di
     # questa settimana.
     "universe_fondamentali": 1 * SECONDS_PER_DAY,
+    "universe_prezzi_mensili": 1 * SECONDS_PER_DAY,
     "metriche": 1 * SECONDS_PER_DAY,       # calcolate sui bilanci: cambiano a trimestre
     "dcf": 1 * SECONDS_PER_DAY,            # idem: e' un calcolo sopra i bilanci
 }
@@ -247,6 +248,11 @@ UNIVERSE_FONDAMENTALI_TRIMESTRI = 8
 # e' diventato PUBBLICO. Senza, il taglio point-in-time ricadrebbe sul ritardo
 # stimato — e due tagli diversi non sono confrontabili.
 UNIVERSE_FONDAMENTALI_FORME = ("10-Q", "10-K")
+
+# Da quale anno si tiene la chiusura di fine mese di ogni titolo. Sette anni
+# sono quanto serve per rigiocare un criterio su piu' di un ciclo di mercato, e
+# costano 790.208 righe: misurato, 68 secondi di lettura.
+UNIVERSE_PREZZI_DAL = "2019-01-01"
 
 # --- l'elenco degli spin-off recenti ---------------------------------------
 #

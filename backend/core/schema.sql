@@ -151,6 +151,21 @@ CREATE TABLE IF NOT EXISTS universe_fondamentali (
     PRIMARY KEY (symbol, report_date, voce)
 );
 
+-- La chiusura di fine mese di ogni titolo, per rigiocare un criterio
+-- all'indietro senza rileggere i prezzi un titolo alla volta. Mensile e non
+-- giornaliera: un rigioco guarda i mesi, e la giornaliera sarebbe venti volte
+-- piu' grande per una precisione che nessuno userebbe.
+CREATE TABLE IF NOT EXISTS universe_prezzi_mensili (
+    symbol   TEXT NOT NULL,
+    mese     TEXT NOT NULL,          -- 'YYYY-MM'
+    chiusura REAL NOT NULL,
+    built_at TEXT NOT NULL,
+    PRIMARY KEY (symbol, mese)
+);
+
+CREATE INDEX IF NOT EXISTS idx_universe_prezzi_mensili_mese
+    ON universe_prezzi_mensili (mese);
+
 CREATE INDEX IF NOT EXISTS idx_universe_fondamentali_symbol
     ON universe_fondamentali (symbol);
 

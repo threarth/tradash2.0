@@ -16,6 +16,10 @@ FINESTRA_BREVE = 21
 FINESTRA_MEDIA = 63
 FINESTRA_LUNGA = 252
 
+# Quanti trimestri fanno un anno. Serve al confronto anno su anno, che e' l'unico
+# modo di guardare i ricavi senza guardare il calendario.
+TRIMESTRI_PER_ANNO = 4
+
 
 def _media(valori: list[float]) -> float | None:
     return sum(valori) / len(valori) if valori else None
@@ -64,8 +68,8 @@ def fondamentali(voci: dict, utili: list[str]) -> dict:
     valgono `None` — che non e' zero: un titolo che ha pubblicato un trimestre
     solo non ha una crescita pari a zero, non ce l'ha affatto.
     """
-    vuote = {"ricavi_qoq": None, "margine": None, "margine_variazione": None,
-             "eps": None, "trimestri": len(utili)}
+    vuote = {"ricavi_qoq": None, "ricavi_yoy": None, "margine": None,
+             "margine_variazione": None, "eps": None, "trimestri": len(utili)}
     if len(utili) < 2:
         return vuote
 
@@ -82,6 +86,15 @@ def fondamentali(voci: dict, utili: list[str]) -> dict:
             misurate["margine_variazione"] = misurate["margine"] - lordo[prima] / ricavi[prima]
     if ora in eps:
         misurate["eps"] = eps[ora]
+
+    # Anno su anno, cioe' contro lo STESSO trimestre dell'anno prima. Serve a
+    # togliere di mezzo la stagionalita': un trimestre di Natale batte quello
+    # prima quasi sempre, e un criterio sul trimestre su trimestre finisce per
+    # selezionare il calendario invece della crescita. Servono cinque trimestri.
+    if len(utili) >= TRIMESTRI_PER_ANNO + 1:
+        anno_fa = utili[-(TRIMESTRI_PER_ANNO + 1)]
+        if ricavi.get(anno_fa) and ora in ricavi:
+            misurate["ricavi_yoy"] = ricavi[ora] / ricavi[anno_fa] - 1
 
     return misurate
 
@@ -132,6 +145,11 @@ CRITERI = {
         lambda m: m["fondamentali"]["ricavi_qoq"], True,
         "ricavi in crescita di almeno il {soglia:.0%} sul trimestre prima "
         "(adesso {valore:+.1%})",
+    ),
+    "ricavi_yoy_minimo": (
+        lambda m: m["fondamentali"]["ricavi_yoy"], True,
+        "ricavi in crescita di almeno il {soglia:.0%} sullo stesso trimestre "
+        "dell'anno prima (adesso {valore:+.1%})",
     ),
     "margine_crescita_minima": (
         lambda m: m["fondamentali"]["margine_variazione"], True,

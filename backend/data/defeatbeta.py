@@ -91,6 +91,7 @@ CATEGORIA_PER_TABELLA = {
 # sola che ne unisce quattro, e non appartiene a nessun titolo.
 CATEGORY_UNIVERSE = "universe"
 CATEGORY_FONDAMENTALI = "universe_fondamentali"
+CATEGORY_PREZZI_MENSILI = "universe_prezzi_mensili"
 CATEGORY_METRICHE = "metriche"
 
 # Il DCF: non e' una tabella del dataset ma un calcolo della libreria sopra i
@@ -98,6 +99,7 @@ CATEGORY_METRICHE = "metriche"
 CATEGORY_DCF = "dcf"
 ENDPOINT_UNIVERSE = "universo:derivazione"
 ENDPOINT_FONDAMENTALI = "universo:fondamentali"
+ENDPOINT_PREZZI_MENSILI = "universo:prezzi_mensili"
 
 # Tutte le tabelle che questo modulo puo' nominare. L'elenco e' chiuso perche'
 # il nome finisce nella clausola FROM, dove un parametro legato non puo' andare.
@@ -908,3 +910,47 @@ def fondamentali_universo(run_id: str | None = None) -> Lettura:
         _prepara_fondamentali(), [], run_id
     )
     return _esito(frame, GLOBAL_SCOPE, CATEGORY_FONDAMENTALI, provenienza)
+
+
+def _prepara_prezzi_mensili() -> str:
+    """L'ultima chiusura di ogni mese, per ogni titolo, da una data in poi.
+
+    Serve a rigiocare un criterio all'indietro senza rileggere i prezzi un
+    titolo alla volta: con undicimila titoli sarebbero undicimila letture, e
+    diventerebbe un lavoro da ore invece che da un minuto.
+
+    Mensile e non giornaliera perche' un rigioco guarda i mesi: la giornaliera
+    sarebbe venti volte piu' grande per una precisione che nessuno userebbe.
+    """
+    _ensure_client()
+    prezzi = _table_uri(TABLE_PRICES)
+    return f"""
+        WITH mensili AS (
+            SELECT symbol,
+                   strftime(TRY_CAST(report_date AS DATE), '%Y-%m') AS mese,
+                   close AS chiusura,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY symbol,
+                                    strftime(TRY_CAST(report_date AS DATE), '%Y-%m')
+                       ORDER BY TRY_CAST(report_date AS DATE) DESC
+                   ) AS posizione
+            FROM '{prezzi}'
+            WHERE TRY_CAST(report_date AS DATE) >= DATE '{config.UNIVERSE_PREZZI_DAL}'
+        )
+        SELECT symbol, mese, chiusura FROM mensili
+        WHERE posizione = 1 AND chiusura IS NOT NULL
+        ORDER BY symbol, mese
+    """
+
+
+def prezzi_mensili_universo(run_id: str | None = None) -> Lettura:
+    """La chiusura di fine mese di tutti i titoli, in una lettura sola.
+
+    Misurato l'08/09/2026: 68 secondi, 790.208 righe, 12.246 simboli dal 2019.
+    E' un lavoro lungo: chi lo chiama lo apre con `registry.job`.
+    """
+    frame, provenienza = _leggi_tracciata(
+        ENDPOINT_PREZZI_MENSILI, CATEGORY_PREZZI_MENSILI, GLOBAL_SCOPE,
+        _prepara_prezzi_mensili(), [], run_id
+    )
+    return _esito(frame, GLOBAL_SCOPE, CATEGORY_PREZZI_MENSILI, provenienza)

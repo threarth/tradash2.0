@@ -355,6 +355,17 @@ def _calcola(consegna: queue.Queue | None = None) -> dict:
             consegna.put(lavoro.run_id)
 
         for riga in righe:
+            # Cosa diceva il calcolo precedente, prima di sovrascriverlo. E' il
+            # solo modo di rispondere a «cosa e' cambiato dall'ultima volta»
+            # senza tenere uno storico: si conserva UNA misura indietro, che e'
+            # la domanda che ci si fa davvero — non «com'era a marzo».
+            prima = riga.get("misura") or {}
+            if prima.get("disponibile"):
+                riga["prima"] = {
+                    "stato": prima.get("stato"),
+                    "presi": prima.get("punteggio", {}).get("presi"),
+                    "quando": salvato.get("calcolato_il"),
+                }
             try:
                 riga["misura"] = _misura(riga, lavoro.run_id)
             except Exception as problema:

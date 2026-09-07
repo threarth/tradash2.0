@@ -297,6 +297,15 @@
                                             <span class="text-secondary">
                                                 /{m.punteggio.disponibili}
                                             </span>
+                                            {#if riga.prima?.presi != null
+                                                 && riga.prima.presi !== m.punteggio.presi}
+                                                {@const salto =
+                                                    m.punteggio.presi - riga.prima.presi}
+                                                <span class:text-success={salto > 0}
+                                                      class:text-danger={salto < 0}>
+                                                    {salto > 0 ? "+" : ""}{salto}
+                                                </span>
+                                            {/if}
                                             <div class="text-secondary">
                                                 {m.punteggio.calcolabili} segnali
                                                 su {m.punteggio.totali}
@@ -306,6 +315,15 @@
                                             <span class="badge {STATI[m.stato] ?? 'text-bg-light'}">
                                                 <Testo testo={m.stato} />
                                             </span>
+                                            <!-- Cosa diceva il calcolo di prima.
+                                                 Compare solo se e' cambiato: una
+                                                 riga che ripete lo stesso stato
+                                                 non dice niente e occupa spazio. -->
+                                            {#if riga.prima && riga.prima.stato !== m.stato}
+                                                <div class="small text-secondary">
+                                                    era <Testo testo={riga.prima.stato} />
+                                                </div>
+                                            {/if}
                                         </td>
                                         {#each SEGNALI as nome (nome)}
                                             {@const s = m.segnali[nome]}

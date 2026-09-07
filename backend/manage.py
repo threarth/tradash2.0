@@ -7,15 +7,19 @@ manage.py — comandi di manutenzione di tradash2.0.
     python manage.py costi      riapplica il listino alle chiamate gia' fatte
     python manage.py referti    rimette in SQLite i referti che stanno nel file
     python manage.py rigioco    rigioca il punteggio degli spin-off all'indietro
+    python manage.py criterio '{"ricavi_qoq_minimo": 0.15}'
+                                rigioca un criterio dello scanner contro il non-filtrare
 """
 import argparse
+import json
 import logging
 import sys
 
 import config
 from core import llm, schema
 from core.db import db_read
-from data import analisi, spinoff_rigioco
+from data import analisi, rigioco, spinoff_rigioco
+from domain import scansione
 
 CONFIRMATION_WORD = "RICOSTRUISCI"
 EXIT_OK = 0
@@ -83,6 +87,56 @@ def comando_rigioco() -> int:
     # dello stesso titolo dicono la stessa cosa.
     print("\nI titoli distinti per fascia sono il numero da guardare: una fascia")
     print("con cento punti e due titoli e' due casi, non cento.")
+    return EXIT_OK
+
+
+def comando_criterio(criteri_json: str | None) -> int:
+    """Rigioca un criterio dello scanner su tutti i mesi, contro il non-filtrare.
+
+    E' la domanda «questo criterio ha mai funzionato?» fatta PRIMA di accenderlo,
+    che e' l'ordine in cui non e' stata fatta per i pesi del rilevatore spin-off.
+
+    Il paragone col resto dell'universo e' il pezzo che conta: un criterio che
+    trova titoli col +12% sembra bravo finche' non si scopre che in quei mesi
+    tutto il mercato ha fatto +15%.
+    """
+    schema.ensure_schema()
+    if not criteri_json:
+        print("serve un oggetto JSON coi criteri, per esempio:")
+        print("""  manage.py criterio '{"ricavi_qoq_minimo": 0.15}'""")
+        print(f"criteri disponibili: {', '.join(sorted(scansione.CRITERI))}")
+        return EXIT_ABORTED
+
+    try:
+        criteri = json.loads(criteri_json)
+        esito = rigioco.rigioca(criteri)
+    except (json.JSONDecodeError, ValueError) as problema:
+        print(f"non si puo' rigiocare: {problema}")
+        return EXIT_ABORTED
+
+    conto = esito["riepilogo"]
+    print(f"criterio: {esito['criteri']}")
+    print(f"rendimento misurato sui {esito['orizzonte_mesi']} mesi successivi\n")
+
+    if conto["reason"]:
+        print(conto["reason"])
+        return EXIT_OK
+
+    print(f"{'mese':9}{'trovati':>9}{'loro':>10}{'tutti':>10}{'differenza':>13}")
+    for mese in esito["mesi"]:
+        if mese["mediana_trovati"] is None or mese["mediana_universo"] is None:
+            continue
+        differenza = mese["mediana_trovati"] - mese["mediana_universo"]
+        print(f"{mese['mese']:9}{mese['trovati']:>9}"
+              f"{mese['mediana_trovati']:>9.1%}{mese['mediana_universo']:>10.1%}"
+              f"{differenza:>13.1%}")
+
+    print(f"\nmesi giudicabili {conto['mesi_utili']} · vinti {conto['vinti']} "
+          f"({conto['quota_vinti']:.0%}) · vantaggio mediano "
+          f"{conto['vantaggio_mediano']:+.1%} · trovati per mese "
+          f"{conto['trovati_per_mese']}")
+    print("\nI mesi vinti contano piu' della media delle differenze: una media")
+    print("se la porta via un mese solo, e la domanda e' «funziona spesso?».")
     return EXIT_OK
 
 
@@ -191,7 +245,10 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s — %(message)s")
     parser = argparse.ArgumentParser(description="Manutenzione del database di tradash2.0")
     parser.add_argument("comando",
-                        choices=["check", "rebuild", "costi", "referti", "rigioco"])
+                        choices=["check", "rebuild", "costi", "referti", "rigioco",
+                                 "criterio"])
+    parser.add_argument("criteri", nargs="?",
+                        help="per «criterio»: i criteri come oggetto JSON")
     argomenti = parser.parse_args()
 
     if argomenti.comando == "check":
@@ -202,6 +259,8 @@ def main() -> int:
         return comando_referti()
     if argomenti.comando == "rigioco":
         return comando_rigioco()
+    if argomenti.comando == "criterio":
+        return comando_criterio(argomenti.criteri)
     return comando_rebuild()
 
 
