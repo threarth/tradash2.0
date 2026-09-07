@@ -1,6 +1,6 @@
 # Backlog
 
-Cosa resta, al 07/09/2026. Sta in un file e non in una chat perche' una
+Cosa resta, all'08/09/2026. Sta in un file e non in una chat perche' una
 conversazione si azzera e questo elenco no.
 
 L'ordine e' per valore, non per fatica. Ogni voce dice **perche'** vale, cosi'
@@ -8,7 +8,48 @@ fra un mese si puo' decidere di buttarla senza doverla ricostruire.
 
 ---
 
-## 1. I token letti dalla cache — il costo che mostriamo puo' essere una sovrastima
+## 1. Il paragone del rigioco non e' investibile
+
+`manage.py criterio` confronta chi il criterio trova con **la mediana di tutto
+l'universo**: dentro ci sono migliaia di societa' minuscole e poco scambiate, su
+cui nessuno comprerebbe. Un criterio che le evita risulta perdente anche quando
+sta solo evitando il fondo del barile.
+
+E' il primo miglioramento da fare, perche' **tutte le misure fatte finora
+poggiano su quel paragone**: i cinque criteri che hanno perso potrebbero aver
+perso contro un avversario che non esiste.
+
+**Cosa fare:** filtrare il paragone per capitalizzazione e volume, con le stesse
+soglie che si userebbero davvero, e dichiararle nel resoconto. I dati ci sono
+gia' nella tabella `universe`; costa una join.
+
+E gia' che c'e': l'orizzonte e' solo sei mesi e la finestra solo 2019-2026. Tre
+orizzonti (3, 6, 12) direbbero se un criterio e' lento o sbagliato — che sono due
+cose diverse.
+
+---
+
+## 2. Il segnale sui ricavi misura il calendario
+
+Il rigioco ha mostrato che `ricavi QoQ` perde il 14% mediano contro il
+non-filtrare e `ricavi anno su anno` solo il 3,6%: la differenza e' troppo
+grande per essere caso, e la spiegazione e' che **un trimestre di Natale batte
+quello prima quasi sempre**. Il trimestre su trimestre seleziona il calendario,
+non la crescita.
+
+Nello scanner il criterio anno su anno c'e' gia'. **Nel rilevatore spin-off no,
+e li' e' un problema aperto**: uno spin-off di sei mesi non ha cinque trimestri
+suoi, quindi il confronto anno su anno non esiste proprio per la popolazione che
+quel rilevatore cerca.
+
+**Cosa fare:** o si accetta il QoQ dichiarando che li' dentro misura anche la
+stagionalita', o si aspetta il quinto trimestre e si dice «troppo presto» piu' a
+lungo. La seconda e' piu' onesta e riduce ancora i casi giudicabili, che sono
+gia' tredici.
+
+---
+
+## 3. I token letti dalla cache — il costo che mostriamo puo' essere una sovrastima
 
 Il vecchio tradash registrava `cache_read_tokens` e `cache_write_tokens`. Noi no.
 Se il fornitore serve parte dell'ingresso dalla cache, la fattura e' piu' bassa
@@ -27,7 +68,7 @@ Anthropic, e il costo che ne tiene conto. Poi `manage.py costi` ricalcola.
 
 ---
 
-## 2. Il rilevatore spin-off ha 13 casi, e ne servono cento
+## 4. Il rilevatore spin-off ha 13 casi, e ne servono cento
 
 **Il rigioco e' stato fatto, e ha risposto di no.** `manage.py rigioco`
 ricalcola il punteggio a ogni fine mese sui soli dati pubblici a quella data.
@@ -52,7 +93,7 @@ qualunque taratura su tredici titoli descriverebbe quei tredici.
 
 ---
 
-## 3. Il punteggio di successo, tarato
+## 5. Il punteggio di successo, tarato
 
 Deciso il 02/09: **prima il rischio, il successo dopo averlo tarato.** Il rischio
 c'e' ed e' deterministico. Il successo no, e oggi non si puo' fare onestamente:
@@ -70,7 +111,7 @@ progetto ha gia' tolto due volte.
 
 ---
 
-## 4. Le analisi non sono state rigirate dopo il cambio dei prompt
+## 6. Le analisi non sono state rigirate dopo il cambio dei prompt
 
 Il 02/09 la regola sui consigli e' cambiata — da «non darne» a «dalli in tre
 tempi, con la banda di rischio». Da allora e' stata rigirata **solo la lettura
@@ -83,7 +124,7 @@ prima volta: circa 2 dollari.
 
 ---
 
-## 5. Nessun test del frontend prende un difetto di reattivita'
+## 7. Nessun test del frontend prende un difetto di reattivita'
 
 In due giorni ne sono passati quattro: `structuredClone` su un proxy, il ciclo
 infinito del registro delle sezioni, il punto fissato che ricostruiva il
@@ -117,7 +158,7 @@ il controllo sul sorgente a tutti i componenti — oggi copre solo
 
 ---
 
-## 6. Quello che non e' mai stato visto girare
+## 8. Quello che non e' mai stato visto girare
 
 Su questa macchina **non c'e' un browser headless** — niente playwright, niente
 chromium — quindi ogni correzione di interfaccia degli ultimi giorni e'
@@ -145,7 +186,7 @@ Cosa aspetta uno sguardo, in ordine di quanto e' probabile che sia storto:
 
 ---
 
-## 7. Cose piccole, se capita
+## 9. Cose piccole, se capita
 
 - **`before` su `get_recent_filings`** (dal PIANO): qui il taglio dei filing e'
   esatto e usato. Resta come lezione — un parametro esposto e mai passato e' un
@@ -161,6 +202,10 @@ Cosa aspetta uno sguardo, in ordine di quanto e' probabile che sia storto:
   la classificazione regge *e* se il motivo scritto sei mesi fa vale ancora. Non
   fatto perche' non era la richiesta, e perche' allunga un prompt che oggi e'
   volutamente magro.
+- **Le due derivazioni globali pesano 97 MB** nel database: `tradash2.db` e'
+  passato da 3 a 100 MB. Si ricostruisce con due pulsanti e non va nel backup,
+  quindi non e' un problema — ma se un giorno lo storico passasse da mensile a
+  giornaliero sarebbe venti volte tanto, e li' la scelta andrebbe rifatta.
 - **GLIBR non ha prezzi in Defeatbeta**: e' l'unico dei 27 spin-off che il
   rilevatore non puo' misurare affatto. Dichiarato nella riga («senza dati»), da
   ricontrollare quando l'universo si ricostruisce — potrebbe essere un simbolo
