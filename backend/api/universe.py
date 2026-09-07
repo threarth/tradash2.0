@@ -13,7 +13,7 @@ from flask import Blueprint, request
 
 import config
 from api import fail, ok
-from data import universe
+from data import fondamentali, universe
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,24 @@ def titolo(simbolo: str):
                    "motivo": "non e' nell'universo: o e' troppo nuovo, o "
                              "l'universo non e' stato ancora ricostruito"})
     return ok({"disponibile": True, **trovata})
+
+
+@bp.get("/fondamentali")
+def fondamentali_stato():
+    """Quanto copre la tabella dei fondamentali, e da quando."""
+    return ok(fondamentali.stato())
+
+
+@bp.post("/fondamentali")
+def fondamentali_deriva():
+    """Deriva i fondamentali di tutto l'universo. Parte solo da qui.
+
+    Una lettura sola sul parquet dei bilanci — misurata in 56 secondi a freddo —
+    e per questo torna subito il `run_id`: una richiesta HTTP appesa un minuto
+    sarebbe un lavoro che non si puo' fermare.
+    """
+    run_id = fondamentali.costruisci_in_background()
+    return ok({"run_id": run_id, "stop": f"/api/ops/stop/{run_id}"})
 
 
 @bp.get("/stato")

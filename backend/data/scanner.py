@@ -19,12 +19,14 @@ nel log delle chiamate con la provenienza.
 import logging
 import queue
 import threading
+from datetime import date
 
 import config
 from core import registry
 from core.db import db_read
 from data import defeatbeta
-from domain import scansione
+from data import fondamentali as fondamentali_universo
+from domain import publication_dates, scansione
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +91,28 @@ def _chiusure(simbolo: str, fino_a: str | None, run_id: str) -> tuple[list, list
     return frame["close"].tolist(), frame["volume"].tolist()
 
 
+def _fondamentali(simbolo: str, fino_a: str | None) -> dict:
+    """Le misure di bilancio di un titolo, tagliate a cio' che era PUBBLICO.
+
+    Si leggono dalla tabella dell'universo — una query per chiave, non una
+    lettura da Defeatbeta — e il taglio usa le date di deposito vere dove ci
+    sono. Dove non ci sono, `publication_dates` ricade sul ritardo prudente da
+    solo: meglio non vedere un dato che c'era, che vederne uno che non c'era.
+
+    Senza tabella derivata torna tutto vuoto, e i criteri di bilancio non
+    passano: e' la stessa regola dei prezzi mancanti, non un caso speciale.
+    """
+    voci = fondamentali_universo.voci_di(simbolo)
+    if not voci:
+        return scansione.fondamentali({}, [])
+
+    quando = fino_a or date.today().isoformat()
+    depositi = fondamentali_universo.depositi_di(simbolo)
+    periodi = sorted(voci.get("total_revenue", {}))
+    pubblici = [p for p in periodi if publication_dates.was_public(depositi, p, quando)]
+    return scansione.fondamentali(voci, pubblici)
+
+
 def _scandaglia(lavoro, simboli: list[str], criteri: dict, fino_a: str | None) -> dict:
     """Il giro vero e proprio: un titolo alla volta, fermabile a ogni passo."""
     trovati, senza_dati = [], []
@@ -99,6 +123,7 @@ def _scandaglia(lavoro, simboli: list[str], criteri: dict, fino_a: str | None) -
             senza_dati.append(simbolo)
         else:
             misurato = scansione.misure(chiusure, volumi)
+            misurato["fondamentali"] = _fondamentali(simbolo, fino_a)
             soddisfa, perche = scansione.valuta(misurato, criteri)
             if soddisfa:
                 trovati.append({"symbol": simbolo, "perche": perche,
@@ -118,6 +143,7 @@ def _misure_leggibili(misurato: dict) -> dict:
         "variazione_1a": misurato["variazione_1a"],
         "sedute": misurato["sedute"],
         "drawdown": misurato["drawdown"],
+        "fondamentali": misurato["fondamentali"],
     }
 
 

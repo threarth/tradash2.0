@@ -1803,3 +1803,70 @@ Tredici titoli, di cui uno domina. Servono piu' casi: la pagina di
 stockanalysis ha gli anni precedenti, e ogni anno in piu' porta una ventina di
 separazioni. Con cinque anni si arriva a un centinaio di titoli, e li' la
 domanda «anticipa?» comincia ad avere una risposta invece di un aneddoto.
+
+---
+
+## I due imbuti che non si parlavano
+
+tradash2.0 aveva due modi di cercare titoli, e ognuno sapeva meta' di cio' che
+serve:
+
+| | su quanti titoli | cosa sapeva guardare |
+|---|---:|---|
+| lo **scanner** | 11.256 | sei criteri, **tutti di prezzo e volume** |
+| il **rilevatore spin-off** | 27 | sei segnali, di cui **tre di bilancio** |
+
+Il rilevatore faceva la domanda giusta — «i numeri stanno girando?» — a una
+lista arrivata da fuori. Lo scanner arrivava a undicimila titoli e di
+un'azienda sapeva solo com'era andato il prezzo. Non si poteva chiedere:
+**«nell'universo, chi ha il margine in espansione e i ricavi in accelerazione?»**
+
+E i dati c'erano: Defeatbeta da' 166 voci di bilancio per titolo. Semplicemente
+non erano mai state portate nell'universo, che aveva anagrafica,
+capitalizzazione, ultimo prezzo e volume.
+
+### Una lettura sola, e costa un minuto
+
+La derivazione dei bilanci e' una query globale sul parquet come quella
+dell'universo. **Misurata: 56 secondi a freddo, 4 a cache calda, 182.216 righe,
+10.045 titoli.** Tre voci — ricavi, margine lordo, EPS diluito — per gli ultimi
+otto trimestri.
+
+Tre e non centosessantasei: sono quelle che rispondono alla domanda, e leggere
+tutto costerebbe senza servire. Otto trimestri e non due: due bastano per la
+fotografia di adesso, otto servono per **rigiocare due anni all'indietro**, che
+e' l'unico modo di sapere se un criterio ha mai funzionato.
+
+### La data di deposito viaggia col bilancio
+
+Ogni riga porta **quando quel trimestre e' diventato pubblico**, presa
+dall'indice dei filing e unita per (titolo, fine periodo). Senza, ogni
+ricostruzione a una data passata vedrebbe bilanci che allora non esistevano — ed
+e' il look-ahead piu' grave e meno visibile che ci sia.
+
+Copre 113.726 righe su 182.216. Dove manca, `publication_dates` ricade da solo
+sul ritardo prudente e lo dichiara: una data inventata sarebbe peggio di una
+mancante.
+
+Un dettaglio costato una query fallita: nell'indice dei depositi **due righe su
+434.128 hanno la fine periodo vuota**, e un `CAST` fa cadere l'intera
+derivazione per due righe. Si usa `TRY_CAST`.
+
+### La copertura si dichiara, non si riempie
+
+Misurato: ricavi su 9.899 titoli, EPS su 8.290, **margine lordo su 6.550**. Le
+banche il margine lordo non lo riportano affatto. Non e' una lacuna da tappare:
+e' una copertura da dire, perche' un filtro sul margine su un titolo finanziario
+non torna vuoto — torna assente, e sono due cose diverse.
+
+### Cosa si puo' chiedere adesso
+
+Tre criteri nuovi nello scanner: `ricavi_qoq_minimo`, `margine_crescita_minima`,
+`eps_minimo`. Rispettano le regole di prima senza eccezioni: un criterio su un
+valore che manca **non passa**, e con meno di due trimestri pubblici le misure
+sono `None` e non zero — un titolo che ha pubblicato un trimestre solo non ha
+una crescita pari a zero, non ce l'ha affatto.
+
+E il taglio a una data passata usa le date di deposito vere: chiedendo allo
+scanner «cosa avresti trovato il 15 luglio», il trimestre depositato il primo
+agosto **non si vede**. Sono due settimane di futuro in meno.

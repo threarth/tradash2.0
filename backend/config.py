@@ -85,6 +85,11 @@ FRESHNESS_TTL_S: dict[str, int] = {
     "news": 2 * SECONDS_PER_HOUR,
     "treasury_yield": 12 * SECONDS_PER_HOUR,
     "universe": 1 * SECONDS_PER_DAY,       # dato globale, non di un titolo
+    # I fondamentali di tutto l'universo: nuovi solo quando qualcuno deposita un
+    # trimestre, quindi un giorno e' gia' stretto. Resta un giorno per coerenza
+    # con gli altri bilanci: chi guarda vuole sapere se e' di oggi, non se e' di
+    # questa settimana.
+    "universe_fondamentali": 1 * SECONDS_PER_DAY,
     "metriche": 1 * SECONDS_PER_DAY,       # calcolate sui bilanci: cambiano a trimestre
     "dcf": 1 * SECONDS_PER_DAY,            # idem: e' un calcolo sopra i bilanci
 }
@@ -220,6 +225,29 @@ REGISTRY_EVENTI_MAX = 40
 # Sono un file JSON e non una tabella per lo stesso motivo della watchlist —
 # `manage.py rebuild` cancella il database, e una scelta che sparisce con la
 # ricostruzione tornerebbe al predefinito senza dirlo.
+# --- i fondamentali di TUTTO l'universo -------------------------------------
+#
+# L'universo sapeva solo com'e' andato il prezzo: anagrafica, capitalizzazione,
+# ultima chiusura, volume. Di un'azienda, niente. Cosi' lo scanner poteva
+# cercare solo per prezzo, e i segnali del rilevatore spin-off — che guardano
+# margine, ricavi ed EPS — erano calcolabili solo sui pochi titoli di una lista
+# venuta da fuori.
+#
+# Queste tre voci sono il minimo che risponde alla domanda «i numeri stanno
+# girando?», ed e' misurato quanto costano: una lettura globale del parquet dei
+# bilanci, 56 secondi a freddo, 11.530 simboli per i ricavi.
+UNIVERSE_FONDAMENTALI_VOCI = ("total_revenue", "gross_profit", "diluted_eps")
+
+# Quanti trimestri si conservano per titolo. Due basterebbero per la fotografia
+# di adesso; otto servono per rigiocare il punteggio due anni all'indietro, che
+# e' l'unico modo di sapere se un criterio ha mai funzionato.
+UNIVERSE_FONDAMENTALI_TRIMESTRI = 8
+
+# Le forme dei depositi periodici, da cui si prende la data in cui un trimestre
+# e' diventato PUBBLICO. Senza, il taglio point-in-time ricadrebbe sul ritardo
+# stimato — e due tagli diversi non sono confrontabili.
+UNIVERSE_FONDAMENTALI_FORME = ("10-Q", "10-K")
+
 # --- l'elenco degli spin-off recenti ---------------------------------------
 #
 # E' l'unico dato che NON viene da Defeatbeta, e la ragione e' che non esiste

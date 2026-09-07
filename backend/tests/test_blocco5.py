@@ -41,7 +41,6 @@ SENZA_GLOSSARIO = {
     "PannelloGlossario.svelte": "mostra le definizioni del glossario stesso: "
                                "sottolinearle li' dentro sarebbe un rimando a se stesse",
     "SchedaTitolo.svelte": "la prosa dei dati passa da Valore e da Assente",
-    "Universo.svelte": "la prosa dei dati passa da Valore e da Assente",
     "Watchlist.svelte": "la prosa dei dati passa da Valore, Assente e SchedaTitolo",
     "EtichettaPannello.svelte": "due parole fisse, MENU e INDICATORI: non e' prosa dei dati",
     "Nota.svelte": "e' una casella di scrittura: dentro a un textarea non si "

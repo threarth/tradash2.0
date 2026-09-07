@@ -30,7 +30,16 @@
           suffisso: "%", scala: 100 },
         { chiave: "sopra_media_200", etichetta: "Sopra la media a 200 sedute del",
           suffisso: "%", scala: 100 },
-        { chiave: "volume_medio_minimo", etichetta: "Volume medio almeno", suffisso: "", scala: 1 }
+        { chiave: "volume_medio_minimo", etichetta: "Volume medio almeno", suffisso: "", scala: 1 },
+        // I tre di bilancio. Prima lo scanner sapeva solo com'e' andato il
+        // prezzo: questi chiedono a undicimila titoli la stessa cosa che il
+        // rilevatore spin-off chiede ai suoi ventisette.
+        { chiave: "ricavi_qoq_minimo", etichetta: "Ricavi in crescita sul trimestre almeno del",
+          suffisso: "%", scala: 100 },
+        { chiave: "margine_crescita_minima", etichetta: "Margine lordo in crescita almeno di",
+          suffisso: " punti", scala: 100 },
+        { chiave: "eps_minimo", etichetta: "EPS dell'ultimo trimestre almeno",
+          suffisso: "", scala: 1 }
     ];
 
     let valori = $state({});

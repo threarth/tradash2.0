@@ -11,6 +11,7 @@
 
     import Assente from "../components/Assente.svelte";
     import Riquadro from "../components/Riquadro.svelte";
+    import Testo from "../components/Testo.svelte";
     import Valore from "../components/Valore.svelte";
     import { api } from "../lib/api.js";
     import { richiedi } from "../lib/carica.svelte.js";
@@ -28,16 +29,30 @@
             limit: TITOLI_PER_PAGINA })
     );
     const stato = richiedi(() => api.universoStato());
+    const bilanci = richiedi(() => api.fondamentaliStato());
 
     onMount(() => {
         elenco.ricarica();
         stato.ricarica();
+        bilanci.ricarica();
     });
 
     async function costruisci() {
         avvio = null;
         try {
             avvio = await api.universoCostruisci(true);
+            naviga("/operazioni");
+        } catch (problema) {
+            avvio = { errore: problema.message };
+        }
+    }
+
+    /** Deriva i bilanci di tutto l'universo. E' cio' che permette allo scanner
+        di cercare per margine e ricavi invece che per solo prezzo. */
+    async function derivaFondamentali() {
+        avvio = null;
+        try {
+            avvio = await api.fondamentaliDeriva();
             naviga("/operazioni");
         } catch (problema) {
             avvio = { errore: problema.message };
@@ -52,10 +67,44 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">Universo</h1>
-    <button class="btn btn-sm btn-primary" onclick={costruisci}>
-        <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Ricostruisci
-    </button>
+    <div class="d-flex gap-2">
+        <!-- Due derivazioni, due pulsanti: la prima porta anagrafica e prezzi,
+             la seconda i bilanci. Sono letture diverse e costano diverso, e
+             unirle in un pulsante solo vorrebbe dire pagarle sempre entrambe. -->
+        <button class="btn btn-sm btn-outline-primary" onclick={derivaFondamentali}>
+            <i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i>
+            Deriva i bilanci
+        </button>
+        <button class="btn btn-sm btn-primary" onclick={costruisci}>
+            <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Ricostruisci
+        </button>
+    </div>
 </div>
+
+<!-- I bilanci dell'universo: quanti titoli copre, e con quale voce. La
+     copertura non e' un dettaglio — il margine lordo manca a migliaia di
+     titoli perche' le banche non lo riportano, e un filtro sul margine li'
+     sopra non torna vuoto: torna assente. -->
+<Riquadro richiesta={bilanci} testoCaricamento="leggo i bilanci dell'universo…">
+    {#snippet children(dati)}
+        {#if !dati.available}
+            <Assente titolo="I bilanci dell'universo non ci sono ancora"
+                     motivo={dati.reason} azione={dati.action} />
+        {:else}
+            <p class="small text-secondary">
+                Bilanci derivati il {dati.costruita_il} ·
+                <strong class="numerico">{dati.titoli.toLocaleString("it")}</strong> titoli ·
+                {#each Object.entries(dati.copertura) as [voce, quanti], indice (voce)}
+                    {#if indice > 0} · {/if}<Testo testo={voce} />
+                    <span class="numerico">{quanti.toLocaleString("it")}</span>
+                {/each}
+                · <span class="numerico">{dati.con_data_di_deposito.toLocaleString("it")}</span>
+                trimestri con la data di deposito vera
+                {#if dati.da_riderivare}· <span class="text-warning">{dati.reason}</span>{/if}
+            </p>
+        {/if}
+    {/snippet}
+</Riquadro>
 
 {#if avvio?.errore}
     <div class="alert alert-danger">{avvio.errore}</div>

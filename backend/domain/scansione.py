@@ -46,7 +46,44 @@ def misure(chiusure: list[float], volumi: list[float] | None = None) -> dict:
         "media_200": _media(chiusure[-200:]) if len(chiusure) >= 200 else None,
         "volume_medio": _media(volumi[-FINESTRA_BREVE:]) if volumi else None,
         "drawdown": drawdown.profilo(chiusure),
+        # I bilanci li mette chi chiama, perche' vanno letti: qui c'e' il posto
+        # dove vanno, cosi' un criterio di bilancio trova sempre la casella —
+        # vuota se nessuno l'ha riempita, e allora il criterio non passa.
+        "fondamentali": fondamentali({}, []),
     }
+
+
+def fondamentali(voci: dict, utili: list[str]) -> dict:
+    """Cosa si puo' dire di un titolo guardando i suoi ultimi due trimestri utili.
+
+    `utili` sono i periodi gia' pubblici alla data che interessa, in ordine: chi
+    chiama li ha gia' tagliati col point-in-time, perche' qui dentro non si
+    legge niente e non si indovina nessun ritardo di deposito.
+
+    Con meno di due trimestri non c'e' accelerazione da misurare, e le misure
+    valgono `None` — che non e' zero: un titolo che ha pubblicato un trimestre
+    solo non ha una crescita pari a zero, non ce l'ha affatto.
+    """
+    vuote = {"ricavi_qoq": None, "margine": None, "margine_variazione": None,
+             "eps": None, "trimestri": len(utili)}
+    if len(utili) < 2:
+        return vuote
+
+    ora, prima = utili[-1], utili[-2]
+    ricavi, lordo, eps = (voci.get(n, {}) for n in
+                          ("total_revenue", "gross_profit", "diluted_eps"))
+    misurate = dict(vuote)
+
+    if ricavi.get(prima):
+        misurate["ricavi_qoq"] = ricavi[ora] / ricavi[prima] - 1 if ora in ricavi else None
+    if ricavi.get(ora) and ora in lordo:
+        misurate["margine"] = lordo[ora] / ricavi[ora]
+        if ricavi.get(prima) and prima in lordo:
+            misurate["margine_variazione"] = misurate["margine"] - lordo[prima] / ricavi[prima]
+    if ora in eps:
+        misurate["eps"] = eps[ora]
+
+    return misurate
 
 
 def _confronta(valore, soglia, minimo: bool) -> bool:
@@ -81,6 +118,30 @@ CRITERI = {
     "volume_medio_minimo": (
         lambda m: m["volume_medio"], True,
         "volume medio di almeno {soglia:,.0f} (adesso {valore:,.0f})",
+    ),
+    # --- i criteri di bilancio ---------------------------------------------
+    #
+    # Prima lo scanner sapeva solo com'e' andato il PREZZO: undicimila titoli e
+    # nessuna domanda sull'azienda. Questi tre chiedono la stessa cosa che il
+    # rilevatore spin-off chiede ai suoi ventisette — «i numeri stanno
+    # girando?» — a tutto l'universo.
+    #
+    # Valgono `None` per chi non ha due trimestri pubblici, e un criterio su un
+    # valore che manca NON passa: e' la stessa regola di `_confronta`.
+    "ricavi_qoq_minimo": (
+        lambda m: m["fondamentali"]["ricavi_qoq"], True,
+        "ricavi in crescita di almeno il {soglia:.0%} sul trimestre prima "
+        "(adesso {valore:+.1%})",
+    ),
+    "margine_crescita_minima": (
+        lambda m: m["fondamentali"]["margine_variazione"], True,
+        "margine lordo in crescita di almeno {soglia:.1%} in un trimestre "
+        "(adesso {valore:+.1%})",
+    ),
+    "eps_minimo": (
+        lambda m: m["fondamentali"]["eps"], True,
+        "EPS dell'ultimo trimestre pubblicato almeno {soglia:.2f} "
+        "(adesso {valore:.2f})",
     ),
 }
 

@@ -131,6 +131,29 @@ CREATE INDEX IF NOT EXISTS idx_universe_market_cap ON universe (market_cap DESC)
 -- La tassonomia: due livelli, ambito -> sotto-ambito. `parent` NULL significa
 -- ambito di primo livello. Il vincolo di profondita' non e' esprimibile in SQL
 -- e sta nel servizio.
+-- I fondamentali di tutto l'universo, in forma LUNGA come li da' la sorgente:
+-- una riga per (titolo, trimestre, voce). Il formato largo — una colonna per
+-- voce — costringerebbe a una migrazione ogni volta che si aggiunge una voce, e
+-- qui le migrazioni non ci sono per scelta.
+--
+-- `filing_date` e' quando quel trimestre e' diventato PUBBLICO, non quando si
+-- e' chiuso: senza, ogni ricostruzione a una data passata vedrebbe bilanci che
+-- allora non esistevano. Vuoto dove l'indice dei depositi non copre il titolo —
+-- 8.087 simboli su 11.530 — e li' chi calcola ricade sul ritardo stimato
+-- dichiarandolo.
+CREATE TABLE IF NOT EXISTS universe_fondamentali (
+    symbol      TEXT NOT NULL,
+    report_date TEXT NOT NULL,
+    voce        TEXT NOT NULL,
+    valore      REAL,
+    filing_date TEXT,
+    built_at    TEXT NOT NULL,
+    PRIMARY KEY (symbol, report_date, voce)
+);
+
+CREATE INDEX IF NOT EXISTS idx_universe_fondamentali_symbol
+    ON universe_fondamentali (symbol);
+
 CREATE TABLE IF NOT EXISTS watchlist_tags (
     name        TEXT NOT NULL PRIMARY KEY,
     label       TEXT NOT NULL,

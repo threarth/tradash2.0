@@ -21,7 +21,8 @@ import config
 from core import freshness, registry
 from core.db import db_read
 from core.schema import GLOBAL_SCOPE
-from data import defeatbeta, universe
+from data import defeatbeta, fondamentali, scanner, universe
+from domain import scansione
 
 # Un universo finto piccolo, ma con dentro i casi scomodi: una societa' non
 # americana quotata negli USA, e un titolo a cui manca meta' dei dati.
@@ -364,3 +365,118 @@ def test_un_limite_sbagliato_non_diventa_un_errore_del_server(client):
     risposta = client.get("/api/universe?limit=moltissimi")
     assert risposta.status_code == 400
     assert risposta.get_json()["error"].startswith("limit non e' un numero")
+
+
+# --- i fondamentali di tutto l'universo ------------------------------------
+#
+# Il buco che chiudono: l'universo sapeva solo com'e' andato il prezzo, quindi
+# lo scanner poteva cercare solo per prezzo, e i segnali che guardano i bilanci
+# erano calcolabili solo su una lista venuta da fuori.
+
+FONDAMENTALI_FINTI = [
+    # AAPL: due trimestri, il secondo migliore, con la data di deposito vera.
+    {"symbol": "AAPL", "report_date": "2026-03-31", "voce": "total_revenue",
+     "valore": 100.0, "filing_date": "2026-05-02"},
+    {"symbol": "AAPL", "report_date": "2026-03-31", "voce": "gross_profit",
+     "valore": 30.0, "filing_date": "2026-05-02"},
+    {"symbol": "AAPL", "report_date": "2026-06-30", "voce": "total_revenue",
+     "valore": 130.0, "filing_date": "2026-08-01"},
+    {"symbol": "AAPL", "report_date": "2026-06-30", "voce": "gross_profit",
+     "valore": 52.0, "filing_date": "2026-08-01"},
+    # ZOMB: un trimestre solo, e senza data di deposito.
+    {"symbol": "ZOMB", "report_date": "2026-06-30", "voce": "total_revenue",
+     "valore": 10.0, "filing_date": None},
+]
+
+
+def _scrivi_fondamentali(righe=None):
+    """Riempie la tabella come farebbe la derivazione, senza toccare la rete."""
+
+    frame = pd.DataFrame(righe if righe is not None else FONDAMENTALI_FINTI)
+    return fondamentali._scrivi(frame)
+
+
+def test_senza_derivazione_i_fondamentali_lo_dicono():
+    """Regola 5: l'assenza si dichiara col motivo e con l'azione."""
+
+    stato = fondamentali.stato()
+
+    assert stato["available"] is False
+    assert "mai stati derivati" in stato["reason"]
+    assert "premi" in stato["action"]
+
+
+def test_i_fondamentali_si_leggono_nella_forma_che_vuole_il_dominio():
+    """La stessa forma che produce `prospetti.tabella()`: cosi' i segnali del
+    rilevatore funzionano identici sul titolo letto uno a uno e su quello preso
+    dalla tabella dell'universo."""
+    _scrivi_fondamentali()
+
+    voci = fondamentali.voci_di("aapl")
+
+    assert voci["total_revenue"] == {"2026-03-31": 100.0, "2026-06-30": 130.0}
+    assert voci["gross_profit"]["2026-06-30"] == 52.0
+    assert fondamentali.voci_di("MAI-VISTO") == {}
+
+
+def test_le_date_di_deposito_arrivano_solo_dove_ci_sono():
+    """Dove mancano, chi calcola ricade sul ritardo prudente e lo dichiara: una
+    data inventata sarebbe peggio di una mancante."""
+    _scrivi_fondamentali()
+
+    assert fondamentali.depositi_di("AAPL") == {
+        "2026-03-31": ("2026-05-02", "filing_index"),
+        "2026-06-30": ("2026-08-01", "filing_index"),
+    }
+    assert fondamentali.depositi_di("ZOMB") == {}
+
+
+def test_lo_stato_dichiara_la_copertura_voce_per_voce():
+    """Il margine lordo manca a migliaia di titoli — le banche non lo riportano
+    — e un filtro sul margine li' sopra non torna vuoto: torna assente."""
+    _scrivi_fondamentali()
+
+    stato = fondamentali.stato()
+
+    assert stato["available"] is True
+    assert stato["titoli"] == 2
+    assert stato["copertura"] == {"gross_profit": 1, "total_revenue": 2}
+    assert stato["con_data_di_deposito"] == 4, "ZOMB non ha deposito"
+
+
+def test_lo_scanner_puo_cercare_per_bilancio():
+    """Il criterio nuovo: prima si poteva chiedere solo com'e' andato il prezzo."""
+    _scrivi_fondamentali()
+
+    misure = scanner._fondamentali("AAPL", None)
+
+    assert misure["ricavi_qoq"] == pytest.approx(0.30)
+    assert misure["margine_variazione"] == pytest.approx(0.10)
+    assert misure["trimestri"] == 2
+
+
+def test_un_criterio_di_bilancio_su_un_titolo_senza_bilanci_non_passa():
+    """La stessa regola dei prezzi mancanti: un valore che manca non soddisfa
+    nessuna soglia, e non e' un caso speciale."""
+    _scrivi_fondamentali()
+
+    misurato = scansione.misure([100.0] * 250, [1e6] * 250)
+    misurato["fondamentali"] = scanner._fondamentali("ZOMB", None)
+
+    soddisfa, _ = scansione.valuta(misurato, {"ricavi_qoq_minimo": 0.05})
+
+    assert soddisfa is False, "un trimestre solo non fa un'accelerazione"
+
+
+def test_il_taglio_a_una_data_passata_usa_le_date_di_deposito():
+    """Il trimestre di giugno e' stato depositato il primo agosto: chi ricostruisce
+    al 15 luglio non deve vederlo, o sono due settimane di futuro."""
+    _scrivi_fondamentali()
+
+    a_meta_luglio = scanner._fondamentali("AAPL", "2026-07-15")
+    a_settembre = scanner._fondamentali("AAPL", "2026-09-15")
+
+    assert a_meta_luglio["trimestri"] == 1, "a luglio era pubblico un trimestre solo"
+    assert a_meta_luglio["ricavi_qoq"] is None
+    assert a_settembre["trimestri"] == 2
+    assert a_settembre["ricavi_qoq"] == pytest.approx(0.30)

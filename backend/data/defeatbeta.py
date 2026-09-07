@@ -90,12 +90,14 @@ CATEGORIA_PER_TABELLA = {
 # La derivazione dell'universo non e' la lettura di una tabella: e' una query
 # sola che ne unisce quattro, e non appartiene a nessun titolo.
 CATEGORY_UNIVERSE = "universe"
+CATEGORY_FONDAMENTALI = "universe_fondamentali"
 CATEGORY_METRICHE = "metriche"
 
 # Il DCF: non e' una tabella del dataset ma un calcolo della libreria sopra i
 # bilanci, i prezzi e i rendimenti del Tesoro. Cambia quando cambiano quelli.
 CATEGORY_DCF = "dcf"
 ENDPOINT_UNIVERSE = "universo:derivazione"
+ENDPOINT_FONDAMENTALI = "universo:fondamentali"
 
 # Tutte le tabelle che questo modulo puo' nominare. L'elenco e' chiuso perche'
 # il nome finisce nella clausola FROM, dove un parametro legato non puo' andare.
@@ -819,3 +821,90 @@ def universe(run_id: str | None = None) -> Lettura:
         ENDPOINT_UNIVERSE, CATEGORY_UNIVERSE, GLOBAL_SCOPE, _prepara_universo(), [], run_id
     )
     return _esito(frame, GLOBAL_SCOPE, CATEGORY_UNIVERSE, provenienza)
+
+
+def _prepara_fondamentali() -> str:
+    """Compone la derivazione dei fondamentali di TUTTO l'universo.
+
+    Tre voci e non centosessantasei: sono quelle che rispondono alla domanda «i
+    numeri stanno girando?», e leggere l'intero parquet dei bilanci per portarsi
+    via tutto costerebbe senza servire a nessuno.
+
+    Due cose che questa query fa e che vanno dette:
+
+    * **tiene solo gli ultimi trimestri per titolo.** Il parquet ha la storia
+      intera — 129.874 righe di soli ricavi — e conservarla tutta vorrebbe dire
+      una tabella che cresce senza che nessuno la guardi;
+    * **si porta dietro la data di DEPOSITO**, presa dall'indice dei filing e
+      unita per (titolo, fine periodo). E' cio' che rende possibile ricostruire
+      cosa era pubblico a una certa data senza indovinare un ritardo. Dove
+      l'indice non copre il titolo la colonna resta vuota, e chi calcola lo
+      dichiara invece di far finta.
+
+    `TRY_CAST` e non `CAST`: nell'indice dei depositi due righe hanno la fine
+    periodo vuota, e un `CAST` fa fallire l'intera query per due righe su
+    434.128.
+    """
+    _ensure_client()
+    bilanci = _table_uri(TABLE_STATEMENT)
+    depositi = _table_uri(TABLE_SEC_FILING)
+    voci = ", ".join(f"'{v}'" for v in config.UNIVERSE_FONDAMENTALI_VOCI)
+    forme = ", ".join(f"'{f}'" for f in config.UNIVERSE_FONDAMENTALI_FORME)
+    return f"""
+        WITH bilanci AS (
+            SELECT symbol,
+                   TRY_CAST(report_date AS DATE) AS periodo,
+                   item_name AS voce,
+                   TRY_CAST(item_value AS DOUBLE) AS valore
+            FROM '{bilanci}'
+            WHERE period_type = 'quarterly'
+              AND finance_type = 'income_statement'
+              AND item_name IN ({voci})
+        ),
+        periodi AS (
+            SELECT symbol, periodo,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY symbol ORDER BY periodo DESC
+                   ) AS posizione
+            FROM (SELECT DISTINCT symbol, periodo FROM bilanci WHERE periodo IS NOT NULL)
+        ),
+        recenti AS (
+            SELECT symbol, periodo FROM periodi
+            WHERE posizione <= {config.UNIVERSE_FONDAMENTALI_TRIMESTRI}
+        ),
+        depositati AS (
+            SELECT symbol,
+                   TRY_CAST(report_date AS DATE) AS periodo,
+                   MIN(TRY_CAST(filing_date AS DATE)) AS deposito
+            FROM '{depositi}'
+            WHERE form_type IN ({forme})
+            GROUP BY 1, 2
+        )
+        SELECT r.symbol,
+               r.periodo      AS report_date,
+               b.voce,
+               b.valore,
+               d.deposito     AS filing_date
+        FROM recenti r
+        JOIN bilanci b ON b.symbol = r.symbol AND b.periodo = r.periodo
+        LEFT JOIN depositati d ON d.symbol = r.symbol AND d.periodo = r.periodo
+        ORDER BY r.symbol, r.periodo DESC
+    """
+
+
+def fondamentali_universo(run_id: str | None = None) -> Lettura:
+    """I bilanci recenti di tutti i titoli, in una lettura sola.
+
+    Misurato l'08/09/2026: la sola selezione delle tre voci costa 56 secondi a
+    freddo e copre 11.530 simboli per i ricavi, 9.721 per l'EPS, 7.708 per il
+    margine lordo — le banche il margine lordo non lo riportano, e quella non e'
+    una lacuna da riempire ma una copertura da dichiarare.
+
+    E' un lavoro lungo come la costruzione dell'universo: chi lo chiama deve
+    aprirlo con `registry.job` e poterlo fermare.
+    """
+    frame, provenienza = _leggi_tracciata(
+        ENDPOINT_FONDAMENTALI, CATEGORY_FONDAMENTALI, GLOBAL_SCOPE,
+        _prepara_fondamentali(), [], run_id
+    )
+    return _esito(frame, GLOBAL_SCOPE, CATEGORY_FONDAMENTALI, provenienza)
