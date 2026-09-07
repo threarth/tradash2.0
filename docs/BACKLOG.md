@@ -1,6 +1,6 @@
 # Backlog
 
-Cosa resta, al 06/09/2026. Sta in un file e non in una chat perche' una
+Cosa resta, al 07/09/2026. Sta in un file e non in una chat perche' una
 conversazione si azzera e questo elenco no.
 
 L'ordine e' per valore, non per fatica. Ogni voce dice **perche'** vale, cosi'
@@ -27,47 +27,32 @@ Anthropic, e il costo che ne tiene conto. Poi `manage.py costi` ricalcola.
 
 ---
 
-## 2. I pesi del rilevatore spin-off vengono da un caso solo
+## 2. Il rilevatore spin-off ha 13 casi, e ne servono cento
 
-I sei segnali e i loro pesi — volume 25, margine 20, ricavi 20, EPS 15, e i due
-di prezzo a 10 — sono stati ricavati misurando **quando** ogni segnale e'
-diventato visibile su SanDisk. Un caso. Un modello tarato su SanDisk che
-descrive benissimo SanDisk non ha dimostrato niente, e si chiama
-sovradattamento.
+**Il rigioco e' stato fatto, e ha risposto di no.** `manage.py rigioco`
+ricalcola il punteggio a ogni fine mese sui soli dati pubblici a quella data.
+Su 13 titoli la fascia 75-100 ha una mediana a sei mesi del +133% — ma dentro
+c'e' SanDisk con sei punti su nove, cioe' proprio il caso da cui i pesi sono
+stati ricavati. **Tolto quello: 3 punti, 2 titoli, mediana -19,6%.** Non c'e'
+scala. Il dettaglio sta in `DECISIONI.md`.
 
-**Cosa fare, e costa poco perche' i dati ci sono gia':** rigiocare il punteggio a
-ogni fine mese su tutti gli spin-off dell'elenco — 27 titoli, un paio d'anni di
-mesi — e confrontarlo col rendimento dei sei mesi successivi. Non sara'
-statistica: saranno venti o trenta casi. Ma e' la differenza fra pesi misurati e
-pesi inventati, e oggi sono inventati con un aneddoto forte alle spalle.
+Quindi il punteggio descrive quali segnali sono accesi e non anticipa il
+rendimento, e la pagina adesso lo dice.
 
-Serve anche a rispondere alla domanda vera: **il punteggio anticipa qualcosa, o
-descrive solo cio' che e' gia' successo?** Su SanDisk anticipava — 75 punti a
-settembre 2025, con ancora tredici volte il capitale davanti — ma su un caso
-solo anche questo e' un aneddoto.
+**Cosa servirebbe per una risposta vera: piu' casi.** L'elenco copre due anni
+perche' si scaricano due pagine di stockanalysis; ogni anno in piu' porta una
+ventina di separazioni, e con cinque anni si arriva a un centinaio di titoli.
+E' un cambio piccolo — `SPINOFF_ANNI_INDIETRO` da 1 a 4 — con due conseguenze da
+guardare: i titoli piu' vecchi hanno piu' storia (bene) ma alcuni non saranno
+piu' quotati (da escludere come TWNPQ), e il rigioco diventa un lavoro da minuti
+invece che da secondi.
 
----
-
-## 3. Il taglio point-in-time del rilevatore e' stimato, non reale
-
-`domain/spinoff_segnali.py` decide quali trimestri erano gia' pubblici con un
-**ritardo fisso di 45 giorni** dalla fine del periodo. Il sistema pero' ha di
-meglio: `domain/publication_dates.py` con le date di deposito VERE, che l'elenco
-dei filing di Defeatbeta porta.
-
-Non e' un dettaglio da pignoli: `DECISIONI.md` dice gia' che «il point-in-time ha
-due tagli, e sono diversi», e un risultato costruito sul ritardo stimato e uno
-costruito sulle date reali **non sono confrontabili**. Il giorno che si rigioca
-il punteggio all'indietro (voce 2), la differenza fra i due tagli entra dritta
-nel risultato.
-
-**Cosa fare:** passare a `trimestri_utili()` i periodi gia' filtrati da chi ha le
-date vere, che e' la forma per cui la funzione e' scritta — il ripiego a 45
-giorni resta per i titoli di cui non si hanno i depositi, dichiarandolo.
+Finche' i casi sono tredici, **cambiare i pesi sarebbe rincorrere il rumore**:
+qualunque taratura su tredici titoli descriverebbe quei tredici.
 
 ---
 
-## 4. Il punteggio di successo, tarato
+## 3. Il punteggio di successo, tarato
 
 Deciso il 02/09: **prima il rischio, il successo dopo averlo tarato.** Il rischio
 c'e' ed e' deterministico. Il successo no, e oggi non si puo' fare onestamente:
@@ -85,7 +70,7 @@ progetto ha gia' tolto due volte.
 
 ---
 
-## 5. Le analisi non sono state rigirate dopo il cambio dei prompt
+## 4. Le analisi non sono state rigirate dopo il cambio dei prompt
 
 Il 02/09 la regola sui consigli e' cambiata — da «non darne» a «dalli in tre
 tempi, con la banda di rischio». Da allora e' stata rigirata **solo la lettura
@@ -98,7 +83,7 @@ prima volta: circa 2 dollari.
 
 ---
 
-## 6. Nessun test del frontend prende un difetto di reattivita'
+## 5. Nessun test del frontend prende un difetto di reattivita'
 
 In due giorni ne sono passati quattro: `structuredClone` su un proxy, il ciclo
 infinito del registro delle sezioni, il punto fissato che ricostruiva il
@@ -132,7 +117,7 @@ il controllo sul sorgente a tutti i componenti — oggi copre solo
 
 ---
 
-## 7. Quello che non e' mai stato visto girare
+## 6. Quello che non e' mai stato visto girare
 
 Su questa macchina **non c'e' un browser headless** — niente playwright, niente
 chromium — quindi ogni correzione di interfaccia degli ultimi giorni e'
@@ -160,7 +145,7 @@ Cosa aspetta uno sguardo, in ordine di quanto e' probabile che sia storto:
 
 ---
 
-## 8. Cose piccole, se capita
+## 7. Cose piccole, se capita
 
 - **`before` su `get_recent_filings`** (dal PIANO): qui il taglio dei filing e'
   esatto e usato. Resta come lezione — un parametro esposto e mai passato e' un
