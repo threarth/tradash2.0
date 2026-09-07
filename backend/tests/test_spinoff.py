@@ -216,6 +216,36 @@ def test_i_trimestri_chiusi_prima_dello_spin_non_si_guardano():
     assert utili == ["2025-09-30", "2025-12-31"], "solo quelli chiusi dopo la separazione"
 
 
+def test_col_taglio_vero_si_guardano_i_trimestri_depositati_davvero():
+    """Il ritardo di 45 giorni e' il ripiego, non la regola: chi ha l'indice dei
+    depositi passa i periodi gia' pubblici, e quello e' il taglio buono.
+
+    La differenza si vede su un trimestre depositato IN ANTICIPO rispetto alla
+    stima: col ripiego resterebbe invisibile per settimane, e il punteggio
+    direbbe «troppo presto» su un titolo che ha gia' pubblicato."""
+    periodi = ["2025-09-30", "2025-12-31"]
+    # Al 20 gennaio la stima a 45 giorni escluderebbe il trimestre di dicembre;
+    # le date vere dicono che era gia' depositato il 14.
+    quando = date(2026, 1, 20)
+
+    col_ripiego = segnali.trimestri_utili(periodi, SPIN, oggi=quando)
+    col_taglio_vero = segnali.trimestri_utili(periodi, SPIN, oggi=quando,
+                                              pubblici=["2025-09-30", "2025-12-31"])
+
+    assert col_ripiego == ["2025-09-30"], "la stima non lo vede ancora"
+    assert col_taglio_vero == ["2025-09-30", "2025-12-31"]
+
+
+def test_il_taglio_vero_non_scavalca_la_guardia_sullo_spin():
+    """Un trimestre depositato davvero, ma chiuso prima della separazione, resta
+    fuori: le sue cifre sono quelle della societa' di prima."""
+    periodi = ["2025-03-31", "2025-09-30"]
+
+    utili = segnali.trimestri_utili(periodi, SPIN, oggi=OGGI, pubblici=periodi)
+
+    assert utili == ["2025-09-30"]
+
+
 def test_con_un_solo_trimestre_dopo_lo_spin_non_si_misura_niente():
     """Non e' un titolo che va male: e' un titolo su cui non si puo' dire nulla."""
     voci = {"total_revenue": {"2025-03-31": 100.0, "2025-09-30": 200.0}}

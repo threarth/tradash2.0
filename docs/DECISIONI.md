@@ -1744,3 +1744,62 @@ Il testo pieno e' salito a `stone-50`.
 Fonti: la scala `stone` da
 [tailwindlabs/tailwindcss](https://github.com/tailwindlabs/tailwindcss),
 `src/public/colors.js`; l'arancio da Claude.
+
+---
+
+## Il punteggio degli spin-off e' stato rigiocato all'indietro, e non anticipa
+
+I sei pesi venivano da un caso solo — SanDisk, guardando quale segnale si e'
+acceso per primo — e la voce che li introduceva diceva gia' che finche' nessuno
+li rigiocava restavano un aneddoto forte. Adesso sono stati rigiocati:
+`manage.py rigioco` ricalcola il punteggio **a ogni fine mese**, coi soli dati
+pubblici a quella data — prezzi fino a li', trimestri gia' depositati secondo le
+date VERE dell'indice dei filing — e gli mette accanto il rendimento dei sei
+mesi successivi.
+
+Su 13 titoli e 87 punti:
+
+| fascia | punti | titoli | mediana a 6 mesi | in guadagno |
+|---|---:|---:|---:|---:|
+| 0-24 | 39 | 13 | −2,6% | 19/39 |
+| 25-49 | 24 | 10 | +17,6% | 14/24 |
+| 50-74 | 15 | 6 | +1,0% | 8/15 |
+| **75-100** | 9 | **3** | **+133,7%** | 7/9 |
+
+La fascia alta sembra fortissima. Poi si guarda **chi c'e' dentro**: SNDK con
+sei punti (+517%, +495%, +689%, +635%, +111%, +134%), RHLD con due (−39%, −20%),
+CMDB con uno (+8%).
+
+**Tolto SanDisk — cioe' il caso da cui i pesi sono stati ricavati — la fascia
+alta diventa 3 punti su 2 titoli, con mediana −19,6% e uno solo in guadagno.**
+
+| senza SNDK | punti | titoli | mediana |
+|---|---:|---:|---:|
+| 0-24 | 36 | 12 | −3,9% |
+| 25-49 | 24 | 10 | +17,6% |
+| 50-74 | 14 | 5 | +0,4% |
+| 75-100 | **3** | **2** | **−19,6%** |
+
+Non c'e' scala: la fascia migliore diventa quella di mezzo, che e' il modo in
+cui il rumore si presenta quando i casi sono pochi. **Il punteggio descrive
+quali segnali sono accesi; non anticipa il rendimento.** Era sovradattamento, ed
+e' stato misurato invece che sospettato.
+
+### Cosa e' cambiato di conseguenza
+
+**La pagina lo dice.** Non basta scriverlo qui: una tabella ordinata per
+punteggio, senza una riga che dica cosa vale quel punteggio, lo fa leggere come
+una previsione. L'avviso sta sopra la tabella, in ambra, e riporta i due numeri
+— il +133% con SanDisk dentro e il −20% senza.
+
+E' la stessa regola che il backlog applica al punteggio di successo delle
+analisi: **finche' non e' tarato, non si mostra come se lo fosse.** Qui non si
+toglie, perche' il numero un lavoro lo fa — mette in cima chi ha piu' segnali
+accesi — ma smette di promettere quello che non mantiene.
+
+### Cosa servirebbe per una risposta vera
+
+Tredici titoli, di cui uno domina. Servono piu' casi: la pagina di
+stockanalysis ha gli anni precedenti, e ogni anno in piu' porta una ventina di
+separazioni. Con cinque anni si arriva a un centinaio di titoli, e li' la
+domanda «anticipa?» comincia ad avere una risposta invece di un aneddoto.

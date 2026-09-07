@@ -12,6 +12,7 @@ query su DuckDB — e restano vere la scrittura in transazione, il registro dei
 lavori, la freschezza, i filtri e le route.
 """
 import threading
+from datetime import date, timedelta
 
 import pandas as pd
 import pytest
@@ -24,16 +25,25 @@ from data import defeatbeta, universe
 
 # Un universo finto piccolo, ma con dentro i casi scomodi: una societa' non
 # americana quotata negli USA, e un titolo a cui manca meta' dei dati.
+# L'ultima chiusura dei titoli finti si conta da OGGI, non da una data scritta.
+#
+# Prima era «2026-08-28», e il test e' passato finche' quella data e' rimasta
+# entro i sette giorni oltre i quali un prezzo si considera vecchio. Al primo
+# giorno buono ha cominciato a fallire da solo, dicendo che tre titoli su tre
+# avevano il prezzo vecchio: e non era cambiato il codice, era passato il tempo.
+# Un test che dipende dal calendario non misura cio' che dice di misurare.
+IERI = (date.today() - timedelta(days=1)).isoformat()
+
 UNIVERSO_FINTO = [
     {"symbol": "AAPL", "name": "Apple Inc.", "sector": "Technology",
      "industry": "Consumer Electronics",
      "company_country": "United States", "employees": 150000, "last_close": 319.7,
-     "last_close_date": "2026-08-28", "avg_volume_30d": 48259040.0,
+     "last_close_date": IERI, "avg_volume_30d": 48259040.0,
      "market_cap": 4.67e12},
     {"symbol": "BABA", "name": "Alibaba Group Holding Limited",
      "sector": "Consumer Cyclical", "industry": "Internet Retail",
      "company_country": "China", "employees": 132165, "last_close": 118.9,
-     "last_close_date": "2026-08-28", "avg_volume_30d": 11934780.0,
+     "last_close_date": IERI, "avg_volume_30d": 11934780.0,
      "market_cap": 2.85e11},
     {"symbol": "ZOMB", "name": None, "sector": None, "industry": None,
      "company_country": None,

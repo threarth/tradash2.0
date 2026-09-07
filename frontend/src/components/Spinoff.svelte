@@ -132,6 +132,24 @@
 
     const quando = (iso) => (iso ? new Date(iso).toLocaleString("it") : "mai");
 
+    // Come si chiama, nel backend, un taglio fatto sulle date di deposito vere.
+    const TAGLIO_REALE = "filing_index";
+
+    /** Su quanti candidati il taglio point-in-time poggia su date vere.
+
+        Non e' un dettaglio da nascondere in fondo: un punteggio costruito sulle
+        date di deposito reali e uno costruito su un ritardo stimato **non sono
+        confrontabili**, e in questa tabella stanno uno sotto l'altro. */
+    const tagli = $derived.by(() => {
+        const misurati = (dati?.righe ?? [])
+            .map((r) => r.misura?.base_del_taglio?.source)
+            .filter(Boolean);
+        return {
+            reali: misurati.filter((s) => s === TAGLIO_REALE).length,
+            totali: misurati.length
+        };
+    });
+
     /** Le righe nell'ordine giusto: per punti quando ci sono, per data prima.
 
         Si ordina per punti PRESI e non per la loro quota: un candidato con due
@@ -201,6 +219,15 @@
         {#if dati?.calcolato_il}
             <p class="small text-secondary mb-1">
                 <Testo testo="In ordine di punti presi. Due punteggi con denominatori diversi non sono la stessa misura: accanto c'e' scritto su quanti segnali e' stato calcolato, e «troppo presto» vuol dire che i trimestri dopo la separazione non bastano ancora." />
+            </p>
+
+            <!-- Il punteggio e' stato rigiocato all'indietro, e il risultato sta
+                 QUI e non solo in un file di decisioni: una pagina che ordina
+                 per punteggio senza dire cosa vale quel punteggio lo fa leggere
+                 come una previsione. In ambra perche' va notato, non in rosso
+                 perche' non e' un guasto. -->
+            <p class="small text-warning mb-1">
+                <Testo testo="Il punteggio dice quali segnali sono accesi, non quanto rendera'. Rigiocato all'indietro sui 13 spin-off con abbastanza storia, la fascia 75-100 ha una mediana a sei mesi del +133% — ma togliendo SanDisk, che e' il caso da cui vengono i pesi, restano 3 punti su 2 titoli e la mediana diventa -20%. I pesi non sono tarati: leggi i segnali, non il numero." />
             </p>
         {/if}
 
@@ -296,6 +323,12 @@
                     </tbody>
                 </table>
             </div>
+
+            {#if tagli.totali > 0 && tagli.reali < tagli.totali}
+                <p class="small text-secondary mt-2 mb-0">
+                    <Testo testo="Taglio point-in-time: {tagli.reali} candidati su {tagli.totali} misurati con le date di deposito vere, gli altri col ritardo stimato di 45 giorni. Due punteggi costruiti su tagli diversi non sono confrontabili fra loro." />
+                </p>
+            {/if}
 
             {#if righe.some((r) => r.misura?.storia_precedente)}
                 <p class="small text-secondary mt-2 mb-0">

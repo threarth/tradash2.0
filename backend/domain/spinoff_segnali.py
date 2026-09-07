@@ -66,9 +66,13 @@ MESI_VOLUME = 4
 # su cui non si puo' ancora dire niente.
 TRIMESTRI_MINIMI = 2
 
-# Il ritardo con cui un trimestre si considera depositato, quando non si hanno
-# le date vere. E' il ripiego: chi ha le date di deposito passi i periodi gia'
-# filtrati, che e' il taglio buono.
+# Il ritardo con cui un trimestre si considera depositato QUANDO non si hanno le
+# date vere. E' il ripiego, non la regola: chi ha l'indice dei depositi passa i
+# periodi gia' filtrati, e quello e' il taglio buono.
+#
+# I due tagli non sono confrontabili fra loro — sta scritto in
+# `publication_dates.py` e vale anche qui — quindi chi calcola deve dire quale
+# dei due ha usato.
 RITARDO_DEPOSITO_GIORNI = 45
 
 # Di quanto la storia dei prezzi puo' cominciare PRIMA della separazione senza
@@ -163,24 +167,37 @@ def _media(barre: list[dict], sedute: int, pieno: float, mezzo: float, nome: str
     return _livello(scarto, pieno, mezzo, f"{scarto:+.0%} sulla media {nome}")
 
 
-def trimestri_utili(periodi: list[str], spin: str, oggi: date | None = None) -> list[str]:
+def trimestri_utili(periodi: list[str], spin: str, oggi: date | None = None,
+                    pubblici: list[str] | None = None) -> list[str]:
     """I trimestri che si possono guardare: dopo la separazione, e gia' depositati.
 
     Il primo filtro e' la guardia numero due: un trimestre che finisce PRIMA
     della separazione descrive una societa' che non esisteva ancora, e le sue
     cifre per azione sono quelle della madre.
 
-    Il secondo e' il ripiego sul ritardo di deposito: chi ha le date vere passi
-    qui i periodi gia' filtrati, che e' il taglio giusto — quello stimato e
-    quello reale non sono confrontabili.
+    Il secondo e' il taglio point-in-time, e ha due forme:
+
+    * `pubblici` — i periodi che a quella data erano gia' stati **depositati
+      davvero**, secondo l'indice dei filing. E' il taglio giusto, e chi ha la
+      mappa dei depositi lo passa;
+    * il ripiego a `RITARDO_DEPOSITO_GIORNI`, per i titoli di cui non si hanno
+      i depositi. Prudente significa *tardi*: meglio non vedere un dato che
+      c'era, che vederne uno che non c'era.
+
+    Chi chiama deve poi dichiarare quale delle due ha usato: un punteggio
+    costruito sulle date vere e uno costruito sulla stima non si confrontano.
     """
-    quando = oggi or date.today()
     giorno_spin = date.fromisoformat(spin)
-    return [
-        p for p in sorted(periodi)
-        if date.fromisoformat(p) > giorno_spin
-        and date.fromisoformat(p) + timedelta(days=RITARDO_DEPOSITO_GIORNI) <= quando
-    ]
+    dopo_la_separazione = [p for p in sorted(periodi)
+                           if date.fromisoformat(p) > giorno_spin]
+
+    if pubblici is not None:
+        gia_depositati = set(pubblici)
+        return [p for p in dopo_la_separazione if p in gia_depositati]
+
+    quando = oggi or date.today()
+    return [p for p in dopo_la_separazione
+            if date.fromisoformat(p) + timedelta(days=RITARDO_DEPOSITO_GIORNI) <= quando]
 
 
 def _fondamentali(voci: dict, utili: list[str]) -> dict:
@@ -246,13 +263,18 @@ def fermo(barre: list[dict], oggi: date | None = None) -> str | None:
     return None
 
 
-def segnali(barre: list[dict], voci: dict, spin: str, oggi: date | None = None) -> dict:
+def segnali(barre: list[dict], voci: dict, spin: str, oggi: date | None = None,
+            pubblici: list[str] | None = None) -> dict:
     """I sei segnali di un candidato. `barre` sono le sedute, `voci` il conto economico.
 
     Ogni segnale porta la sua quota (1, mezza, zero o **None**), il valore
     misurato e la nota gia' scritta per chi legge.
+
+    `pubblici` e' l'elenco dei trimestri gia' depositati a quella data secondo
+    le date VERE: passandolo si ottiene il taglio point-in-time buono, senza si
+    ricade sul ritardo stimato.
     """
-    utili = trimestri_utili(list(voci.get("total_revenue", {})), spin, oggi)
+    utili = trimestri_utili(list(voci.get("total_revenue", {})), spin, oggi, pubblici)
     esito = {"volume": _volume(barre)}
     esito.update(_fondamentali(voci, utili))
     esito["forza"] = _media(barre, SEDUTE_FORZA, FORZA_PIENO, FORZA_MEZZO, "6 mesi")

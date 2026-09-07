@@ -52,8 +52,8 @@ from html.parser import HTMLParser
 
 import config
 from core import calls, registry
-from data import defeatbeta
-from domain import prospetti, spinoff_segnali
+from data import defeatbeta, depositi
+from domain import prospetti, publication_dates, spinoff_segnali
 
 logger = logging.getLogger(__name__)
 
@@ -279,7 +279,7 @@ def aggiorna() -> dict:
 
 # --- il calcolo dei segnali, sul secondo pulsante ---------------------------
 
-def _barre(frame) -> list[dict]:
+def barre(frame) -> list[dict]:
     """Le sedute nella forma che vuole il dominio: data, chiusura, volume."""
     return [{"data": str(riga["report_date"])[:10],
              "chiusura": float(riga["close"]) if riga["close"] is not None else 0.0,
@@ -293,6 +293,21 @@ def _conto_economico(frame) -> dict:
     return prospetti.tabella(frame, prospetti.CONTO_ECONOMICO, prospetti.TRIMESTRALE)["voci"]
 
 
+def _taglio(simbolo: str, periodi: list[str], run_id: str | None) -> tuple[list[str], dict]:
+    """Quali trimestri erano gia' PUBBLICI adesso, e su cosa poggia quel taglio.
+
+    Le date di deposito vere stanno nell'indice dei filing di Defeatbeta. Dove
+    ci sono si usano quelle; dove mancano `publication_dates` ricade da solo su
+    un ritardo prudente, e `truncation_basis` dice quale delle due ha prevalso —
+    perche' un punteggio costruito sulle date vere e uno costruito su una stima
+    non sono confrontabili, e chi legge deve saperlo senza indovinare.
+    """
+    mappa = depositi.mappa(simbolo, run_id=run_id)
+    oggi = date.today().isoformat()
+    pubblici = [p for p in periodi if publication_dates.was_public(mappa, p, oggi)]
+    return pubblici, publication_dates.truncation_basis(mappa, periodi)
+
+
 def _misura(riga: dict, run_id: str | None) -> dict:
     """I segnali di un candidato, o il motivo per cui non se ne possono avere."""
     simbolo = riga["symbol"]
@@ -300,27 +315,32 @@ def _misura(riga: dict, run_id: str | None) -> dict:
     if not prezzi.available:
         return {"disponibile": False, "motivo": f"prezzi: {prezzi.reason}"}
 
-    barre = _barre(prezzi.frame)
-    non_scambiato = spinoff_segnali.fermo(barre)
+    sedute = barre(prezzi.frame)
+    non_scambiato = spinoff_segnali.fermo(sedute)
     if non_scambiato:
         return {"disponibile": False, "motivo": non_scambiato,
                 "stato": spinoff_segnali.NON_SCAMBIATO}
 
     bilanci = defeatbeta.statements(simbolo, run_id=run_id)
     voci = _conto_economico(bilanci.frame) if bilanci.available else {}
+    pubblici, base_del_taglio = _taglio(simbolo, list(voci.get("total_revenue", {})), run_id)
 
-    esito = spinoff_segnali.segnali(barre, voci, riga["data"])
+    esito = spinoff_segnali.segnali(sedute, voci, riga["data"], pubblici=pubblici)
     return {
         "disponibile": True,
         "segnali": esito,
+        # Su cosa poggia il taglio point-in-time: date di deposito vere, ritardo
+        # stimato, o un misto. Viaggia col punteggio perche' senza non si sa se
+        # due punteggi sono confrontabili.
+        "base_del_taglio": base_del_taglio,
         "punteggio": spinoff_segnali.punteggio(esito),
         "stato": spinoff_segnali.stato(esito),
         "mesi": round(spinoff_segnali.mesi_dallo_spin(riga["data"]), 1),
-        "prezzo": barre[-1]["chiusura"],
-        "prima_seduta": barre[0]["data"],
+        "prezzo": sedute[-1]["chiusura"],
+        "prima_seduta": sedute[0]["data"],
         # Il ticker aveva gia' una storia prima della separazione: non e' nuovo,
         # e su di lui il ragionamento «quotato da poco» non vale.
-        "storia_precedente": spinoff_segnali.storia_precedente(barre[0]["data"], riga["data"]),
+        "storia_precedente": spinoff_segnali.storia_precedente(sedute[0]["data"], riga["data"]),
         "senza_bilanci": not bilanci.available,
     }
 

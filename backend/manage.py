@@ -6,6 +6,7 @@ manage.py — comandi di manutenzione di tradash2.0.
     python manage.py rebuild    cancella tutto e ricrea lo schema (chiede conferma)
     python manage.py costi      riapplica il listino alle chiamate gia' fatte
     python manage.py referti    rimette in SQLite i referti che stanno nel file
+    python manage.py rigioco    rigioca il punteggio degli spin-off all'indietro
 """
 import argparse
 import logging
@@ -14,7 +15,7 @@ import sys
 import config
 from core import llm, schema
 from core.db import db_read
-from data import analisi
+from data import analisi, spinoff_rigioco
 
 CONFIRMATION_WORD = "RICOSTRUISCI"
 EXIT_OK = 0
@@ -45,6 +46,43 @@ def comando_referti() -> int:
               f"non esiste piu'; il referto si'")
     if esito["illeggibili"]:
         print(f"righe illeggibili:  {esito['illeggibili']} — saltate, il file resta com'e'")
+    return EXIT_OK
+
+
+def comando_rigioco() -> int:
+    """Rigioca il punteggio degli spin-off mese per mese, e dice se anticipa.
+
+    E' la verifica dei pesi, non una funzione dell'applicazione: i sei pesi
+    vengono da un caso solo — SanDisk — e finche' nessuno li rigioca su tutto
+    l'elenco restano un aneddoto forte. Qui si guarda una cosa sola: le fasce di
+    punteggio alte hanno avuto rendimenti migliori delle basse?
+    """
+    schema.ensure_schema()
+    esito = spinoff_rigioco.rigioca()
+
+    print(f"rigioco su {esito['titoli']} titoli · {len(esito['punti'])} punti "
+          f"· rendimento misurato sui {esito['orizzonte_mesi']} mesi successivi")
+    print(f"pesi in prova: {esito['pesi']}\n")
+
+    print(f"{'fascia':>12}{'punti':>8}{'titoli':>8}{'mediana':>10}{'media':>9}"
+          f"{'in guadagno':>13}")
+    for fascia in esito["fasce"]:
+        mediana = f"{fascia['mediana']:+.1%}" if fascia["mediana"] is not None else "—"
+        media = f"{fascia['media']:+.1%}" if fascia["media"] is not None else "—"
+        quota = (f"{fascia['quanti_in_guadagno']}/{fascia['punti']}"
+                 if fascia["punti"] else "—")
+        print(f"{fascia['da']:>6}-{fascia['a'] - 1:<5}{fascia['punti']:>8}"
+              f"{fascia['titoli']:>8}{mediana:>10}{media:>9}{quota:>13}")
+
+    if esito["saltati"]:
+        print(f"\nsaltati: {len(esito['saltati'])}")
+        for saltato in esito["saltati"]:
+            print(f"  {saltato['symbol']:6} {saltato['motivo']}")
+
+    # Il numero onesto e' quello dei TITOLI, non quello dei punti: i mesi vicini
+    # dello stesso titolo dicono la stessa cosa.
+    print("\nI titoli distinti per fascia sono il numero da guardare: una fascia")
+    print("con cento punti e due titoli e' due casi, non cento.")
     return EXIT_OK
 
 
@@ -152,7 +190,8 @@ def main() -> int:
     """Punto di ingresso della riga di comando."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s — %(message)s")
     parser = argparse.ArgumentParser(description="Manutenzione del database di tradash2.0")
-    parser.add_argument("comando", choices=["check", "rebuild", "costi", "referti"])
+    parser.add_argument("comando",
+                        choices=["check", "rebuild", "costi", "referti", "rigioco"])
     argomenti = parser.parse_args()
 
     if argomenti.comando == "check":
@@ -161,6 +200,8 @@ def main() -> int:
         return comando_costi()
     if argomenti.comando == "referti":
         return comando_referti()
+    if argomenti.comando == "rigioco":
+        return comando_rigioco()
     return comando_rebuild()
 
 
