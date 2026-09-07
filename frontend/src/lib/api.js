@@ -75,6 +75,8 @@ export const api = {
     universoTitolo: (simbolo) => chiama(`/universe/titolo/${encodeURIComponent(simbolo)}`),
     fondamentaliStato: () => chiama("/universe/fondamentali"),
     fondamentaliDeriva: () => chiama("/universe/fondamentali", { method: "POST" }),
+    storicoStato: () => chiama("/universe/storico"),
+    storicoDeriva: () => chiama("/universe/storico", { method: "POST" }),
     universoCostruisci: (forzato) => chiama(`/universe/build${query({ force: forzato ? 1 : "" })}`,
         { method: "POST" }),
 
@@ -140,6 +142,10 @@ export const api = {
     scannerCriteri: () => chiama("/scanner/criteri"),
     scannerAvvia: (richiesta) => chiama("/scanner", corpoJson("POST", richiesta)),
     scannerEsito: (runId) => chiama(`/scanner/${encodeURIComponent(runId)}`),
+    // Gli stessi criteri, ma all'indietro: «ha mai funzionato?».
+    rigiocaCriteri: (criteri, orizzonte) =>
+        chiama("/scanner/rigioco", corpoJson("POST", { criteri, orizzonte })),
+    rigiocoEsito: (runId) => chiama(`/scanner/rigioco/${encodeURIComponent(runId)}`),
 
     // --- glossario ---
     glossario: () => chiama("/glossario"),

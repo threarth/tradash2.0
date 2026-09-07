@@ -12,7 +12,7 @@ from flask import Blueprint, request
 
 import config
 from api import HTTP_NOT_FOUND, fail, ok
-from data import scanner
+from data import rigioco, scanner
 from domain import scansione
 
 logger = logging.getLogger(__name__)
@@ -47,6 +47,38 @@ def avvia():
 
     return ok({"run_id": run_id, "stop": f"/api/ops/stop/{run_id}",
                "esito": f"/api/scanner/{run_id}"})
+
+
+@bp.post("/rigioco")
+def rigioca():
+    """Rigioca gli stessi criteri all'indietro, contro il non-filtrare.
+
+    E' la domanda «questo criterio ha mai funzionato?» fatta con lo stesso
+    modulo con cui si sta per accenderlo. Ritorna subito il `run_id`: sono
+    quindici secondi di conti su dodicimila titoli e quarantun mesi, e una
+    richiesta appesa non si potrebbe fermare.
+    """
+    corpo = request.get_json(silent=True) or {}
+    richiesti = corpo.get("criteri") or {}
+    if not richiesti:
+        return fail("serve almeno un criterio da rigiocare")
+
+    try:
+        run_id = rigioco.avvia(richiesti, corpo.get("orizzonte"))
+    except ValueError as problema:
+        return fail(str(problema))
+    return ok({"run_id": run_id, "stop": f"/api/ops/stop/{run_id}",
+               "esito": f"/api/scanner/rigioco/{run_id}"})
+
+
+@bp.get("/rigioco/<run_id>")
+def esito_rigioco(run_id: str):
+    """Il risultato di un rigioco. Finche' gira, si guarda in /api/ops/active."""
+    trovato = rigioco.esito(run_id)
+    if trovato is None:
+        return fail("rigioco sconosciuto, oppure ancora in corso: "
+                    "guarda in /api/ops/active", HTTP_NOT_FOUND)
+    return ok(trovato)
 
 
 @bp.get("/<run_id>")

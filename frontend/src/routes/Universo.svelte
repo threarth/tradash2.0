@@ -30,11 +30,13 @@
     );
     const stato = richiedi(() => api.universoStato());
     const bilanci = richiedi(() => api.fondamentaliStato());
+    const storico = richiedi(() => api.storicoStato());
 
     onMount(() => {
         elenco.ricarica();
         stato.ricarica();
         bilanci.ricarica();
+        storico.ricarica();
     });
 
     async function costruisci() {
@@ -59,6 +61,18 @@
         }
     }
 
+    /** Deriva le chiusure di fine mese di tutti i titoli. E' la tabella su cui
+        poggia il rigioco: senza, un criterio non si puo' provare all'indietro. */
+    async function derivaStorico() {
+        avvio = null;
+        try {
+            avvio = await api.storicoDeriva();
+            naviga("/operazioni");
+        } catch (problema) {
+            avvio = { errore: problema.message };
+        }
+    }
+
     function applicaFiltri(evento) {
         evento.preventDefault();
         elenco.ricarica();
@@ -75,11 +89,35 @@
             <i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i>
             Deriva i bilanci
         </button>
+        <button class="btn btn-sm btn-outline-primary" onclick={derivaStorico}>
+            <i class="bi bi-clock-history" aria-hidden="true"></i>
+            Deriva lo storico
+        </button>
         <button class="btn btn-sm btn-primary" onclick={costruisci}>
             <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Ricostruisci
         </button>
     </div>
 </div>
+
+<!-- Lo storico mensile: la tabella su cui poggia il rigioco di un criterio.
+     Senza, il pulsante «Ha mai funzionato?» nello scanner non ha niente da
+     rigiocare, e lo dice. -->
+<Riquadro richiesta={storico} testoCaricamento="leggo lo storico mensile…">
+    {#snippet children(dati)}
+        {#if !dati.available}
+            <Assente titolo="Lo storico mensile non c'e' ancora"
+                     motivo={dati.reason} azione={dati.action} />
+        {:else}
+            <p class="small text-secondary">
+                Storico derivato il {dati.costruito_il} ·
+                <strong class="numerico">{dati.titoli.toLocaleString("it")}</strong> titoli ·
+                <span class="numerico">{dati.righe.toLocaleString("it")}</span> chiusure
+                da {dati.dal} a {dati.al}
+                {#if dati.da_riderivare}· <span class="text-warning">{dati.reason}</span>{/if}
+            </p>
+        {/if}
+    {/snippet}
+</Riquadro>
 
 <!-- I bilanci dell'universo: quanti titoli copre, e con quale voce. La
      copertura non e' un dettaglio — il margine lordo manca a migliaia di

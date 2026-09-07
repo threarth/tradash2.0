@@ -154,6 +154,15 @@
                     disabled={inCorso || Object.keys(criteriScelti()).length === 0}>
                 {inCorso ? "sto cercando…" : "Cerca"}
             </button>
+            <!-- Gli STESSI criteri, ma all'indietro. Sta accanto a «Cerca» e non
+                 in una pagina a parte, perche' la domanda «ha mai funzionato?»
+                 va fatta prima di accenderli — e in una pagina a parte non la
+                 farebbe nessuno. -->
+            <button class="btn btn-sm btn-outline-primary" onclick={rigioca}
+                    disabled={rigiocoInCorso || inCorso
+                              || Object.keys(criteriScelti()).length === 0}>
+                {rigiocoInCorso ? "rigioco…" : "Ha mai funzionato?"}
+            </button>
             {#if inCorso}
                 <button class="btn btn-sm btn-outline-danger" onclick={ferma}>Ferma</button>
                 <a class="btn btn-sm btn-outline-secondary" href="/operazioni">
@@ -163,6 +172,80 @@
         </div>
     </div>
 </div>
+
+{#if rigiocoInCorso}
+    <p class="small text-secondary">
+        <Testo testo="Sto rigiocando questi criteri su tutti i mesi che i dati coprono. Il pannello in alto a destra dice a che punto e'." />
+    </p>
+{/if}
+
+{#if rigioco}
+    {@const r = rigioco.riepilogo}
+    <div class="card mb-3">
+        <div class="card-body">
+            <h2 class="h6">Questo criterio, all'indietro</h2>
+            <p class="small text-secondary mb-2">
+                <Testo testo="Per ogni mese: come sono andati nei {rigioco.orizzonte_mesi} mesi dopo i titoli che il criterio avrebbe trovato, contro come e' andato TUTTO il resto. La seconda colonna e' il paragone che conta: un criterio che trova titoli col +12% non vale niente se in quei mesi il mercato ha fatto +15%." />
+            </p>
+
+            {#if r.reason}
+                <p class="small text-warning mb-0"><Testo testo={r.reason} /></p>
+            {:else}
+                <p class="mb-2">
+                    <strong class="numerico">{r.vinti} mesi su {r.mesi_utili}</strong>
+                    ({(r.quota_vinti * 100).toFixed(0)}%) battono il non-filtrare ·
+                    vantaggio mediano
+                    <strong class="numerico"
+                            class:text-success={r.vantaggio_mediano > 0}
+                            class:text-danger={r.vantaggio_mediano < 0}>
+                        {r.vantaggio_mediano > 0 ? "+" : ""}{(r.vantaggio_mediano * 100).toFixed(1)}%
+                    </strong>
+                    · {r.trovati_per_mese} titoli trovati al mese
+                </p>
+
+                <div class="table-responsive" style="max-height: 22rem">
+                    <table class="table table-sm small mb-0">
+                        <thead class="sticky-top">
+                            <tr>
+                                <th>mese</th>
+                                <th class="text-end">trovati</th>
+                                <th class="text-end">loro</th>
+                                <th class="text-end">tutti</th>
+                                <th class="text-end">differenza</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {#each rigioco.mesi as m (m.mese)}
+                                {#if m.mediana_trovati !== null && m.mediana_universo !== null}
+                                    {@const differenza = m.mediana_trovati - m.mediana_universo}
+                                    <tr>
+                                        <td class="numerico">{m.mese}</td>
+                                        <td class="text-end numerico">{m.trovati}</td>
+                                        <td class="text-end numerico">
+                                            {(m.mediana_trovati * 100).toFixed(1)}%
+                                        </td>
+                                        <td class="text-end numerico text-secondary">
+                                            {(m.mediana_universo * 100).toFixed(1)}%
+                                        </td>
+                                        <td class="text-end numerico"
+                                            class:text-success={differenza > 0}
+                                            class:text-danger={differenza < 0}>
+                                            {differenza > 0 ? "+" : ""}{(differenza * 100).toFixed(1)}%
+                                        </td>
+                                    </tr>
+                                {/if}
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="small text-warning mt-2 mb-0">
+                    <Testo testo="Il paragone e' con la mediana di TUTTO l'universo, comprese migliaia di societa' minuscole e poco scambiate: un criterio che le evita risulta perdente anche quando sta solo evitando il fondo del barile. Va letto sapendolo." />
+                </p>
+            {/if}
+        </div>
+    </div>
+{/if}
 
 {#if errore}
     <Errore {errore} />

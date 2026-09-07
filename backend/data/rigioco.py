@@ -34,8 +34,11 @@ sono. Un rigioco che guarda i bilanci per fine periodo invece che per data di
 deposito si racconta meglio di com'e' andato, di circa quaranta giorni.
 """
 import logging
+import queue
+import threading
 from datetime import date
 
+from core import registry
 from core.db import db_read
 from data import fondamentali
 from domain import publication_dates, scansione
@@ -193,3 +196,55 @@ def riepiloga(per_mese: list[dict]) -> dict:
         "trovati_per_mese": round(sum(m["trovati"] for m in validi) / len(validi), 1),
         "reason": None,
     }
+
+
+# --- il giro in un thread, per il pulsante ----------------------------------
+
+JOB_KIND = "rigioco"
+
+# Quanto si aspetta che il thread consegni il proprio run_id.
+ATTESA_AVVIO_S = 5.0
+
+_esiti: dict[str, dict] = {}
+_lucchetto = threading.Lock()
+
+
+def _esegui(criteri: dict, orizzonte: int, consegna: queue.Queue) -> dict:
+    """Un rigioco dentro il registro dei lavori: si vede e si ferma."""
+    etichetta = f"rigioco di {len(criteri)} criteri su {orizzonte} mesi"
+    with registry.job(JOB_KIND, etichetta, total=1) as lavoro:
+        consegna.put(lavoro.run_id)
+        esito = rigioca(criteri, orizzonte)
+        esito["run_id"] = lavoro.run_id
+        lavoro.advance(detail=f"{esito['riepilogo']['mesi_utili']} mesi giudicabili")
+
+    with _lucchetto:
+        _esiti[lavoro.run_id] = esito
+    return esito
+
+
+def avvia(criteri: dict, orizzonte: int | None = None) -> str:
+    """Avvia un rigioco in un thread e ritorna il run_id con cui seguirlo.
+
+    I criteri si controllano PRIMA di partire: un errore sollevato dentro al
+    thread non tornerebbe a chi ha premuto, che resterebbe ad aspettare un
+    run_id che non arriva mai.
+    """
+    sconosciuti = sorted(set(criteri) - set(scansione.CRITERI))
+    if sconosciuti:
+        raise ValueError(f"criteri sconosciuti: {', '.join(sconosciuti)}")
+    if not _mesi_disponibili():
+        raise ValueError("lo storico mensile non e' stato derivato: senza, non "
+                         "c'e' niente da rigiocare")
+
+    consegna: queue.Queue = queue.Queue(maxsize=1)
+    threading.Thread(target=_esegui,
+                     args=(criteri, orizzonte or ORIZZONTE_MESI, consegna),
+                     name="rigioco", daemon=True).start()
+    return consegna.get(timeout=ATTESA_AVVIO_S)
+
+
+def esito(run_id: str) -> dict | None:
+    """Il risultato di un rigioco finito, o None se non c'e' (ancora)."""
+    with _lucchetto:
+        return _esiti.get(run_id)

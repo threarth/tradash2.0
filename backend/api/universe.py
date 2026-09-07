@@ -92,6 +92,24 @@ def fondamentali_deriva():
     return ok({"run_id": run_id, "stop": f"/api/ops/stop/{run_id}"})
 
 
+@bp.get("/storico")
+def storico_stato():
+    """Quanto copre lo storico mensile, e da quando."""
+    return ok(fondamentali.stato_prezzi())
+
+
+@bp.post("/storico")
+def storico_deriva():
+    """Deriva la chiusura di fine mese di tutti i titoli. Parte solo da qui.
+
+    E' la tabella su cui poggia il rigioco: senza, un criterio non si puo'
+    provare all'indietro. Una lettura sola — misurata in 68 secondi — e per
+    questo torna subito il `run_id`.
+    """
+    run_id = fondamentali.costruisci_prezzi_in_background()
+    return ok({"run_id": run_id, "stop": f"/api/ops/stop/{run_id}"})
+
+
 @bp.get("/stato")
 def stato():
     """Quanti titoli ci sono, quanto e' vecchio l'universo, e cosa gli manca."""
