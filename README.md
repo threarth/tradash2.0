@@ -81,10 +81,46 @@ li' dentro. Il database e' una vista ricostruibile, non un archivio da salvare.
 Quando una tabella cambia forma, `ensure_schema()` se ne accorge e dice di
 lanciare `manage.py rebuild` invece di lasciar passare un errore di SQLite.
 
-**Con un'eccezione: la watchlist.** E' l'unica cosa che non si ricostruisce, e
+**Con un'eccezione: la watchlist.** E' la prima cosa che non si ricostruisce, e
 per questo la sua fonte di verita' e' `backend/data/watchlist.json`, leggibile e
 correggibile a mano. SQLite ne tiene solo una copia di lavoro, che il rebuild
-puo' cancellare senza danno. Il file non e' in git: **il backup e' copiarlo.**
+puo' cancellare senza danno.
+
+## Il backup
+
+Le cose che non si ricostruiscono non sono piu' una: sono **sette**, e stanno
+tutte in `backend/data/`.
+
+| | cosa e' |
+|---|---|
+| `watchlist.json` | i titoli che segui, i temi, il perche' di ognuno |
+| `watchlist_events.jsonl` | lo storico, append-only |
+| `referti.jsonl` | le analisi gia' pagate al modello |
+| `grafici.json` | le configurazioni dei grafici |
+| `impostazioni.json` | il modello scelto col selettore |
+| `filings/` | i documenti SEC che hai scaricato a mano |
+| *(e basta)* | il resto della cartella si ricostruisce da solo |
+
+**Il backup e' copiare l'intera cartella `backend/data/`.** Non i sette file
+scelti a mano: la cartella. Pesa piu' del necessario — dentro c'e' anche la
+cache di Defeatbeta, che da sola fa mezzo giga e si riscarica — ma copiare
+tutto e' l'unico modo che non invecchia. Questa riga, quando diceva «copia
+`watchlist.json`», era giusta il giorno in cui e' stata scritta ed e' diventata
+sbagliata da sola, mentre nascevano `referti.jsonl` e `impostazioni.json`.
+
+```bash
+cp -r backend/data /mnt/c/Users/<tuo-utente>/tradash-backup-$(date +%F)
+```
+
+**Su `/mnt/c`, e non nella home di WSL: e' la parte che conta.** I file stanno
+dentro il disco virtuale di WSL2 — un `wsl --unregister`, un `.vhdx` corrotto o
+una reinstallazione della distribuzione se li portano via tutti insieme, e
+nessuno strumento di backup di Windows li vede. Copiarli su `/mnt/c` li mette in
+un dominio di guasto diverso, che e' l'unica cosa che un backup deve fare
+davvero. Una chiavetta o un disco esterno vanno anche meglio.
+
+Per rimettere tutto: si copia la cartella indietro e si lancia
+`manage.py rebuild` — il database si ricostruisce dai file, non il contrario.
 
 ## Documenti
 

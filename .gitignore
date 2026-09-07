@@ -16,8 +16,13 @@ __pycache__/
 backend/data/httpfs_cache/
 
 # la watchlist e' TUA e resta sul tuo disco: non finisce nella storia del repo.
-# E' anche l'unico dato che non si ricostruisce — il backup e' copiare il file:
-#   cp backend/data/watchlist.json ~/backup/watchlist-$(date +%F).json
+#
+# Qui c'era scritto che era «l'unico dato che non si ricostruisce» e che per il
+# backup bastava copiare questo file. Era vero il giorno in cui e' stato scritto,
+# ed e' diventato sbagliato da solo: adesso i file che non si ricostruiscono
+# sono sette, fra cui i referti gia' pagati al modello e i documenti SEC
+# scaricati a mano. La procedura buona sta nel README, alla voce «Il backup», ed
+# e' copiare l'intera cartella `backend/data/` — perche' quella non invecchia.
 backend/data/watchlist.json
 backend/data/watchlist.json.tmp
 backend/data/watchlist_events.jsonl
