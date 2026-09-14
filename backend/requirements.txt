@@ -16,3 +16,17 @@ defeatbeta-api==0.0.60
 # una sola dipendenza nuova (docstring-parser): le altre quattordici arrivano
 # gia' con defeatbeta-api.
 anthropic==1.2.0
+
+# Il server dell'uso reale. Flask da solo ha un server di sviluppo che lo dice
+# esso stesso di non usare in produzione: regge una richiesta alla volta e non
+# ha nessuna difesa contro un client lento.
+#
+# gunicorn 23.0.0, licenza MIT, ~60 milioni di download al mese, progetto fermo
+# ma maturo (e' l'ottava versione maggiore). ATTENZIONE: questa versione e'
+# quella che conosco io — prima di installarla controlla se ce n'e' una piu'
+# recente, e in quel caso pinna quella.
+#
+# Si lancia con UN WORKER SOLO e piu' thread, e il motivo sta in DEPLOY.md:
+# `core/registry.py` tiene i lavori in memoria di processo, e con quattro worker
+# il pulsante Stop cadrebbe tre volte su quattro sul processo sbagliato.
+gunicorn==23.0.0

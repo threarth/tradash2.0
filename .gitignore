@@ -31,6 +31,14 @@ backend/data/referti.jsonl
 backend/data/referti.jsonl.prima
 backend/data/grafici.json.tmp
 
+# l'accesso: dentro c'e' l'hash della tua password, e la chiave con cui si
+# firmano i cookie di sessione. Nel repo non ci vanno ne' l'uno ne' l'altra —
+# un hash si attacca offline, e chi ha la chiave puo' fabbricarsi una sessione.
+# Si creano con `python manage.py utente` e al primo avvio.
+backend/data/utente.json
+backend/data/utente.json.tmp
+backend/data/chiave_sessione
+
 # le impostazioni sono TUE: quale modello usi e' una scelta di questa macchina,
 # non del progetto. Il predefinito sta in config.py ed e' quello del repo.
 backend/data/impostazioni.json

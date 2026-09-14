@@ -539,3 +539,77 @@ TAG_MAX_DEPTH = 2
 # nascondere quei titoli: serve a CONTARLI, perche' un prezzo di undici giorni
 # fa presentato come quello di oggi e' il difetto che ha generato la regola 3.
 UNIVERSE_STALE_PRICE_DAYS = 7
+
+
+# --- Accesso (Blocco 10) ----------------------------------------------------
+#
+# Il sistema va online, e online significa che chiunque trovi l'indirizzo puo'
+# premere i pulsanti. Fra quei pulsanti ce n'e' uno che **spende soldi veri**
+# sulle chiavi API di chi lo ospita, e altri che cancellano dati che non si
+# ricostruiscono. Quindi: un utente, una password, e tutto chiuso per default.
+#
+# L'utente sta in un FILE e non nel `.env`, per lo stesso motivo della watchlist
+# e delle impostazioni: e' roba tua, sopravvive a `manage.py rebuild`, e la
+# password si puo' cambiare dall'applicazione invece che da una shell.
+PRODUCTION_UTENTE_PATH = BASE_DIR / "data" / "utente.json"
+UTENTE_PATH = Path(os.environ.get("TRADASH2_UTENTE", PRODUCTION_UTENTE_PATH))
+UTENTE_FILE_VERSIONE = 1
+
+# Il nome con cui `manage.py utente` crea il primo accesso.
+UTENTE_PREDEFINITO = "dan"
+
+# Quanto dev'essere lunga una password. Sei e' poco, e lo si dice: regge perche'
+# i tentativi sono frenati e contati, non perche' la password sia robusta. La
+# difesa vera e' il freno qui sotto; questo minimo esiste solo per fermare «123».
+PASSWORD_LUNGHEZZA_MINIMA = 6
+
+# La chiave con cui si firma il cookie di sessione. Si genera da sola al primo
+# avvio e resta su disco: rigenerarla a ogni riavvio vorrebbe dire rifare
+# l'accesso ogni volta che si aggiorna il codice.
+PRODUCTION_CHIAVE_SESSIONE_PATH = BASE_DIR / "data" / "chiave_sessione"
+CHIAVE_SESSIONE_PATH = Path(
+    os.environ.get("TRADASH2_CHIAVE_SESSIONE", PRODUCTION_CHIAVE_SESSIONE_PATH)
+)
+CHIAVE_SESSIONE_BYTE = 32
+# I permessi con cui si scrive: leggibile solo dal proprietario.
+CHIAVE_SESSIONE_PERMESSI = 0o600
+
+# Il cookie. Di SOLA SESSIONE — nessun `Max-Age`, nessuna scadenza — quindi
+# muore chiudendo il browser, ed e' cio' che l'informativa dichiara.
+#
+# `SameSite=Lax` non e' un dettaglio di stile: e' la difesa contro le richieste
+# cross-site. Con Lax il cookie NON viene mandato su una POST partita da un
+# altro sito, e le POST sono tutto cio' che spende o cancella.
+COOKIE_SESSIONE = "tradash_sessione"
+
+# `Secure` vuole HTTPS. Acceso per default perche' il default sbagliato qui si
+# paga in chiaro sulla rete; per lavorare in locale senza certificato si spegne
+# con TRADASH2_COOKIE_SICURO=0. (Chrome e Firefox accettano comunque un cookie
+# Secure su http://localhost, quindi spesso non serve nemmeno.)
+COOKIE_SICURO = os.environ.get("TRADASH2_COOKIE_SICURO", "1").strip() != "0"
+
+# Il freno ai tentativi, per indirizzo. Dopo N fallimenti si aspetta, e l'attesa
+# raddoppia a ogni fallimento successivo fino al tetto: cosi' provare a indovinare
+# smette di essere praticabile senza che un errore di battitura ti chiuda fuori.
+ACCESSO_TENTATIVI_PRIMA_DEL_FRENO = 5
+ACCESSO_ATTESA_INIZIALE_S = 30
+ACCESSO_ATTESA_MASSIMA_S = 15 * SECONDS_PER_MINUTE
+
+# Quanto si tiene memoria di un indirizzo che ha sbagliato. Passato questo tempo
+# senza tentativi, il conto riparte da zero.
+ACCESSO_MEMORIA_S = SECONDS_PER_HOUR
+
+# --- Tetto di spesa (Blocco 10) --------------------------------------------
+#
+# L'accesso toglie di mezzo gli estranei. Questo toglie di mezzo i nostri errori:
+# un ciclo sbagliato o una pagina che ritenta da sola non incontrerebbe nessun
+# limite, e il conto lo si scoprirebbe dalla fattura.
+#
+# Il dato per calcolarlo c'e' gia': ogni chiamata lascia il suo costo in
+# `llm_calls`. Il tetto e' una somma e un confronto, e si supera dichiarando
+# quanto si e' speso e quando riparte — mai con un errore generico.
+#
+# Dieci dollari sono circa dieci analisi qualitative complete (misurata a $0,99
+# su Sonnet): abbastanza per una giornata di lavoro vero, troppo poco perche' un
+# ciclo impazzito faccia danni.
+LLM_TETTO_GIORNALIERO_USD = float(os.environ.get("TRADASH2_TETTO_USD", "10.0"))

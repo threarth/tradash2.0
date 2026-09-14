@@ -3,16 +3,21 @@ app.py — server Flask di tradash2.0.
 # feat (Blocco 0): avvio minimo, nessun lavoro che parte da solo.
 # feat (Blocco 4): serve anche il build della SPA, cosi' il processo resta uno.
 
-All'avvio si applica lo schema e basta. Nessun provider viene sondato,
-nessun universo viene scaricato, nessun job parte: al primo avvio il log delle
-chiamate resta vuoto finche' qualcuno non chiede qualcosa.
+All'avvio si applica lo schema, si mette la porta e basta. Nessun provider
+viene sondato, nessun universo viene scaricato, nessun job parte: al primo avvio
+il log delle chiamate resta vuoto finche' qualcuno non chiede qualcosa.
+
+**La porta e' `core/accesso.py`**, ed e' registrata qui invece che rotta per
+rotta: e' l'unico modo perche' un endpoint scritto in futuro nasca chiuso.
 """
 import logging
+import os
 
 from flask import Flask
 
 import config
 from api.analisi import bp as analisi_bp
+from api.auth import bp as auth_bp
 from api.calls import bp as calls_bp
 from api.glossary import bp as glossary_bp
 from api.impostazioni import bp as impostazioni_bp
@@ -23,6 +28,7 @@ from api.titolo import bp as titolo_bp
 from api.universe import bp as universe_bp
 from api.watchlist import bp as watchlist_bp
 from api.web import bp as web_bp
+from core import accesso
 from core.schema import ensure_schema
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s — %(message)s"
@@ -39,6 +45,13 @@ def create_app() -> Flask:
     app = Flask(__name__)
     ensure_schema()
 
+    # La porta si mette PRIMA delle rotte, e vale per tutte: chiude tutto cio'
+    # che sta sotto `/api/` tranne l'elenco dichiarato in `core/accesso.py`.
+    # Messa cosi', un endpoint aggiunto domani nasce protetto invece di nascere
+    # aperto e aspettare che qualcuno se ne accorga.
+    accesso.configura(app)
+
+    app.register_blueprint(auth_bp)
     app.register_blueprint(ops_bp)
     app.register_blueprint(analisi_bp)
     app.register_blueprint(calls_bp)
@@ -56,4 +69,14 @@ def create_app() -> Flask:
 
 
 if __name__ == "__main__":
-    create_app().run(port=config.DEV_SERVER_PORT, debug=True, use_reloader=False)
+    # `python app.py` e' il modo di lavorare in LOCALE, e solo quello: in uso
+    # reale davanti c'e' gunicorn, che importa `create_app()` e non passa mai di
+    # qui. Il debugger di Werkzeug esegue codice arbitrario da browser, quindi
+    # si accende solo quando qualcuno lo chiede a voce alta.
+    debug = os.environ.get("TRADASH2_DEBUG", "").strip() == "1"
+    if debug:
+        logging.getLogger(__name__).warning(
+            "[APP] debugger acceso: esegue codice arbitrario da browser. "
+            "Mai su una macchina raggiungibile da internet."
+        )
+    create_app().run(port=config.DEV_SERVER_PORT, debug=debug, use_reloader=False)

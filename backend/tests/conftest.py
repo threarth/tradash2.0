@@ -39,10 +39,28 @@ os.environ["TRADASH2_REFERTI"] = str(Path(_TEMP_DIR) / "referti.jsonl")
 os.environ["TRADASH2_FILINGS"] = str(Path(_TEMP_DIR) / "filings")
 os.environ["TRADASH2_IMPOSTAZIONI"] = str(Path(_TEMP_DIR) / "impostazioni.json")
 os.environ["TRADASH2_SPINOFF"] = str(Path(_TEMP_DIR) / "spinoff.json")
+os.environ["TRADASH2_UTENTE"] = str(Path(_TEMP_DIR) / "utente.json")
+os.environ["TRADASH2_CHIAVE_SESSIONE"] = str(Path(_TEMP_DIR) / "chiave_sessione")
+
+# Queste due non sono percorsi ma interruttori, e si fissano per lo stesso
+# motivo: cio' che la suite misura non deve dipendere da com'e' configurata la
+# macchina su cui gira.
+#
+# Il cookie `Secure` non viaggia sul finto HTTP del test client, quindi nessuna
+# prova riuscirebbe a restare connessa. E il tetto di spesa si mette alto: chi
+# vuole misurarlo abbassa `config.LLM_TETTO_GIORNALIERO_USD` nel suo test, cosi'
+# la soglia e' scritta accanto a cio' che la verifica.
+os.environ["TRADASH2_COOKIE_SICURO"] = "0"
+os.environ["TRADASH2_TETTO_USD"] = "1000"
 
 import pytest  # noqa: E402  (l'ordine e' voluto: prima l'ambiente, poi gli import)
 
 import config  # noqa: E402
+
+# L'accesso del client di prova. Non e' un segreto: e' un utente che vive dentro
+# una cartella temporanea cancellata a fine suite.
+UTENTE_DI_PROVA = "prova"
+PASSWORD_DI_PROVA = "password-di-prova"
 from core.db import db_session  # noqa: E402
 from core.schema import ensure_schema  # noqa: E402
 
@@ -119,7 +137,9 @@ def tabelle_pulite(schema):
 # e l'elenco degli spin-off stanno in file apposta, perche' un `rebuild` non
 # deve portarseli via — ed e' proprio per questo che sopravvivono anche alla
 # pulizia fra un test e l'altro, se nessuno li cancella.
-FILE_DI_STATO = ("IMPOSTAZIONI_PATH", "SPINOFF_PATH")
+# `UTENTE_PATH` sta qui perche' un test che cambia la password non deve lasciare
+# l'utente cambiato a quelli dopo: la fixture `client` lo ricrea ogni volta.
+FILE_DI_STATO = ("IMPOSTAZIONI_PATH", "SPINOFF_PATH", "UTENTE_PATH")
 
 
 @pytest.fixture(autouse=True)
@@ -136,16 +156,44 @@ def file_di_stato_puliti():
     yield
 
 
-@pytest.fixture
-def client():
-    """Client HTTP dell'applicazione, per provare gli endpoint davvero.
-
-    Non apre socket: `test_client` di Flask parla con l'app in memoria.
-    """
+def _app():
+    """L'applicazione, costruita con l'ambiente gia' dirottato sul temporaneo."""
     # Import volutamente tardivo: `app` importa `config`, che legge TRADASH2_DB.
     # In cima al file verrebbe importato prima che l'ambiente sia pronto.
     from app import create_app  # noqa: PLC0415
-    app = create_app()
-    app.config.update(TESTING=True)
-    with app.test_client() as c:
+    applicazione = create_app()
+    applicazione.config.update(TESTING=True)
+    return applicazione
+
+
+@pytest.fixture
+def client_anonimo():
+    """Client HTTP SENZA accesso fatto: e' cosi' che arriva un estraneo.
+
+    Serve a verificare che la porta sia chiusa. Ogni altra prova usa `client`,
+    che entra per primo — altrimenti si misurerebbe il 401 e non l'endpoint.
+    """
+    with _app().test_client() as c:
         yield c
+
+
+@pytest.fixture
+def client(client_anonimo):
+    """Client HTTP con l'accesso gia' fatto, per provare gli endpoint davvero.
+
+    Non apre socket: `test_client` di Flask parla con l'app in memoria.
+
+    Crea l'utente e fa il login veri, senza scorciatoie sulla sessione: cosi'
+    anche il giro dell'accesso viene percorso a ogni prova, e se un giorno si
+    rompe non lo si scopre da un test solo.
+    """
+    from core import utente  # noqa: PLC0415
+
+    if not utente.esiste():
+        utente.crea(UTENTE_DI_PROVA, PASSWORD_DI_PROVA)
+
+    risposta = client_anonimo.post("/api/auth/login",
+                                   json={"nome": UTENTE_DI_PROVA,
+                                         "password": PASSWORD_DI_PROVA})
+    assert risposta.status_code == 200, f"il client di prova non e' entrato: {risposta.data}"
+    return client_anonimo

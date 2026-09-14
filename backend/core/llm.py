@@ -70,6 +70,16 @@ class LlmNonDisponibile(RuntimeError):
     """
 
 
+class TettoSuperato(LlmNonDisponibile):
+    """Si e' speso abbastanza per oggi.
+
+    Discende da `LlmNonDisponibile` apposta: chi gia' gestisce "il modello non
+    risponde" continua a funzionare senza sapere di questo caso. Ma e' una
+    classe sua, perche' le due cose si curano in modo diverso — una si aspetta,
+    l'altra si decide.
+    """
+
+
 def _adesso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
@@ -142,6 +152,47 @@ def costo(modello: str, token_entrata: int, token_uscita: int) -> float:
     return round(
         (token_entrata * prezzi["ingresso"] + token_uscita * prezzi["uscita"])
         / config.TOKEN_PER_MILIONE, 6,
+    )
+
+
+def speso_oggi() -> float:
+    """Quanto e' costato il modello dalla mezzanotte UTC a adesso.
+
+    Legge `llm_calls`, che e' il posto dove il costo c'e' gia': non serviva una
+    tabella nuova, serviva farsi la domanda.
+    """
+    da = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    with db_read() as conn:
+        riga = conn.execute(
+            "SELECT COALESCE(SUM(costo_usd), 0) AS totale FROM llm_calls "
+            "WHERE called_at >= ?", (da.isoformat(timespec="seconds"),)
+        ).fetchone()
+    return float(riga["totale"] or 0.0)
+
+
+def _controlla_il_tetto() -> None:
+    """Si ferma PRIMA di chiamare, se per oggi si e' speso abbastanza.
+
+    L'accesso tiene fuori gli estranei; questo tiene fuori i nostri errori. Un
+    ciclo sbagliato o una pagina che ritenta da sola non incontrerebbe nessun
+    limite, e il conto si scoprirebbe dalla fattura.
+
+    Il rifiuto dice quanto si e' speso, qual era il tetto e quando riparte: un
+    limite che non si spiega si scambia per un guasto, e chi lo incontra riavvia
+    il processo invece di guardare il conto.
+    """
+    tetto = config.LLM_TETTO_GIORNALIERO_USD
+    if tetto <= 0:
+        return
+
+    speso = speso_oggi()
+    if speso < tetto:
+        return
+
+    raise TettoSuperato(
+        f"tetto di spesa giornaliero raggiunto: ${speso:.2f} spesi su ${tetto:.2f}. "
+        f"Riparte a mezzanotte UTC. Per cambiarlo: TRADASH2_TETTO_USD nell'ambiente "
+        f"del servizio."
     )
 
 
@@ -257,6 +308,11 @@ def chiedi(fase: str, sistema: str, messaggio: str, scope: str | None = None,
     la fase delle citazioni deve produrre una risposta molto piu' lunga delle
     altre, e col tetto normale usciva TAGLIATA a meta' di un JSON.
     """
+    # Prima di tutto il resto: si e' gia' speso abbastanza per oggi? Il controllo
+    # sta QUI e non nelle analisi perche' qui passano tutte, comprese quelle che
+    # verranno — esattamente come il registro delle chiamate.
+    _controlla_il_tetto()
+
     # L'ordine e' questo e conta: chi chiede un modello preciso lo ottiene, chi
     # non lo chiede prende quello scelto col selettore, e solo se nessuno ha mai
     # scelto vale il predefinito. Si rilegge a ogni chiamata: cambiare modello

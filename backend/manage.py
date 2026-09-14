@@ -9,14 +9,17 @@ manage.py — comandi di manutenzione di tradash2.0.
     python manage.py rigioco    rigioca il punteggio degli spin-off all'indietro
     python manage.py criterio '{"ricavi_qoq_minimo": 0.15}'
                                 rigioca un criterio dello scanner contro il non-filtrare
+    python manage.py utente     crea l'utente che potra' entrare, o gli cambia la
+                                password (--password, oppure chiesta a voce)
 """
 import argparse
+import getpass
 import json
 import logging
 import sys
 
 import config
-from core import llm, schema
+from core import llm, schema, utente
 from core.db import db_read
 from data import analisi, rigioco, spinoff_rigioco
 from domain import scansione
@@ -240,28 +243,84 @@ def comando_rebuild() -> int:
     return EXIT_OK
 
 
+def _chiedi_password() -> str | None:
+    """Chiede la password senza mostrarla. `None` se non c'e' un terminale."""
+    try:
+        prima = getpass.getpass("Password: ")
+        seconda = getpass.getpass("Di nuovo: ")
+    except (EOFError, OSError):
+        return None
+
+    if prima != seconda:
+        print("Le due password non coincidono: nessuna modifica.")
+        return None
+    return prima
+
+
+def comando_utente(password: str | None) -> int:
+    """Crea l'utente, o gli cambia la password.
+
+    E' l'unico modo di dare o riprendere l'accesso, e vive in `manage.py` per un
+    motivo preciso: chi puo' lanciarlo sta gia' sulla macchina e legge gia' il
+    file. Chiedergli la password vecchia sarebbe una formalita' che non protegge
+    nulla e che chiude fuori proprio chi l'ha dimenticata.
+
+    La password si puo' passare con `--password`, e in quel caso finisce nella
+    cronologia della shell: va bene per la prima volta, molto meno dopo. Senza
+    l'opzione la si scrive a mano e non compare.
+    """
+    if password is None:
+        password = _chiedi_password()
+    if password is None:
+        print("Annullato: serve una password. Da uno script: "
+              "`python manage.py utente --password ...`")
+        return EXIT_ABORTED
+
+    esistente = utente.leggi()
+    try:
+        if esistente is None:
+            esito = utente.crea(config.UTENTE_PREDEFINITO, password)
+            print(f"Creato l'utente {esito['nome']!r} in {esito['dove']}")
+            print("Il file NON e' in git, e sopravvive a `manage.py rebuild`.")
+        else:
+            esito = utente.imposta_password(password)
+            print(f"Password di {esito['nome']!r} cambiata "
+                  f"(generazione {esito['generazione']}).")
+            print("Tutte le sessioni aperte sono scadute.")
+    except utente.UtenteError as errore:
+        print(f"Annullato: {errore}")
+        return EXIT_ABORTED
+
+    return EXIT_OK
+
+
+# I comandi, ognuno col suo nome sulla riga di comando. Una tabella invece di
+# una catena di `if`: aggiungerne uno e' una riga, e nessuno puo' dimenticarsi
+# di collegarlo dopo averlo scritto.
+COMANDI = {
+    "check": lambda a: comando_check(),
+    "costi": lambda a: comando_costi(),
+    "referti": lambda a: comando_referti(),
+    "rigioco": lambda a: comando_rigioco(),
+    "criterio": lambda a: comando_criterio(a.criteri),
+    "utente": lambda a: comando_utente(a.password),
+    "rebuild": lambda a: comando_rebuild(),
+}
+
+
 def main() -> int:
     """Punto di ingresso della riga di comando."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s — %(message)s")
     parser = argparse.ArgumentParser(description="Manutenzione del database di tradash2.0")
-    parser.add_argument("comando",
-                        choices=["check", "rebuild", "costi", "referti", "rigioco",
-                                 "criterio"])
+    parser.add_argument("comando", choices=sorted(COMANDI))
     parser.add_argument("criteri", nargs="?",
                         help="per «criterio»: i criteri come oggetto JSON")
+    parser.add_argument("--password",
+                        help="per «utente»: la password. Senza, viene chiesta a "
+                             "voce e non finisce nella cronologia della shell")
     argomenti = parser.parse_args()
 
-    if argomenti.comando == "check":
-        return comando_check()
-    if argomenti.comando == "costi":
-        return comando_costi()
-    if argomenti.comando == "referti":
-        return comando_referti()
-    if argomenti.comando == "rigioco":
-        return comando_rigioco()
-    if argomenti.comando == "criterio":
-        return comando_criterio(argomenti.criteri)
-    return comando_rebuild()
+    return COMANDI[argomenti.comando](argomenti)
 
 
 if __name__ == "__main__":
