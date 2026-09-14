@@ -7,17 +7,14 @@
  * l'indice si costruisce una volta, non a ogni frase.
  */
 import { api } from "./api.js";
+import { CHIAVI, leggi, scrivi } from "./preferenze.js";
 import { costruisciIndice, costruisciSchema, segmenta } from "./rilevatore.js";
 
 // Dove si ricorda se la sottolineatura e' accesa.
-const CHIAVE_ATTIVO = "tradash-glossario";
+const CHIAVE_ATTIVO = CHIAVI.GLOSSARIO;
 
 function leggiPreferenza() {
-    try {
-        return localStorage.getItem(CHIAVE_ATTIVO) !== "0";
-    } catch {
-        return true;
-    }
+    return leggi(CHIAVE_ATTIVO, "1") !== "0";
 }
 
 /** Lo stato del glossario, condiviso da tutta l'applicazione. */
@@ -76,11 +73,7 @@ class Glossario {
 
     alterna() {
         this.attivo = !this.attivo;
-        try {
-            localStorage.setItem(CHIAVE_ATTIVO, this.attivo ? "1" : "0");
-        } catch {
-            // Preferenza non ricordata: la sottolineatura funziona comunque.
-        }
+        scrivi(CHIAVE_ATTIVO, this.attivo ? "1" : "0");
     }
 }
 

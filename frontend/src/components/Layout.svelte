@@ -17,6 +17,7 @@
     import { glossario } from "../lib/glossario.svelte.js";
     import { lavori } from "../lib/lavori.svelte.js";
     import { intercettaClick, percorso } from "../lib/router.js";
+    import { sessione } from "../lib/sessione.svelte.js";
     import { alternaTema, SCURO, temaAttuale } from "../lib/tema.js";
     import PannelloGlossario from "./PannelloGlossario.svelte";
     import PannelloLavori from "./PannelloLavori.svelte";
@@ -82,6 +83,20 @@
                     onclick={() => (tema = alternaTema())}
                     title="Cambia tema" aria-label="Cambia tema">
                 <i class="bi {tema === SCURO ? 'bi-sun' : 'bi-moon-stars'}" aria-hidden="true"></i>
+            </button>
+
+            <!-- Chi sei, e i due modi di smettere di esserlo. Il nome non e'
+                 decorativo: su una macchina raggiungibile da internet, sapere
+                 con quale accesso stai guardando e' parte di cosa stai
+                 guardando. -->
+            <a class="btn btn-sm btn-outline-secondary" href="/privacy"
+               title="Privacy, cosa viene salvato, e la tua password">
+                <i class="bi bi-person-circle" aria-hidden="true"></i>
+                {sessione.utente ?? ""}
+            </a>
+            <button class="btn btn-sm btn-outline-secondary" onclick={() => sessione.esci()}
+                    title="Esci" aria-label="Esci">
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
             </button>
         </div>
     </div>

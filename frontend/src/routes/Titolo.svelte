@@ -30,6 +30,7 @@
     import Testo from "../components/Testo.svelte";
     import Valore from "../components/Valore.svelte";
     import { api } from "../lib/api.js";
+    import { CHIAVI, leggiJson, scriviJson } from "../lib/preferenze.js";
     import { richiedi } from "../lib/carica.svelte.js";
     import { sezioni } from "../lib/sezioni.svelte.js";
 
@@ -40,27 +41,18 @@
     // Cosa e' aperto attorno al contenuto: il pannello degli indicatori e
     // l'indice laterale. Si ricordano nel browser — chi lavora su uno schermo
     // stretto li chiude una volta, non a ogni visita.
-    const CHIAVE_PANNELLI = "tradash-pannelli";
+    const CHIAVE_PANNELLI = CHIAVI.PANNELLI;
+    const PANNELLI_APERTI = { indicatori: true, indice: true };
 
     function leggiPannelli() {
-        try {
-            return { indicatori: true, indice: true,
-                     ...JSON.parse(localStorage.getItem(CHIAVE_PANNELLI) ?? "{}") };
-        } catch {
-            return { indicatori: true, indice: true };
-        }
+        return { ...PANNELLI_APERTI, ...leggiJson(CHIAVE_PANNELLI, {}) };
     }
 
     let pannelli = $state(leggiPannelli());
 
     function mostra(quale) {
         pannelli = { ...pannelli, [quale]: !pannelli[quale] };
-        try {
-            localStorage.setItem(CHIAVE_PANNELLI, JSON.stringify(pannelli));
-        } catch {
-            // Un browser che non lascia scrivere non deve rompere la pagina:
-            // si perde il ricordo, non il pannello.
-        }
+        scriviJson(CHIAVE_PANNELLI, pannelli);
     }
 
     const scheda = richiedi(() => api.titolo(simbolo));

@@ -27,31 +27,23 @@
 -->
 <script>
     import Testo from "./Testo.svelte";
+    import { CHIAVI, leggiJson, scriviJson } from "../lib/preferenze.js";
     import { sezioni } from "../lib/sezioni.svelte.js";
 
     let { id, titolo, descrizione = null, aperta = true, children } = $props();
 
-    const CHIAVE = "tradash-sezioni";
+    const CHIAVE = CHIAVI.SEZIONI;
 
     /** Le sezioni che l'utente ha chiuso, ricordate fra una visita e l'altra. */
     function chiuse() {
-        try {
-            return new Set(JSON.parse(localStorage.getItem(CHIAVE) ?? "[]"));
-        } catch {
-            return new Set();
-        }
+        return new Set(leggiJson(CHIAVE, []));
     }
 
     function ricorda(chiusa) {
-        try {
-            const elenco = chiuse();
-            if (chiusa) elenco.add(id);
-            else elenco.delete(id);
-            localStorage.setItem(CHIAVE, JSON.stringify([...elenco]));
-        } catch {
-            // Un browser che non lascia scrivere non deve rompere la pagina:
-            // si perde solo il ricordo, non la sezione.
-        }
+        const elenco = chiuse();
+        if (chiusa) elenco.add(id);
+        else elenco.delete(id);
+        scriviJson(CHIAVE, [...elenco]);
     }
 
     let apertaOra = $state(chiuse().has(id) ? false : aperta);

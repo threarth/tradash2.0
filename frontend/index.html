@@ -8,6 +8,12 @@
             Il tema si applica PRIMA che la pagina venga disegnata: leggerlo in
             Svelte, a componente montato, farebbe lampeggiare il chiaro sullo
             scuro a ogni caricamento. Sono sei righe, e stanno qui apposta.
+
+            E' l'unico punto che tocca `localStorage` fuori da `lib/preferenze.js`,
+            e non e' una scappatoia: qui si LEGGE soltanto, e chi ha rifiutato le
+            preferenze non ha quella chiave — il rifiuto la cancella. Quindi
+            questo codice trova il vuoto e tiene il tema di partenza, che e'
+            esattamente il comportamento giusto.
         -->
         <script>
             (function () {

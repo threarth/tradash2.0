@@ -1,6 +1,7 @@
 /**
  * tema.js — chiaro o scuro, ricordato fra una visita e l'altra.
- * feat (Blocco 4): `data-bs-theme` di Bootstrap 5.3 piu' localStorage.
+ * feat (Blocco 4): `data-bs-theme` di Bootstrap 5.3.
+ * feat (Blocco 10): il ricordo passa da `preferenze.js`, che obbedisce al banner.
  *
  * Niente `next-themes` e niente altra dipendenza: Bootstrap legge un attributo
  * sull'elemento radice, e ricordarselo sono quattro righe.
@@ -9,7 +10,9 @@
  * disegnata: farlo qui, a componente montato, farebbe lampeggiare il chiaro
  * sullo scuro a ogni caricamento.
  */
-const CHIAVE = "tradash-tema";
+import { CHIAVI, scrivi } from "./preferenze.js";
+
+const CHIAVE = CHIAVI.TEMA;
 export const CHIARO = "light";
 export const SCURO = "dark";
 
@@ -20,16 +23,13 @@ export function temaAttuale() {
 
 /**
  * Applica un tema e prova a ricordarlo.
- * Se `localStorage` e' negato il tema si applica lo stesso: non ricordarlo e'
- * un fastidio, non mostrarlo sarebbe un guasto.
+ * Il tema si applica SEMPRE; ricordarlo dipende dal consenso e da cosa il
+ * browser permette. Non ricordarlo e' un fastidio, non mostrarlo sarebbe un
+ * guasto — e questa e' la differenza che il banner ha il diritto di toccare.
  */
 export function applicaTema(tema) {
     document.documentElement.setAttribute("data-bs-theme", tema);
-    try {
-        localStorage.setItem(CHIAVE, tema);
-    } catch {
-        // Finestra privata o permessi negati: si continua senza ricordare.
-    }
+    scrivi(CHIAVE, tema);
     return tema;
 }
 

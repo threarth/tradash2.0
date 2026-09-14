@@ -52,10 +52,30 @@ async function chiama(percorso, opzioni = {}) {
     }
 
     if (!corpo.success) {
+        if (risposta.status === SESSIONE_SCADUTA) avvisaSessioneScaduta();
         throw new ErroreApi(corpo.error || `richiesta rifiutata (HTTP ${risposta.status})`,
             risposta.status);
     }
     return corpo.data;
+}
+
+/**
+ * Un 401 non e' un errore da mostrare in rosso: e' la sessione finita.
+ *
+ * Capita da sola — il cookie muore chiudendo il browser, e scade se cambi la
+ * password altrove — quindi ogni chiamata puo' incontrarla. Chi la incontra
+ * avvisa chi tiene lo stato, che rimette la schermata di accesso invece di
+ * lasciare la pagina con venti riquadri rossi che dicono tutti la stessa cosa.
+ *
+ * Chi ascolta si registra con `allaSessioneScaduta`: `api.js` non importa lo
+ * stato della sessione, perche' e' lo stato della sessione a importare `api.js`,
+ * e il contrario farebbe un anello.
+ */
+const SESSIONE_SCADUTA = 401;
+let avvisaSessioneScaduta = () => {};
+
+export function allaSessioneScaduta(funzione) {
+    avvisaSessioneScaduta = funzione;
 }
 
 /** Compone una query string, saltando i parametri non valorizzati. */
@@ -69,6 +89,16 @@ function query(parametri) {
 const corpoJson = (metodo, dati) => ({ method: metodo, body: JSON.stringify(dati) });
 
 export const api = {
+    // --- accesso ---
+    // Sono le uniche chiamate che funzionano senza essere entrati. L'elenco vero
+    // — con il motivo di ciascuna — sta nel backend, in `core/accesso.py`.
+    authStato: () => chiama("/auth/stato"),
+    login: (nome, password) => chiama("/auth/login", corpoJson("POST", { nome, password })),
+    logout: () => chiama("/auth/logout", { method: "POST" }),
+    cambiaPassword: (vecchia, nuova) =>
+        chiama("/auth/password", corpoJson("POST", { vecchia, nuova })),
+    consenso: (preferenze) => chiama("/auth/consenso", corpoJson("PUT", { preferenze })),
+
     // --- universo ---
     universo: (filtri) => chiama(`/universe${query(filtri)}`),
     universoStato: () => chiama("/universe/stato"),

@@ -43,6 +43,14 @@ SENZA_GLOSSARIO = {
     "SchedaTitolo.svelte": "la prosa dei dati passa da Valore e da Assente",
     "Watchlist.svelte": "la prosa dei dati passa da Valore, Assente e SchedaTitolo",
     "EtichettaPannello.svelte": "due parole fisse, MENU e INDICATORI: non e' prosa dei dati",
+    "Accesso.svelte": "e' la schermata da cui si entra: due etichette di campo e "
+                      "un messaggio del backend. Chi non e' ancora entrato non ha "
+                      "il glossario caricato, e caricarlo prima dell'accesso "
+                      "vorrebbe dire servire 171 termini a chi non si e' presentato",
+    "Cookie.svelte": "e' l'informativa sui cookie: prosa legale scritta da noi, non "
+                     "dati del mercato. Sottolinearci dentro «volume» o «margine» "
+                     "manderebbe il lettore a una definizione finanziaria mentre "
+                     "sta decidendo sulla privacy",
     "Nota.svelte": "e' una casella di scrittura: dentro a un textarea non si "
                    "sottolinea niente, e il testo lo sta scrivendo l'utente. "
                    "Quando quella nota si LEGGE, nella pagina del titolo, "
