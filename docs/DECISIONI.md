@@ -1937,3 +1937,84 @@ vera, non una svista, e sta nel backlog.
 Resta il fatto che conta: **il sistema adesso sa dire di no a un'idea prima che
 diventi una colonna in pagina**, e lo ha appena fatto con le prime cinque idee
 che gli sono state date — comprese due che sembravano ovvie.
+
+---
+
+## L'universo era un lavoro solo, e le sue colonne invecchiavano a velocita' diverse
+
+*14/09/2026. Nato da una domanda dell'utente — «ma perche' ricostruire ogni
+giorno tutti i dati?» — che si e' rivelata una regola violata, non una
+preferenza.*
+
+La tabella `universe` aveva undici colonne e **un solo `built_at`**. Sette
+cambiano quasi mai — nome, settore, industria, paese, dipendenti, azioni in
+circolazione — e quattro cambiano ogni giorno: ultima chiusura, sua data,
+volume medio, e la capitalizzazione che dipende dal prezzo.
+
+Con una freschezza sola, `sector` e `last_close` ricevevano **lo stesso
+verdetto**. E' la regola 3 al contrario, ed e' la famiglia del difetto che
+mostro' SNDK a 1782 quando valeva 1487.
+
+### Le misure che hanno deciso la forma
+
+Un processo per meta', cache calda, 14/09/2026:
+
+| | download a freddo | tempo | picco di memoria |
+|---|---|---|---|
+| anagrafica — profilo, azioni, calendario, nomi | 95,0 MB | 2,7 s | **238 MB** |
+| mercato — solo prezzi | 444,7 MB | 6,6 s | **3.076 MB** |
+| *insieme, com'era* | *539,7 MB* | *10,6 s* | *3.105 MB* |
+
+**La meta' mercato e' il 99% della memoria e l'82% dello scaricamento.** Si
+pagava tutto ogni volta per rinfrescare quattro colonne su undici.
+
+### Due cose verificate che hanno smentito l'ipotesi di partenza
+
+**Il picco non era il download.** Sembrava che i 3 GB fossero il buffering dello
+scaricamento, e che a cache calda sarebbero spariti. Non e' cosi': a cache
+completamente calda il picco resta **3.105 MB**. Cio' che sparisce e' il tempo —
+da 758 s a 10,6 s, settantacinque volte. **Il tempo e' la rete, la RAM e' la
+query**, e la RAM si paga a ogni ricostruzione per sempre.
+
+**Il filtro sulla data non riduce il download.** Il parquet dei prezzi ha 367
+gruppi di righe e **zero statistiche di colonna**: `stats_min` e `stats_max`
+sono `None` su tutti. Senza statistiche DuckDB non puo' saltare un blocco, e il
+filtro dimezza la CPU lasciando i byte identici. Era un'ipotesi, e' stata
+verificata, ed e' no.
+
+### La forma scelta
+
+`universe_anagrafica` (TTL **14 giorni**) e `universe_mercato` (TTL **1
+giorno**), piu' una **vista** che si chiama `universe` come la tabella di prima:
+i dodici punti che la interrogano non cambiano una riga.
+
+**`market_cap` e' calcolato nella vista, non conservato.** Da quando le due
+meta' si rinfrescano a ritmi diversi, conservarlo vorrebbe dire tenere il
+prodotto di un prezzo di stanotte e di azioni di due settimane fa senza che
+nessuno lo dica. Calcolato non puo' disallinearsi. Si perde l'indice su
+`market_cap`, che su 11.351 righe non serviva.
+
+**L'anagrafica si aggiorna con un UPSERT, non con un DELETE.** La chiave del
+mercato punta all'anagrafica con `ON DELETE CASCADE`: svuotarla avrebbe portato
+via tutti i prezzi ogni due settimane. Un test esiste apposta per impedirlo.
+
+### I due numeri che l'utente ha deciso
+
+**Due settimane e non un mese** per l'anagrafica: l'universo cresce di circa sei
+titoli al giorno, quindi un titolo nuovo resta invisibile per al massimo una
+novantina di simboli di ritardo invece di centottanta.
+
+**Niente titoli fantasma.** I prezzi coprono 12.289 simboli e l'anagrafica
+11.351: si sovrappongono su **11.283**. Le altre **1.006 quotazioni non si
+conservano affatto** — sono titoli quotati di cui Defeatbeta non pubblica il
+profilo, e la loro riga non comparirebbe in nessuna pagina. I **68** titoli con
+anagrafica e senza prezzo restano invece visibili con le caselle vuote.
+
+E il numero da non usare e' la differenza fra i due totali (938): sembra la
+risposta e non lo e', perche' i due insiemi non sono uno dentro l'altro. Ce
+l'avevo scritto nei commenti prima di misurare, ed era sbagliato.
+
+*Verifica dal vivo, sul database ricostruito: anagrafica 11.351 titoli in 4,9 s
+con 248 MB di picco; mercato 11.283 prezzi in 8,4 s con 3.022 MB, 1.006 scartati
+perche' senza anagrafica. La vista restituisce NVDA con `market_cap` 5,27e12
+calcolato e due `built_at` distinti. 431 test verdi.*

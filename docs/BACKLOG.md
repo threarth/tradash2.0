@@ -8,6 +8,20 @@ fra un mese si puo' decidere di buttarla senza doverla ricostruire.
 
 ---
 
+## ~~0. L'universo si ricostruiva tutto insieme~~ — FATTO il 14/09/2026
+
+Spezzato in anagrafica (ogni due settimane) e mercato (ogni giorno), con una
+vista che tiene insieme i due pezzi per chi legge. Chi oggi non deve filtrare
+per capitalizzazione non paga piu' i 3 GB di picco e i 445 MB di scaricamento.
+Il perche' e le misure stanno in `docs/DECISIONI.md`.
+
+**Cosa ha lasciato aperto:** i **68 titoli con anagrafica e senza prezzo** oggi
+si vedono con le caselle vuote, il che e' giusto, ma nessuno dice **quanti
+sono** in pagina. `stato()` ha il numero (`titoli` meno `titoli_con_prezzo`):
+manca solo mostrarlo.
+
+---
+
 ## 1. Il paragone del rigioco non e' investibile
 
 `manage.py criterio` confronta chi il criterio trova con **la mediana di tutto

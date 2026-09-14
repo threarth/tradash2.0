@@ -179,6 +179,15 @@ prima di ogni interrogazione. Zero richieste, riga `cache`.
 `network`; un simbolo inesistente torna `available=False` con motivo e azione
 invece di sollevare; avviare l'applicazione produce zero chiamate.*
 
+**Rivisto il 2026-09-14: l'universo e' DUE lavori, non uno.** Le sue colonne
+invecchiavano a velocita' diverse sotto una freschezza sola, contro la regola 3.
+Adesso `universe_anagrafica` (nome, settore, industria, paese, dipendenti,
+azioni — TTL 14 giorni, 95 MB, 238 MB di picco) e `universe_mercato` (ultima
+chiusura, sua data, volume medio — TTL 1 giorno, 445 MB, 3.076 MB di picco),
+piu' una **vista** `universe` che le unisce e calcola `market_cap`, cosi' i
+dodici lettori non cambiano una riga. Il dettaglio, con le misure e le due
+ipotesi smentite, sta in `docs/DECISIONI.md`.
+
 **Blocco 2 — Universo. FATTO il 2026-08-29, 68 test verdi.** Derivazione da
 `stock_profile` unito a prezzi e azioni in circolazione (settore, industria,
 paese, dimensione, prezzo, volume). Nessun JSON statico: **11.256 titoli**.
