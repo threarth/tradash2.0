@@ -188,6 +188,21 @@ piu' una **vista** `universe` che le unisce e calcola `market_cap`, cosi' i
 dodici lettori non cambiano una riga. Il dettaglio, con le misure e le due
 ipotesi smentite, sta in `docs/DECISIONI.md`.
 
+**Blocco 10 — Accesso e messa online. FATTO il 2026-09-14, 448 test verdi.**
+Un utente in `data/utente.json` (hash scrypt, fuori da git, sopravvive al
+rebuild), cookie di sola sessione `HttpOnly`+`Secure`+`SameSite=Lax`, e una
+guardia che **chiude per percorso e non per elenco**: tutto cio' che sta sotto
+`/api/` risponde 401 tranne tre eccezioni dichiarate col motivo, e un endpoint
+scritto domani nasce chiuso. Piu' il banner del consenso — dove «Rifiuta»
+cancella davvero le quattro preferenze e le rende volatili — il tetto di spesa
+giornaliero in `core/llm.py`, e `docs/DEPLOY.md` per Contabo Cloud VPS 4 con
+Ubuntu 26.04 e nginx.
+
+*Verificato dal vivo col server vero: `POST /api/analisi/tecnica/NVDA` risponde
+401 a chi non e' entrato, il cookie esce senza scadenza e con SameSite=Lax, il
+cambio password fa scadere la sessione in corso, e l'informativa la compone il
+backend invece di essere scritta a mano nella pagina.*
+
 **Blocco 2 — Universo. FATTO il 2026-08-29, 68 test verdi.** Derivazione da
 `stock_profile` unito a prezzi e azioni in circolazione (settore, industria,
 paese, dimensione, prezzo, volume). Nessun JSON statico: **11.256 titoli**.

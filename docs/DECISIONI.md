@@ -2018,3 +2018,87 @@ l'avevo scritto nei commenti prima di misurare, ed era sbagliato.
 con 248 MB di picco; mercato 11.283 prezzi in 8,4 s con 3.022 MB, 1.006 scartati
 perche' senza anagrafica. La vista restituisce NVDA con `market_cap` 5,27e12
 calcolato e due `built_at` distinti. 431 test verdi.*
+
+
+---
+
+## La porta si chiude per percorso, non per elenco
+
+*14/09/2026, Blocco 10. Nato da «voglio mettere tradash2.0 online su un VPS».*
+
+Prima di oggi ogni rotta era aperta. Fra quelle aperte c'era
+`POST /api/analisi/<metodo>/<simbolo>`, che **spende soldi veri** sulle chiavi
+API di chi ospita: chi avesse trovato l'indirizzo IP avrebbe potuto bruciare il
+credito con un ciclo di `curl`. Accanto: la costruzione dell'universo (minuti di
+CPU, centinaia di MB di rete), `DELETE /api/watchlist`, e `PUT
+/api/impostazioni/llm`, che cambia quanto si paga.
+
+### La scelta di disegno
+
+Si poteva tenere un elenco delle rotte da proteggere. **Non si e' fatto**, e il
+motivo si vede il giorno in cui qualcuno aggiunge un endpoint: con l'elenco
+delle protette, quello nasce aperto e nessuno se ne accorge. La guardia rifiuta
+invece **tutto cio' che comincia per `/api/`**, con tre eccezioni dichiarate —
+`stato`, `login`, `logout` — ognuna col suo motivo scritto accanto.
+
+Un test enumera le rotte che l'applicazione registra davvero e pretende che ogni
+rotta sotto `/api/` risponda 401 senza sessione. Aggiungerne una lo fa fallire
+finche' qualcuno non sceglie a voce fra le due cose. E' la stessa forma del
+controllo sul glossario del Blocco 5 — e quel controllo, nello stesso giorno, ha
+fermato due componenti nuovi che non passavano da `Testo`.
+
+### Il cookie, e il numero che lo fa scadere
+
+Di sola sessione (nessun `Max-Age`: muore col browser), `HttpOnly`, `Secure`,
+`SameSite=Lax`. Lax e' la difesa CSRF, e qui conta piu' del solito: le POST di
+questo sistema sono **tutto cio' che spende o cancella**.
+
+Il cookie e' firmato ma stateless, e questo apriva un buco che si vede solo
+pensandoci: senza altro, **cambiare password non avrebbe cacciato fuori
+nessuno** — chi aveva gia' un cookie restava dentro per sempre, che e'
+esattamente cio' che si cambia la password per evitare. Quindi il cookie porta
+un numero di **generazione**, che sale a ogni cambio. Una riga di codice, e il
+gesto smette di essere simbolico.
+
+### Il consenso sta sul server, e il «Rifiuta» rifiuta davvero
+
+I cookie tecnici strettamente necessari **non richiedono consenso** (ePrivacy
+art. 5(3), art. 122 del Codice Privacy, linee guida del Garante del 10/06/2021),
+e qui ce n'e' uno solo. Un «Rifiuta» su quello sarebbe una scelta finta: senza,
+non si entra. Il banner lo dice invece di fingere.
+
+Le quattro preferenze salvate nel browser — tema, glossario, pannelli, sezioni —
+si possono rifiutare per davvero. Prima erano quattro punti nel codice che
+scrivevano ciascuno per conto suo in `localStorage`, con quattro `try/catch`
+uguali e nessun posto da cui spegnerle. Adesso passano tutte da
+`lib/preferenze.js`, e rifiutare **cancella subito** quello che c'era e le fa
+vivere in memoria per la durata della pagina.
+
+**La decisione la ricorda il server**, in `utente.json`. Sembra una pignoleria e
+non lo e': ricordare in `localStorage` che hai rifiutato `localStorage` sarebbe
+la prima cosa che quel rifiuto vieta.
+
+E l'elenco di cosa viene salvato lo **compone il backend**, non la pagina: una
+lista scritta a mano nell'informativa resterebbe indietro alla prima preferenza
+nuova, e un'informativa che dice il falso e' peggio di nessuna.
+
+### Il tetto di spesa
+
+L'accesso tiene fuori gli estranei. Il tetto tiene fuori i nostri errori: un
+ciclo sbagliato o una pagina che ritenta da sola non incontrava nessun limite, e
+il conto si sarebbe scoperto dalla fattura. Dieci dollari al giorno — circa dieci
+analisi qualitative complete, misurate a $0,99 l'una — controllati **prima** di
+costruire il client, cosi' un ciclo impazzito non arriva nemmeno a toccare il
+fornitore. Il dato per calcolarlo c'era gia' in `llm_calls`: non serviva una
+tabella, serviva farsi la domanda.
+
+### Cosa resta aperto, e va saputo
+
+Nessun secondo fattore: un utente, una password. Il freno ai tentativi vive in
+memoria, quindi un riavvio lo azzera. E la password iniziale e' di sei caratteri:
+regge perche' i tentativi sono frenati, non perche' sia robusta.
+
+*Verificato dal vivo col server vero, non con i mock: 401 su `POST
+/api/analisi/tecnica/NVDA`, cookie senza scadenza con `SameSite=Lax`, stesso
+messaggio per nome e password sbagliati, consenso scritto nel file dell'utente,
+e il cambio password che fa scadere la sessione da cui era stato chiesto.*
