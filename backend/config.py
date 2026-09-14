@@ -84,7 +84,21 @@ FRESHNESS_TTL_S: dict[str, int] = {
     "transcripts": 1 * SECONDS_PER_DAY,
     "news": 2 * SECONDS_PER_HOUR,
     "treasury_yield": 12 * SECONDS_PER_HOUR,
-    "universe": 1 * SECONDS_PER_DAY,       # dato globale, non di un titolo
+    # L'universo e' spezzato in due perche' le sue colonne invecchiano a
+    # velocita' diverse, e un TTL unico le avrebbe dichiarate fresche insieme.
+    #
+    # L'anagrafica — nome, settore, industria, paese, dipendenti, azioni in
+    # circolazione — viene da tabelle che cambiano a trimestre o mai: misurata
+    # una mediana di 102 date per titolo dal 1984 sulle azioni in circolazione,
+    # 15 sul calendario degli utili. Due settimane e' una scelta dell'utente
+    # (14/09/2026) fra il costo e il ritardo: l'universo cresce di circa sei
+    # titoli al giorno, quindi un titolo nuovo resta invisibile al massimo per
+    # una novantina di simboli di ritardo.
+    "universe_anagrafica": 14 * SECONDS_PER_DAY,
+    # Il mercato — ultima chiusura, volume medio — cambia ogni giorno, e legge
+    # il parquet dei prezzi: 445 MB e 3.076 MB di picco misurati il 14/09/2026.
+    # E' l'unica meta' che costa, ed e' per questo che si puo' non pagarla.
+    "universe_mercato": 1 * SECONDS_PER_DAY,
     # I fondamentali di tutto l'universo: nuovi solo quando qualcuno deposita un
     # trimestre, quindi un giorno e' gia' stretto. Resta un giorno per coerenza
     # con gli altri bilanci: chi guarda vuole sapere se e' di oggi, non se e' di

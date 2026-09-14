@@ -116,15 +116,39 @@ def stato():
     return ok(universe.stato())
 
 
-@bp.post("/build")
-def costruisci():
-    """Avvia la costruzione e ritorna subito il run_id con cui fermarla."""
+def _avvia(quale: str):
+    """Fa partire una delle due meta' e torna subito il run_id per fermarla.
+
+    Le due rotte sono identiche tranne per il nome della meta': la differenza
+    sta tutta in `data/universe.py`, e qui resta una riga (regola 19).
+    """
     forzato = request.args.get("force", "").strip() == "1"
     try:
-        run_id = universe.build_in_background(force=forzato)
+        run_id = universe.build_in_background(quale, force=forzato)
     except Exception as exc:
         # Il dettaglio resta nel log del server: all'utente arriva il motivo,
         # non l'implementazione (regola 16).
-        logger.exception("[UNIVERSO] avvio della costruzione fallito")
+        logger.exception("[UNIVERSO] avvio della costruzione di %s fallito", quale)
         return fail(f"la costruzione non e' partita: {type(exc).__name__}")
-    return ok({"run_id": run_id, "stop": f"/api/ops/stop/{run_id}"})
+    return ok({"run_id": run_id, "meta": quale, "stop": f"/api/ops/stop/{run_id}"})
+
+
+@bp.post("/anagrafica")
+def costruisci_anagrafica():
+    """Nome, settore, industria, paese, dipendenti, azioni. Ogni due settimane.
+
+    Non legge il parquet dei prezzi: misurata in 2,7 secondi e 238 MB di picco.
+    E' la meta' che si puo' rifare senza pensarci.
+    """
+    return _avvia("anagrafica")
+
+
+@bp.post("/mercato")
+def costruisci_mercato():
+    """Ultima chiusura, sua data e volume medio. Ogni giorno.
+
+    E' la meta' cara: 445 MB da scaricare la prima volta e oltre 3 GB di picco
+    di memoria anche a cache calda. Ha bisogno che l'anagrafica esista, e se
+    non c'e' il lavoro lo dice invece di scrivere zero righe in silenzio.
+    """
+    return _avvia("mercato")

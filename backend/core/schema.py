@@ -58,11 +58,34 @@ def ensure_schema() -> None:
 
 
 def tables() -> list[str]:
-    """Le tabelle esistenti adesso nel database, in ordine alfabetico."""
+    """Le tabelle esistenti adesso nel database, in ordine alfabetico.
+
+    Solo tabelle: le viste stanno in `views()`. Chi conta le righe di ogni
+    tabella non deve ritrovarsi a contare due volte le stesse, una dalla
+    tabella e una dalla vista che ci sta sopra.
+    """
+    return _oggetti_di_tipo("table")
+
+
+def views() -> list[str]:
+    """Le viste esistenti adesso nel database, in ordine alfabetico.
+
+    Esistono da quando `universe` e' diventata l'unione di due tabelle che si
+    rinfrescano a ritmi diversi. Il motivo per cui questa funzione c'e' e' che
+    `rebuild()` cancellava solo cio' che `tables()` elencava: una vista sarebbe
+    rimasta in piedi a puntare tabelle appena distrutte, e il guasto sarebbe
+    comparso alla prima interrogazione invece che qui.
+    """
+    return _oggetti_di_tipo("view")
+
+
+def _oggetti_di_tipo(tipo: str) -> list[str]:
+    """I nomi degli oggetti di un tipo, saltando quelli interni di SQLite."""
     with db_read() as conn:
         righe = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table' "
-            "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            "SELECT name FROM sqlite_master WHERE type = ? "
+            "AND name NOT LIKE 'sqlite_%' ORDER BY name",
+            (tipo,),
         ).fetchall()
     return [r["name"] for r in righe]
 
@@ -77,13 +100,21 @@ def rebuild(confirmed: bool = False) -> list[str]:
     if not confirmed:
         raise ValueError("rebuild() cancella tutti i dati: chiamalo con confirmed=True")
 
+    viste = views()
     da_cancellare = tables()
     with db_session() as conn:
         conn.execute("PRAGMA foreign_keys = OFF")
+        # Prima le viste: una vista che sopravvive alle tabelle su cui poggia
+        # non da' errore adesso, lo da' alla prima lettura — e li' sembra un
+        # guasto dei dati invece che una ricostruzione lasciata a meta'.
+        for vista in viste:
+            conn.execute(f"DROP VIEW IF EXISTS {vista}")
         for tabella in da_cancellare:
             conn.execute(f"DROP TABLE IF EXISTS {tabella}")
         conn.executescript(_schema_sql())
 
-    logger.warning("[SCHEMA] database ricostruito, tabelle cancellate: %s",
-                   ", ".join(da_cancellare) or "nessuna")
+    logger.warning("[SCHEMA] database ricostruito, cancellate %d tabelle (%s) "
+                   "e %d viste (%s)",
+                   len(da_cancellare), ", ".join(da_cancellare) or "nessuna",
+                   len(viste), ", ".join(viste) or "nessuna")
     return da_cancellare

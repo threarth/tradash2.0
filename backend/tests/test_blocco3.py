@@ -35,15 +35,29 @@ def watchlist_pulita():
     yield
 
 
+# `universe` non e' piu' una tabella ma la vista su due, e `market_cap` non si
+# scrive: e' `last_close * shares_outstanding`. Il finto mette il prezzo a 1 e
+# le azioni pari alla capitalizzazione voluta — cosi' il numero che conta resta
+# leggibile nel test, e a calcolarlo e' la vista vera.
+PREZZO_UNITARIO = 1.0
+QUANDO = "2026-08-29T00:00:00+00:00"
+
+
 @pytest.fixture
 def universo_finto():
     """Un universo minimo: senza, nessun simbolo risulta verificabile."""
+    capitalizzazioni = [("AAPL", "Technology", 4.6e12),
+                        ("MU", "Technology", 2.0e11),
+                        ("TSM", "Technology", 1.5e12)]
     with db_session() as conn:
         conn.executemany(
-            "INSERT INTO universe (symbol, sector, market_cap, built_at) VALUES (?, ?, ?, ?)",
-            [("AAPL", "Technology", 4.6e12, "2026-08-29T00:00:00+00:00"),
-             ("MU", "Technology", 2.0e11, "2026-08-29T00:00:00+00:00"),
-             ("TSM", "Technology", 1.5e12, "2026-08-29T00:00:00+00:00")],
+            "INSERT INTO universe_anagrafica "
+            "(symbol, sector, shares_outstanding, built_at) VALUES (?, ?, ?, ?)",
+            [(s, settore, cap, QUANDO) for s, settore, cap in capitalizzazioni],
+        )
+        conn.executemany(
+            "INSERT INTO universe_mercato (symbol, last_close, built_at) VALUES (?, ?, ?)",
+            [(s, PREZZO_UNITARIO, QUANDO) for s, _, _ in capitalizzazioni],
         )
 
 
@@ -674,7 +688,7 @@ def test_la_rotta_del_prompt_accetta_i_simboli_separati_come_capita(client, univ
 def test_la_freschezza_si_chiede_solo_per_i_dati_di_un_titolo(client):
     """«universe mai preso per AVGO» sembra un buco e non lo e': l'universo e'
     un dato globale, e la sua freschezza non riguarda un simbolo."""
-    risposta = client.get("/api/watchlist/da-aggiornare/universe")
+    risposta = client.get("/api/watchlist/da-aggiornare/universe_mercato")
 
     assert risposta.status_code == 400
     assert "dato globale" in risposta.get_json()["error"]

@@ -80,10 +80,30 @@ CREATE TABLE IF NOT EXISTS freshness (
 -- 11.000 righe SQLite risponde in millisecondi mentre la derivazione richiede
 -- di rileggere per intero il parquet dei prezzi.
 --
+-- ## Perche' sono DUE tabelle e non una
+--
+-- Erano una sola, e le sue colonne invecchiavano a velocita' diverse di tre
+-- ordini di grandezza: `sector` cambia quasi mai, `last_close` ogni giorno. Con
+-- un solo `built_at` ricevevano lo stesso verdetto di freschezza — che e'
+-- proprio cio' che la regola 3 vieta, ed e' la famiglia del difetto che mostro'
+-- SNDK a 1782 quando valeva 1487.
+--
+-- Misurato il 14/09/2026, un processo per meta', a cache calda:
+--
+--   anagrafica (profilo, azioni, calendario, nomi)    95 MB     2,7 s    238 MB
+--   mercato    (solo il parquet dei prezzi)          445 MB     6,6 s  3.076 MB
+--
+-- La meta' mercato e' il 99% della memoria e l'82% dello scaricamento. Tenerle
+-- insieme voleva dire pagare tutto ogni volta per rinfrescare quattro colonne
+-- su undici.
+--
 -- I campi che possono mancare restano NULL e si contano: un titolo senza
 -- prezzo entra ugualmente nell'universo, e quanti ne siano si dichiara
 -- (regola 5), invece di far sparire le righe scomode.
-CREATE TABLE IF NOT EXISTS universe (
+
+-- Le sette colonne che cambiano di rado. Si ricostruisce ogni due settimane e
+-- non tocca il parquet dei prezzi.
+CREATE TABLE IF NOT EXISTS universe_anagrafica (
     symbol             TEXT NOT NULL PRIMARY KEY,
     -- Il nome della societa'. Il vecchio tradash lo dava per irrecuperabile da
     -- Defeatbeta, e aveva guardato solo `stock_profile`, che infatti non ce
@@ -101,19 +121,68 @@ CREATE TABLE IF NOT EXISTS universe (
     -- Le azioni in circolazione si conservano invece di essere consumate nel
     -- prodotto: sono la ragione per cui una capitalizzazione manca. Senza di
     -- loro `market_cap` non e' "assente", e' NON DERIVABILE — e sono due cose
-    -- diverse da dire a chi guarda.
+    -- diverse da dire a chi guarda. Stanno qui e non fra i dati di mercato
+    -- perche' cambiano a trimestre: misurata una mediana di 102 date per
+    -- titolo dal 1984.
     shares_outstanding REAL     CHECK (shares_outstanding IS NULL OR shares_outstanding >= 0),
-    market_cap         REAL     CHECK (market_cap IS NULL OR market_cap >= 0),
+    built_at           TEXT NOT NULL
+) STRICT;
+
+-- Le quattro colonne che cambiano ogni giorno. Legge SOLO il parquet dei
+-- prezzi, ed e' l'unica meta' che costa.
+--
+-- Contiene esclusivamente i simboli che stanno gia' in `universe_anagrafica`.
+-- Misurato il 14/09/2026 sulla ricostruzione vera: i prezzi coprono 12.289
+-- simboli, l'anagrafica 11.351, e i due insiemi si sovrappongono su 11.283.
+-- Quindi 1.006 quotazioni restano fuori — titoli che Defeatbeta quota ma di cui
+-- non pubblica il profilo — e 68 titoli hanno anagrafica e nessun prezzo: quelli
+-- restano visibili con le caselle vuote, che e' la regola 5.
+--
+-- Il numero da NON usare e' la differenza fra i due totali (938): sembra la
+-- risposta e non lo e', perche' i due insiemi non sono uno dentro l'altro.
+CREATE TABLE IF NOT EXISTS universe_mercato (
+    symbol             TEXT NOT NULL PRIMARY KEY
+                       REFERENCES universe_anagrafica (symbol) ON DELETE CASCADE,
     last_close         REAL     CHECK (last_close IS NULL OR last_close >= 0),
     last_close_date    TEXT,
     avg_volume_30d     REAL     CHECK (avg_volume_30d IS NULL OR avg_volume_30d >= 0),
     built_at           TEXT NOT NULL
 ) STRICT;
 
-CREATE INDEX IF NOT EXISTS idx_universe_name       ON universe (name);
-CREATE INDEX IF NOT EXISTS idx_universe_sector     ON universe (sector);
-CREATE INDEX IF NOT EXISTS idx_universe_industry   ON universe (industry);
-CREATE INDEX IF NOT EXISTS idx_universe_market_cap ON universe (market_cap DESC);
+-- L'universo come lo legge il resto del sistema. Si chiama `universe` perche'
+-- e' cosi' che lo chiamano i dodici punti che lo interrogano: spezzare la
+-- tabella non deve obbligarli a cambiare una riga.
+--
+-- `market_cap` e' CALCOLATO qui, non conservato. Prima era scritto al momento
+-- della costruzione, quindi era il prodotto di un prezzo e di un numero di
+-- azioni presi nello stesso istante; da quando le due meta' si rinfrescano a
+-- ritmi diversi, conservarlo vorrebbe dire tenere il prodotto di due numeri di
+-- epoche diverse senza che nessuno lo dica. Calcolato non puo' disallinearsi.
+--
+-- La LEFT JOIN e' voluta: un titolo con anagrafica e senza prezzo resta
+-- visibile con le caselle vuote (regola 5).
+CREATE VIEW IF NOT EXISTS universe AS
+SELECT a.symbol,
+       a.name,
+       a.sector,
+       a.industry,
+       a.company_country,
+       a.employees,
+       a.shares_outstanding,
+       m.last_close * a.shares_outstanding AS market_cap,
+       m.last_close,
+       m.last_close_date,
+       m.avg_volume_30d,
+       a.built_at AS anagrafica_built_at,
+       m.built_at AS mercato_built_at
+FROM universe_anagrafica a
+LEFT JOIN universe_mercato m ON a.symbol = m.symbol;
+
+CREATE INDEX IF NOT EXISTS idx_universe_name     ON universe_anagrafica (name);
+CREATE INDEX IF NOT EXISTS idx_universe_sector   ON universe_anagrafica (sector);
+CREATE INDEX IF NOT EXISTS idx_universe_industry ON universe_anagrafica (industry);
+-- Nessun indice su `market_cap`: adesso e' un'espressione, e non si indicizza.
+-- Su 11.351 righe l'ordinamento costa microsecondi, ed era l'unico uso.
 
 -- ---------------------------------------------------------------------------
 -- WATCHLIST E TAG — copia di lavoro, non originale

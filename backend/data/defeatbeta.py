@@ -88,8 +88,14 @@ CATEGORIA_PER_TABELLA = {
 }
 
 # La derivazione dell'universo non e' la lettura di una tabella: e' una query
-# sola che ne unisce quattro, e non appartiene a nessun titolo.
-CATEGORY_UNIVERSE = "universe"
+# che ne unisce piu' d'una, e non appartiene a nessun titolo.
+#
+# Sono DUE, e non una, perche' le colonne che producono invecchiano a ritmi
+# diversi: l'anagrafica non tocca il parquet dei prezzi e costa 95 MB, il
+# mercato lo legge tutto e costa 445 MB e 3 GB di picco. Chiederle insieme
+# significava pagare la seconda anche quando serviva solo la prima.
+CATEGORY_ANAGRAFICA = "universe_anagrafica"
+CATEGORY_MERCATO = "universe_mercato"
 CATEGORY_FONDAMENTALI = "universe_fondamentali"
 CATEGORY_PREZZI_MENSILI = "universe_prezzi_mensili"
 CATEGORY_METRICHE = "metriche"
@@ -97,7 +103,8 @@ CATEGORY_METRICHE = "metriche"
 # Il DCF: non e' una tabella del dataset ma un calcolo della libreria sopra i
 # bilanci, i prezzi e i rendimenti del Tesoro. Cambia quando cambiano quelli.
 CATEGORY_DCF = "dcf"
-ENDPOINT_UNIVERSE = "universo:derivazione"
+ENDPOINT_ANAGRAFICA = "universo:anagrafica"
+ENDPOINT_MERCATO = "universo:mercato"
 ENDPOINT_FONDAMENTALI = "universo:fondamentali"
 ENDPOINT_PREZZI_MENSILI = "universo:prezzi_mensili"
 
@@ -723,44 +730,31 @@ def dcf(simbolo: str, run_id: str | None = None) -> Dato:
 
 # --- l'universo: una query sola che ne unisce quattro ----------------------
 
-def _prepara_universo() -> str:
-    """Compone la derivazione dell'universo. Nessun parametro: riguarda tutti.
+def _prepara_anagrafica() -> str:
+    """Compone la derivazione dell'ANAGRAFICA. Nessun parametro: riguarda tutti.
 
-    Quattro tabelle in una query sola perche' il pezzo caro e' leggere il
-    parquet dei prezzi (443 MB): farlo una volta e portarsi via ultimo prezzo e
-    volume medio insieme costa meno che passarci due volte.
+    Le sette colonne che cambiano di rado, da quattro tabelle che pesano 95 MB
+    in tutto. **Non tocca il parquet dei prezzi**, ed e' l'intero motivo per cui
+    questa query esiste separata: misurata il 14/09/2026 costa 2,7 s e 238 MB di
+    picco, contro i 3.076 MB della meta' che i prezzi li legge.
 
-    Il JOIN parte dal profilo ed e' un LEFT: chi non ha prezzo entra lo stesso,
-    con la casella vuota, e quante siano si dichiara (regola 5). Il contrario —
-    tenere solo chi ha tutto — farebbe sparire in silenzio 2.636 titoli senza
-    capitalizzazione.
+    Il JOIN parte dal profilo: e' lui a definire chi fa parte dell'universo.
+    Undicimilatrecentocinquantuno righe, una per titolo.
+
+    ATTENZIONE alla colonna `country`: e' il paese della SOCIETA', non della
+    borsa. BABA risulta 'China' e SHOP 'Canada' pur essendo quotate negli USA,
+    e 635 titoli non ce l'hanno affatto. Filtrare l'universo su
+    `country = 'United States'` butterebbe via 3.783 titoli quotati negli USA:
+    il perimetro "solo mercato USA" e' gia' garantito dal dataset, che contiene
+    solo listini americani.
     """
     _ensure_client()
     profilo = _table_uri(TABLE_PROFILE)
-    prezzi = _table_uri(TABLE_PRICES)
     azioni = _table_uri(TABLE_SHARES)
     calendario = _table_uri(TABLE_EARNING_CALENDAR)
     depositi = _table_uri(TABLE_SEC_FILING)
     return f"""
-        WITH prezzi AS (
-            SELECT symbol,
-                   CAST(report_date AS DATE) AS giorno,
-                   close, volume,
-                   ROW_NUMBER() OVER (
-                       PARTITION BY symbol ORDER BY CAST(report_date AS DATE) DESC
-                   ) AS posizione
-            FROM '{prezzi}'
-        ),
-        ultimo_prezzo AS (
-            SELECT symbol, close AS last_close, giorno AS last_close_date
-            FROM prezzi WHERE posizione = 1
-        ),
-        volume_medio AS (
-            SELECT symbol, AVG(volume) AS avg_volume_30d
-            FROM prezzi WHERE posizione <= {config.UNIVERSE_AVG_VOLUME_SESSIONS}
-            GROUP BY symbol
-        ),
-        azioni_recenti AS (
+        WITH azioni_recenti AS (
             SELECT symbol, shares_outstanding,
                    ROW_NUMBER() OVER (
                        PARTITION BY symbol ORDER BY CAST(report_date AS DATE) DESC
@@ -790,39 +784,91 @@ def _prepara_universo() -> str:
                -- Nome esplicito: e' il paese della societa', non della borsa.
                p.country AS company_country,
                p.full_time_employees AS employees,
-               u.last_close,
-               CAST(u.last_close_date AS VARCHAR) AS last_close_date,
-               v.avg_volume_30d,
-               a.shares_outstanding,
-               u.last_close * a.shares_outstanding AS market_cap
+               a.shares_outstanding
         FROM '{profilo}' p
-        LEFT JOIN ultimo_prezzo  u ON p.symbol = u.symbol
-        LEFT JOIN volume_medio   v ON p.symbol = v.symbol
-        LEFT JOIN ultime_azioni  a ON p.symbol = a.symbol
+        LEFT JOIN ultime_azioni   a  ON p.symbol = a.symbol
         LEFT JOIN nome_calendario nc ON p.symbol = nc.symbol
         LEFT JOIN nome_deposito   nd ON p.symbol = nd.symbol
     """
 
 
-def universe(run_id: str | None = None) -> Lettura:
-    """L'universo derivato: un titolo per riga, con quanto serve a filtrarlo.
+def _prepara_mercato() -> str:
+    """Compone la derivazione dei DATI DI MERCATO. Nessun parametro: riguarda tutti.
 
-    Misurato il 29/08/2026: 11.256 titoli. La prima volta costa 214 s e circa
-    443 MB — l'intero parquet dei prezzi finisce nella cache; dopo, a cache
-    calda, 7,85 s. E' un lavoro lungo: chi lo chiama deve aprirlo con
-    `registry.job` e poterlo fermare con `interrupt()`.
+    Le quattro colonne che cambiano ogni giorno, da un parquet solo — che pero'
+    e' quello grosso: 445 MB e 36,7 milioni di righe. Il costo dell'universo sta
+    qui dentro quasi per intero, ed e' misurato: 6,6 s e 3.076 MB di picco a
+    cache calda, contro i 238 MB dell'anagrafica.
 
-    ATTENZIONE alla colonna `country`: e' il paese della SOCIETA', non della
-    borsa. BABA risulta 'China' e SHOP 'Canada' pur essendo quotate negli USA,
-    e 635 titoli non ce l'hanno affatto. Filtrare l'universo su
-    `country = 'United States'` butterebbe via 3.783 titoli quotati negli USA:
-    il perimetro "solo mercato USA" e' gia' garantito dal dataset, che contiene
-    solo listini americani.
+    Ultimo prezzo e volume medio si portano via in una passata sola: il pezzo
+    caro e' attraversare il parquet, e farlo due volte costerebbe il doppio.
+
+    Il volume si media su SEDUTE e non su giorni di calendario: un titolo poco
+    liquido puo' non scambiare per settimane, e "ultimi 30 giorni" gli darebbe
+    una media costruita su tre scambi.
+
+    Restituisce 12.289 simboli, piu' dei 11.351 del profilo: chi scrive filtra
+    su chi esiste in anagrafica, perche' un titolo senza anagrafica non compare
+    da nessuna parte e conservarne il prezzo sarebbe conservare una riga cieca.
+    """
+    _ensure_client()
+    prezzi = _table_uri(TABLE_PRICES)
+    return f"""
+        WITH prezzi AS (
+            SELECT symbol,
+                   CAST(report_date AS DATE) AS giorno,
+                   close, volume,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY symbol ORDER BY CAST(report_date AS DATE) DESC
+                   ) AS posizione
+            FROM '{prezzi}'
+        ),
+        ultimo_prezzo AS (
+            SELECT symbol, close AS last_close, giorno AS last_close_date
+            FROM prezzi WHERE posizione = 1
+        ),
+        volume_medio AS (
+            SELECT symbol, AVG(volume) AS avg_volume_30d
+            FROM prezzi WHERE posizione <= {config.UNIVERSE_AVG_VOLUME_SESSIONS}
+            GROUP BY symbol
+        )
+        SELECT u.symbol,
+               u.last_close,
+               CAST(u.last_close_date AS VARCHAR) AS last_close_date,
+               v.avg_volume_30d
+        FROM ultimo_prezzo u
+        LEFT JOIN volume_medio v ON u.symbol = v.symbol
+    """
+
+
+def anagrafica_universo(run_id: str | None = None) -> Lettura:
+    """Nome, settore, industria, paese, dipendenti e azioni di ogni titolo.
+
+    La meta' che si rinfresca ogni due settimane. E' un lavoro lungo ma non
+    pesante: chi lo chiama lo apre comunque con `registry.job`, perche' anche
+    due secondi devono essere visibili e fermabili (regola 1).
     """
     frame, provenienza = _leggi_tracciata(
-        ENDPOINT_UNIVERSE, CATEGORY_UNIVERSE, GLOBAL_SCOPE, _prepara_universo(), [], run_id
+        ENDPOINT_ANAGRAFICA, CATEGORY_ANAGRAFICA, GLOBAL_SCOPE,
+        _prepara_anagrafica(), [], run_id
     )
-    return _esito(frame, GLOBAL_SCOPE, CATEGORY_UNIVERSE, provenienza)
+    return _esito(frame, GLOBAL_SCOPE, CATEGORY_ANAGRAFICA, provenienza)
+
+
+def mercato_universo(run_id: str | None = None) -> Lettura:
+    """Ultima chiusura, sua data e volume medio di ogni titolo.
+
+    La meta' che si rinfresca ogni giorno, e l'unica che costa davvero: la
+    prima volta scarica 445 MB, e il picco di memoria resta sopra i 3 GB anche
+    a cache calda, perche' la finestra ordinata su 36,7 milioni di righe la
+    memoria la vuole comunque. Va aperta con `registry.job` e fermata con
+    `interrupt()`.
+    """
+    frame, provenienza = _leggi_tracciata(
+        ENDPOINT_MERCATO, CATEGORY_MERCATO, GLOBAL_SCOPE,
+        _prepara_mercato(), [], run_id
+    )
+    return _esito(frame, GLOBAL_SCOPE, CATEGORY_MERCATO, provenienza)
 
 
 def _prepara_fondamentali() -> str:

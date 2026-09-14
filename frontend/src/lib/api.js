@@ -77,8 +77,13 @@ export const api = {
     fondamentaliDeriva: () => chiama("/universe/fondamentali", { method: "POST" }),
     storicoStato: () => chiama("/universe/storico"),
     storicoDeriva: () => chiama("/universe/storico", { method: "POST" }),
-    universoCostruisci: (forzato) => chiama(`/universe/build${query({ force: forzato ? 1 : "" })}`,
-        { method: "POST" }),
+    // Due meta', due chiamate: l'anagrafica non tocca il parquet dei prezzi e
+    // costa 2,7 s, il mercato ne scarica 445 MB. Unirle in un pulsante solo
+    // vorrebbe dire pagare sempre la seconda.
+    universoAnagrafica: (forzato) =>
+        chiama(`/universe/anagrafica${query({ force: forzato ? 1 : "" })}`, { method: "POST" }),
+    universoMercato: (forzato) =>
+        chiama(`/universe/mercato${query({ force: forzato ? 1 : "" })}`, { method: "POST" }),
 
     // --- watchlist ---
     watchlist: (filtri) => chiama(`/watchlist${query(filtri)}`),

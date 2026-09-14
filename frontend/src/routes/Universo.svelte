@@ -39,10 +39,24 @@
         storico.ricarica();
     });
 
-    async function costruisci() {
+    /** Nome, settore, industria, paese, dipendenti, azioni in circolazione.
+        Non legge il parquet dei prezzi: 2,7 secondi e 238 MB di picco. */
+    async function costruisciAnagrafica() {
         avvio = null;
         try {
-            avvio = await api.universoCostruisci(true);
+            avvio = await api.universoAnagrafica(true);
+            naviga("/operazioni");
+        } catch (problema) {
+            avvio = { errore: problema.message };
+        }
+    }
+
+    /** Ultima chiusura, sua data, volume medio. E' la meta' cara: 445 MB da
+        scaricare la prima volta e oltre 3 GB di picco anche a cache calda. */
+    async function costruisciMercato() {
+        avvio = null;
+        try {
+            avvio = await api.universoMercato(true);
             naviga("/operazioni");
         } catch (problema) {
             avvio = { errore: problema.message };
@@ -82,9 +96,10 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">Universo</h1>
     <div class="d-flex gap-2">
-        <!-- Due derivazioni, due pulsanti: la prima porta anagrafica e prezzi,
-             la seconda i bilanci. Sono letture diverse e costano diverso, e
-             unirle in un pulsante solo vorrebbe dire pagarle sempre entrambe. -->
+        <!-- Quattro derivazioni, quattro pulsanti. Costano cose diverse e
+             invecchiano a ritmi diversi: l'anagrafica ogni due settimane e
+             quasi gratis, i prezzi ogni giorno e 445 MB. Unirle vorrebbe dire
+             pagarle sempre tutte. -->
         <button class="btn btn-sm btn-outline-primary" onclick={derivaFondamentali}>
             <i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i>
             Deriva i bilanci
@@ -93,8 +108,11 @@
             <i class="bi bi-clock-history" aria-hidden="true"></i>
             Deriva lo storico
         </button>
-        <button class="btn btn-sm btn-primary" onclick={costruisci}>
-            <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Ricostruisci
+        <button class="btn btn-sm btn-outline-primary" onclick={costruisciAnagrafica}>
+            <i class="bi bi-card-list" aria-hidden="true"></i> Anagrafica
+        </button>
+        <button class="btn btn-sm btn-primary" onclick={costruisciMercato}>
+            <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Prezzi
         </button>
     </div>
 </div>
@@ -161,10 +179,31 @@
                         <div class="fs-4 numerico">{dati.titoli.toLocaleString("it")}</div>
                     </div></div>
                 </div>
+                <!-- Due eta' e non una: l'anagrafica puo' essere a posto mentre
+                     i prezzi sono di ieri, ed e' il caso normale. Mostrarne una
+                     sola vorrebbe dire dare a entrambe il verdetto della piu'
+                     recente (regola 3). -->
                 <div class="col-6 col-lg-3">
                     <div class="card h-100"><div class="card-body">
-                        <div class="text-secondary small">Costruito il</div>
-                        <div class="small mt-1">{dati.costruito_il}</div>
+                        <div class="text-secondary small">Anagrafica</div>
+                        <div class="small mt-1">{dati.anagrafica.costruita_il}</div>
+                        {#if dati.anagrafica.da_ricostruire}
+                            <div class="small text-warning">{dati.anagrafica.reason}</div>
+                        {/if}
+                    </div></div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card h-100"><div class="card-body">
+                        <div class="text-secondary small">Prezzi</div>
+                        <div class="small mt-1">
+                            {dati.mercato.costruita_il ?? "mai costruiti"}
+                        </div>
+                        <div class="small text-secondary numerico">
+                            {dati.titoli_con_prezzo.toLocaleString("it")} titoli
+                        </div>
+                        {#if dati.mercato.da_ricostruire}
+                            <div class="small text-warning">{dati.mercato.reason}</div>
+                        {/if}
                     </div></div>
                 </div>
                 <div class="col-6 col-lg-3">

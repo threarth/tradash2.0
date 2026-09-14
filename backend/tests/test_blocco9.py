@@ -88,15 +88,27 @@ def test_i_criteri_si_sommano_e_bastano_a_escludere():
 
 # --- la scansione, come lavoro ---------------------------------------------
 
+# Come in test_blocco3: `market_cap` e' calcolato dalla vista, quindi il finto
+# mette il prezzo a 1 e le azioni pari alla capitalizzazione voluta.
+PREZZO_UNITARIO = 1.0
+QUANDO_UNIVERSO = "2026-08-30T00:00:00+00:00"
+
+
 @pytest.fixture
 def universo_finto():
+    titoli = [("AAA", "Technology", 3e11, 5e6),
+              ("BBB", "Technology", 2e11, 5e6),
+              ("CCC", "Energy", 1e11, 5e6)]
     with db_session() as conn:
         conn.executemany(
-            "INSERT INTO universe (symbol, sector, market_cap, avg_volume_30d, built_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            [("AAA", "Technology", 3e11, 5e6, "2026-08-30T00:00:00+00:00"),
-             ("BBB", "Technology", 2e11, 5e6, "2026-08-30T00:00:00+00:00"),
-             ("CCC", "Energy", 1e11, 5e6, "2026-08-30T00:00:00+00:00")],
+            "INSERT INTO universe_anagrafica "
+            "(symbol, sector, shares_outstanding, built_at) VALUES (?, ?, ?, ?)",
+            [(s, settore, cap, QUANDO_UNIVERSO) for s, settore, cap, _ in titoli],
+        )
+        conn.executemany(
+            "INSERT INTO universe_mercato "
+            "(symbol, last_close, avg_volume_30d, built_at) VALUES (?, ?, ?, ?)",
+            [(s, PREZZO_UNITARIO, volume, QUANDO_UNIVERSO) for s, _, _, volume in titoli],
         )
 
 
