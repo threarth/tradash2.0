@@ -34,6 +34,11 @@
         // I tre di bilancio. Prima lo scanner sapeva solo com'e' andato il
         // prezzo: questi chiedono a undicimila titoli la stessa cosa che il
         // rilevatore spin-off chiede ai suoi ventisette.
+        // I ricavi anno su anno mancavano in pagina pur esistendo nel backend:
+        // si poteva premere solo quello trimestrale, che il rigioco misura
+        // perdente a tutti e tre gli orizzonti, e non quello annuale, che vince.
+        { chiave: "ricavi_yoy_minimo", etichetta: "Ricavi in crescita sull'anno almeno del",
+          suffisso: "%", scala: 100 },
         { chiave: "ricavi_qoq_minimo", etichetta: "Ricavi in crescita sul trimestre almeno del",
           suffisso: "%", scala: 100 },
         { chiave: "margine_crescita_minima", etichetta: "Margine lordo in crescita almeno di",
@@ -53,10 +58,36 @@
 
     let battito = null;
 
-    onMount(() => () => {
-        clearInterval(battito);
-        clearInterval(battitoRigioco);
+    // I preset arrivano dal backend col loro verdetto misurato. Scriverli qui
+    // vorrebbe dire un verdetto che invecchia da solo il giorno in cui il
+    // rigioco viene rifatto.
+    let preset = $state([]);
+    let presetScelto = $state(null);
+
+    onMount(() => {
+        // Una lettura sola, da un elenco che sta in memoria nel backend: non e'
+        // lavoro pesante e serve a disegnare il modulo (regola 2 resta salva).
+        api.scannerCriteri()
+            .then((dati) => (preset = dati.preset ?? []))
+            .catch(() => (preset = []));
+
+        return () => {
+            clearInterval(battito);
+            clearInterval(battitoRigioco);
+        };
     });
+
+    /** Riempie il modulo con un preset. Non cerca da solo: la ricerca la premi tu. */
+    function applica(scelto) {
+        presetScelto = scelto;
+        const nuovi = {};
+        for (const criterio of CRITERI) {
+            const frazione = scelto.criteri[criterio.chiave];
+            if (frazione !== undefined) nuovi[criterio.chiave] = frazione * criterio.scala;
+        }
+        valori = nuovi;
+        rigioco = null;
+    }
 
     /** I criteri valorizzati, riportati alla scala del backend (le % in frazioni). */
     function criteriScelti() {
@@ -157,6 +188,50 @@
 <!-- Sta qui e non in una pagina sua: e' un elenco da cui si parte per cercare,
      ed e' questa la pagina in cui si cerca. -->
 <Spinoff />
+
+<!-- I preset: combinazioni a cui e' GIA' stata fatta la domanda «ha mai
+     funzionato?». Ognuno porta il proprio verdetto, compresi i due che
+     perdono — che restano in elenco proprio per questo: un'idea scartata che
+     non sta scritta da qualche parte torna da sola fra sei mesi. -->
+{#if preset.length}
+    <div class="card mb-3">
+        <div class="card-body">
+            <h2 class="h6">Da dove partire</h2>
+            <p class="small text-secondary mb-2">
+                <Testo testo="Combinazioni gia' rigiocate sul 2019-2026. Il verdetto e' misurato, non consigliato: due di queste perdono, e sono in elenco per non doverle riscoprire." />
+            </p>
+
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                {#each preset as scelto (scelto.nome)}
+                    <button class="btn btn-sm {scelto.vince
+                                ? 'btn-outline-success' : 'btn-outline-secondary'}"
+                            class:active={presetScelto?.nome === scelto.nome}
+                            onclick={() => applica(scelto)}>
+                        <i class="bi {scelto.vince ? 'bi-check2' : 'bi-x'}"
+                           aria-hidden="true"></i>
+                        {scelto.etichetta}
+                    </button>
+                {/each}
+            </div>
+
+            {#if presetScelto}
+                <div class="border rounded p-3 small">
+                    <div class="mb-1"><Testo testo={presetScelto.idea} /></div>
+                    <div class:text-success={presetScelto.vince}
+                         class:text-warning={!presetScelto.vince}>
+                        <strong>{presetScelto.verdetto}</strong>
+                        <span class="text-secondary numerico">
+                            · {presetScelto.mesi_giudicabili} mesi giudicabili a sei
+                        </span>
+                    </div>
+                    <div class="text-secondary mt-1">
+                        <Testo testo={presetScelto.cautela} />
+                    </div>
+                </div>
+            {/if}
+        </div>
+    </div>
+{/if}
 
 <div class="card mb-3">
     <div class="card-body">
