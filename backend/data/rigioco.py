@@ -19,8 +19,29 @@ criterio che trova titoli col +12% in sei mesi sembra bravo, finche' non si
 scopre che in quei sei mesi tutto il mercato ha fatto +15%.
 
 Qui ogni mese porta due numeri: la mediana di chi il criterio ha trovato, e la
-mediana di tutti i titoli che a quella data avevano un prezzo. La differenza fra
-i due e' l'unica misura onesta di cosa aggiunge il criterio.
+mediana di tutti gli altri. La differenza e' l'unica misura onesta di cosa
+aggiunge il criterio.
+
+## Il paragone e' INVESTIBILE, ed e' costato una colonna in piu'
+
+Prima il paragone era «tutti i titoli che a quella data avevano un prezzo»:
+dentro c'erano migliaia di societa' minuscole e poco scambiate su cui nessuno
+comprerebbe, e un criterio che le evitava risultava perdente anche quando stava
+solo evitando il fondo del barile. Tutte le misure fatte prima del 15/09/2026
+poggiavano su quel paragone.
+
+Adesso entrambe le popolazioni si filtrano per capitalizzazione e controvalore
+scambiato — soglie in `config.py`, dichiarate nel resoconto — e si filtrano
+**coi valori di quel mese**. Usare la capitalizzazione di oggi sarebbe stato
+peggio del difetto che correggeva: le societa' grandi oggi sono i sopravvissuti
+e i vincitori, quindi il metro del 2019 sarebbe stato costruito con la risposta
+del 2026.
+
+## Tre orizzonti, non uno
+
+Sei mesi soli non distinguono un criterio LENTO da uno SBAGLIATO. A tre, sei e
+dodici mesi la differenza si vede: chi perde a tre e vince a dodici sta
+anticipando troppo, chi perde a tutti e tre sta solo sbagliando.
 
 ## Cosa NON e'
 
@@ -38,6 +59,7 @@ import queue
 import threading
 from datetime import date
 
+import config
 from core import registry
 from core.db import db_read
 from data import fondamentali
@@ -45,7 +67,9 @@ from domain import publication_dates, scansione
 
 logger = logging.getLogger(__name__)
 
-# Su quanti mesi si misura il rendimento successivo.
+# Gli orizzonti su cui si misura il rendimento successivo, e quello che resta
+# il predefinito quando qualcuno ne chiede uno solo.
+ORIZZONTI_MESI = config.RIGIOCO_ORIZZONTI_MESI
 ORIZZONTE_MESI = 6
 
 # Quanti titoli deve trovare un mese perche' la sua mediana significhi qualcosa.
@@ -107,86 +131,146 @@ def _bilanci_di_tutti() -> dict[str, tuple[dict, dict]]:
     return per_simbolo
 
 
-def _rendimento(chiusure: dict[str, float], mese: str, orizzonte: int) -> float | None:
+def _rendimento(mercato: dict, mese: str, orizzonte: int) -> float | None:
     """Quanto ha reso dal fine mese a `orizzonte` mesi dopo. `None` se manca un capo."""
-    adesso = chiusure.get(mese)
-    dopo = chiusure.get(_mese_piu(mese, orizzonte))
+    adesso = (mercato.get(mese) or {}).get("chiusura")
+    dopo = (mercato.get(_mese_piu(mese, orizzonte)) or {}).get("chiusura")
     if not adesso or not dopo:
         return None
     return dopo / adesso - 1
 
 
-def rigioca(criteri: dict, orizzonte: int = ORIZZONTE_MESI) -> dict:
+def _investibile(riga: dict | None) -> bool:
+    """Quel titolo, QUEL mese, era abbastanza grande e abbastanza scambiato?
+
+    Un dato che manca non passa, come ovunque: una capitalizzazione non
+    derivabile — mancano le azioni — non e' una capitalizzazione piccola, ma
+    nemmeno una che si possa dichiarare sopra la soglia.
+    """
+    if not riga:
+        return False
+    cap = riga.get("capitalizzazione")
+    volume = riga.get("volume_medio")
+    chiusura = riga.get("chiusura")
+    if cap is None or volume is None or chiusura is None:
+        return False
+    return (cap >= config.RIGIOCO_CAP_MINIMA_USD
+            and chiusura * volume >= config.RIGIOCO_SCAMBIATO_MINIMO_USD)
+
+
+def soglie() -> dict:
+    """Le soglie del paragone, per dichiararle nel resoconto invece di nasconderle."""
+    return {
+        "capitalizzazione_minima": config.RIGIOCO_CAP_MINIMA_USD,
+        "scambiato_minimo_al_giorno": config.RIGIOCO_SCAMBIATO_MINIMO_USD,
+        "nota": ("misurate sui valori DI QUEL MESE, non di oggi: filtrare il "
+                 "passato con la capitalizzazione di adesso selezionerebbe i "
+                 "sopravvissuti"),
+    }
+
+
+def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
+                 orizzonti: tuple[int, ...]) -> dict:
+    """Un mese: chi era investibile, chi il criterio trovava, e come sono andati.
+
+    I rendimenti si raccolgono per tutti gli orizzonti nella stessa passata: i
+    titoli sono gli stessi e la scansione dei criteri e' la parte cara.
+    """
+    quando = _fine_mese(mese)
+    trovati = {o: [] for o in orizzonti}
+    resto = {o: [] for o in orizzonti}
+    investibili = 0
+
+    for simbolo, mesi in mercato.items():
+        if not _investibile(mesi.get(mese)):
+            continue
+        investibili += 1
+        rese = {o: _rendimento(mesi, mese, o) for o in orizzonti}
+
+        dove = resto
+        voci, depositi = bilanci.get(simbolo, ({}, {}))
+        if voci:
+            periodi = sorted(voci.get("total_revenue", {}))
+            pubblici = [p for p in periodi
+                        if publication_dates.was_public(depositi, p, quando)]
+            misurato = {"fondamentali": scansione.fondamentali(voci, pubblici)}
+            if scansione.valuta(misurato, criteri)[0]:
+                dove = trovati
+
+        for orizzonte, resa in rese.items():
+            if resa is not None:
+                dove[orizzonte].append(resa)
+
+    return {
+        "mese": mese,
+        "investibili": investibili,
+        "trovati": max((len(v) for v in trovati.values()), default=0),
+        "orizzonti": {
+            str(o): {
+                "trovati": len(trovati[o]),
+                "resto": len(resto[o]),
+                "mediana_trovati": _mediana(trovati[o]),
+                "mediana_resto": _mediana(resto[o]),
+            }
+            for o in orizzonti
+        },
+    }
+
+
+def rigioca(criteri: dict, orizzonti: tuple[int, ...] | None = None) -> dict:
     """Rigioca un insieme di criteri su tutti i mesi che i dati coprono.
 
-    Ritorna, per ogni mese: quanti titoli il criterio avrebbe trovato, come sono
-    andati, e come e' andato **tutto il resto** nello stesso periodo.
+    Ritorna, per ogni mese e per ogni orizzonte: quanti titoli il criterio
+    avrebbe trovato fra quelli investibili, come sono andati, e come e' andato
+    **il resto degli investibili** nello stesso periodo.
     """
     sconosciuti = sorted(set(criteri) - set(scansione.CRITERI))
     if sconosciuti:
         raise ValueError(f"criteri sconosciuti: {', '.join(sconosciuti)}")
 
-    prezzi = fondamentali.chiusure_mensili()
-    if not prezzi:
+    orizzonti = tuple(orizzonti or ORIZZONTI_MESI)
+    mercato = fondamentali.mercato_mensile()
+    if not mercato:
         raise ValueError("lo storico mensile non e' stato derivato: "
                          "senza, non c'e' niente da rigiocare")
 
     bilanci = _bilanci_di_tutti()
     mesi = _mesi_disponibili()
-    # Gli ultimi mesi non hanno un futuro da misurare: si fermano prima.
-    misurabili = [m for m in mesi if _mese_piu(m, orizzonte) <= mesi[-1]]
+    # Un mese entra se almeno l'orizzonte piu' corto ha un futuro da misurare;
+    # quelli lunghi lo escluderanno da soli nel riepilogo.
+    misurabili = [m for m in mesi if _mese_piu(m, min(orizzonti)) <= mesi[-1]]
 
-    per_mese = []
-    for mese in misurabili:
-        quando = _fine_mese(mese)
-        trovati, tutti = [], []
+    per_mese = [_misura_mese(m, criteri, mercato, bilanci, orizzonti) for m in misurabili]
 
-        for simbolo, chiusure in prezzi.items():
-            resa = _rendimento(chiusure, mese, orizzonte)
-            if resa is None:
-                continue
-            tutti.append(resa)
-
-            voci, depositi = bilanci.get(simbolo, ({}, {}))
-            if not voci:
-                continue
-            periodi = sorted(voci.get("total_revenue", {}))
-            pubblici = [p for p in periodi
-                        if publication_dates.was_public(depositi, p, quando)]
-            misurato = {"fondamentali": scansione.fondamentali(voci, pubblici)}
-            soddisfa, _ = scansione.valuta(misurato, criteri)
-            if soddisfa:
-                trovati.append(resa)
-
-        per_mese.append({
-            "mese": mese,
-            "trovati": len(trovati),
-            "universo": len(tutti),
-            "mediana_trovati": _mediana(trovati),
-            "mediana_universo": _mediana(tutti),
-        })
-
-    return {"criteri": criteri, "orizzonte_mesi": orizzonte,
-            "mesi": per_mese, "riepilogo": riepiloga(per_mese)}
+    return {
+        "criteri": criteri,
+        "orizzonti_mesi": list(orizzonti),
+        "soglie": soglie(),
+        "mesi": per_mese,
+        "riepilogo": {str(o): riepiloga(per_mese, o) for o in orizzonti},
+    }
 
 
-def riepiloga(per_mese: list[dict]) -> dict:
-    """Il conto finale: in quanti mesi il criterio ha battuto il non-filtrare.
+def riepiloga(per_mese: list[dict], orizzonte: int) -> dict:
+    """Il conto finale di UN orizzonte: in quanti mesi il criterio ha battuto il resto.
 
     Si contano i MESI vinti e non la media delle differenze: una media si fa
     dominare da un mese solo, e la domanda «funziona?» e' «funziona spesso?».
     """
-    validi = [m for m in per_mese
-              if m["trovati"] >= TROVATI_MINIMI
-              and m["mediana_trovati"] is not None
-              and m["mediana_universo"] is not None]
+    chiave = str(orizzonte)
+    validi = [m["orizzonti"][chiave] for m in per_mese
+              if m["orizzonti"].get(chiave)
+              and m["orizzonti"][chiave]["trovati"] >= TROVATI_MINIMI
+              and m["orizzonti"][chiave]["mediana_trovati"] is not None
+              and m["orizzonti"][chiave]["mediana_resto"] is not None]
     if not validi:
         return {"mesi_utili": 0, "vinti": 0, "quota_vinti": None,
                 "vantaggio_mediano": None,
-                "reason": f"nessun mese con almeno {TROVATI_MINIMI} titoli trovati: "
-                          f"il criterio e' troppo stretto per essere giudicato"}
+                "reason": f"nessun mese con almeno {TROVATI_MINIMI} titoli trovati "
+                          f"fra gli investibili: a {orizzonte} mesi il criterio e' "
+                          f"troppo stretto per essere giudicato"}
 
-    differenze = [m["mediana_trovati"] - m["mediana_universo"] for m in validi]
+    differenze = [m["mediana_trovati"] - m["mediana_resto"] for m in validi]
     vinti = sum(1 for d in differenze if d > 0)
     return {
         "mesi_utili": len(validi),
@@ -209,21 +293,24 @@ _esiti: dict[str, dict] = {}
 _lucchetto = threading.Lock()
 
 
-def _esegui(criteri: dict, orizzonte: int, consegna: queue.Queue) -> dict:
+def _esegui(criteri: dict, orizzonti: tuple[int, ...], consegna: queue.Queue) -> dict:
     """Un rigioco dentro il registro dei lavori: si vede e si ferma."""
-    etichetta = f"rigioco di {len(criteri)} criteri su {orizzonte} mesi"
+    mesi = "/".join(str(o) for o in orizzonti)
+    etichetta = f"rigioco di {len(criteri)} criteri su {mesi} mesi"
     with registry.job(JOB_KIND, etichetta, total=1) as lavoro:
         consegna.put(lavoro.run_id)
-        esito = rigioca(criteri, orizzonte)
+        esito = rigioca(criteri, orizzonti)
         esito["run_id"] = lavoro.run_id
-        lavoro.advance(detail=f"{esito['riepilogo']['mesi_utili']} mesi giudicabili")
+        giudicabili = ", ".join(
+            f"{o}m: {esito['riepilogo'][str(o)]['mesi_utili']}" for o in orizzonti)
+        lavoro.advance(detail=f"mesi giudicabili — {giudicabili}")
 
     with _lucchetto:
         _esiti[lavoro.run_id] = esito
     return esito
 
 
-def avvia(criteri: dict, orizzonte: int | None = None) -> str:
+def avvia(criteri: dict, orizzonti: tuple[int, ...] | None = None) -> str:
     """Avvia un rigioco in un thread e ritorna il run_id con cui seguirlo.
 
     I criteri si controllano PRIMA di partire: un errore sollevato dentro al
@@ -239,7 +326,7 @@ def avvia(criteri: dict, orizzonte: int | None = None) -> str:
 
     consegna: queue.Queue = queue.Queue(maxsize=1)
     threading.Thread(target=_esegui,
-                     args=(criteri, orizzonte or ORIZZONTE_MESI, consegna),
+                     args=(criteri, tuple(orizzonti or ORIZZONTI_MESI), consegna),
                      name="rigioco", daemon=True).start()
     return consegna.get(timeout=ATTESA_AVVIO_S)
 

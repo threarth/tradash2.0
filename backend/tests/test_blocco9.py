@@ -709,14 +709,31 @@ def test_senza_nessun_componente_il_rischio_non_diventa_basso():
 # dice solo che una va meglio di un'altra. La domanda vera e' «meglio di non
 # filtrare affatto?».
 
+# Quanto basta a superare le soglie del paragone: a 100 dollari per azione,
+# cinque milioni di azioni fanno mezzo miliardo di capitalizzazione e
+# cinquantamila azioni al giorno fanno cinque milioni scambiati. Scritti qui
+# accanto ai titoli finti perche' il test deve poter dire, leggendolo, PERCHE'
+# quei titoli entrano nel paragone.
+AZIONI_INVESTIBILE = 5_000_000
+VOLUME_INVESTIBILE = 50_000
+
+# Un titolo che le soglie NON supera: un milione di azioni da un dollaro e
+# mille azioni scambiate al giorno. Esiste per verificare che resti fuori.
+AZIONI_MICRO = 1_000_000
+VOLUME_MICRO = 1_000
+
+
 def _storico_finto():
-    """Due titoli e sei mesi, scritti a mano nelle due tabelle derivate."""
+    """Tre titoli investibili piu' un microcap, nelle due tabelle derivate."""
     prezzi = [
         # BRAVO raddoppia, PIGRO resta fermo.
         ("BRAVO", "2026-01", 100.0), ("BRAVO", "2026-07", 200.0),
         ("PIGRO", "2026-01", 100.0), ("PIGRO", "2026-07", 100.0),
         ("FERMO", "2026-01", 100.0), ("FERMO", "2026-07", 105.0),
     ]
+    # MICRO fa +300%, e senza il filtro sposterebbe la mediana del paragone da
+    # solo. E' il difetto che la voce 1 del backlog descriveva.
+    micro = [("MICRO", "2026-01", 1.0), ("MICRO", "2026-07", 4.0)]
     bilanci = [
         # BRAVO accelera; PIGRO no. Depositati prima di fine gennaio.
         ("BRAVO", "2025-09-30", "total_revenue", 100.0, "2025-11-01"),
@@ -727,27 +744,76 @@ def _storico_finto():
     with db_session() as conn:
         conn.executemany(
             "INSERT OR REPLACE INTO universe_prezzi_mensili "
-            "(symbol, mese, chiusura, built_at) VALUES (?, ?, ?, '2026-09-08')", prezzi)
+            "(symbol, mese, chiusura, volume_medio, azioni, built_at) "
+            "VALUES (?, ?, ?, ?, ?, '2026-09-08')",
+            [(*riga, VOLUME_INVESTIBILE, AZIONI_INVESTIBILE) for riga in prezzi]
+            + [(*riga, VOLUME_MICRO, AZIONI_MICRO) for riga in micro])
         conn.executemany(
             "INSERT OR REPLACE INTO universe_fondamentali "
             "(symbol, report_date, voce, valore, filing_date, built_at) "
             "VALUES (?, ?, ?, ?, ?, '2026-09-08')", bilanci)
 
 
-def test_il_rigioco_confronta_col_non_filtrare():
+def test_il_rigioco_confronta_col_resto_degli_investibili():
     """E' l'unica misura onesta di cosa aggiunge un criterio: un criterio che
     trova titoli col +12% sembra bravo finche' non si scopre che il mercato in
     quei mesi ha fatto +15%."""
 
     _storico_finto()
 
-    esito = rigioco.rigioca({"ricavi_qoq_minimo": 0.15}, orizzonte=6)
+    esito = rigioco.rigioca({"ricavi_qoq_minimo": 0.15}, orizzonti=(6,))
+    gennaio = next(m for m in esito["mesi"] if m["mese"] == "2026-01")
+    sei_mesi = gennaio["orizzonti"]["6"]
+
+    assert gennaio["investibili"] == 3, "MICRO non supera le soglie"
+    assert sei_mesi["trovati"] == 1, "solo BRAVO accelera"
+    assert sei_mesi["resto"] == 2, "il paragone e' col RESTO, non con tutti compreso lui"
+    assert sei_mesi["mediana_trovati"] == pytest.approx(1.0), "BRAVO ha raddoppiato"
+    assert sei_mesi["mediana_resto"] == pytest.approx(0.025), "fra PIGRO (0%) e FERMO (+5%)"
+
+
+def test_il_paragone_esclude_chi_non_si_potrebbe_comprare():
+    """La voce 1 del backlog: il paragone comprendeva migliaia di societa'
+    minuscole e poco scambiate, e un criterio che le evitava risultava perdente
+    anche quando stava solo evitando il fondo del barile.
+
+    MICRO fa +300% in sei mesi. Se entrasse nel paragone ne sposterebbe la
+    mediana da solo, e il criterio sembrerebbe peggiore di quello che e'.
+    """
+    _storico_finto()
+
+    esito = rigioco.rigioca({"ricavi_qoq_minimo": 0.15}, orizzonti=(6,))
     gennaio = next(m for m in esito["mesi"] if m["mese"] == "2026-01")
 
-    assert gennaio["trovati"] == 1, "solo BRAVO accelera"
-    assert gennaio["universo"] == 3, "il paragone e' con tutti quelli che hanno un prezzo"
-    assert gennaio["mediana_trovati"] == pytest.approx(1.0), "BRAVO ha raddoppiato"
-    assert gennaio["mediana_universo"] == pytest.approx(0.05), "la mediana di tutti"
+    assert gennaio["investibili"] == 3
+    assert gennaio["orizzonti"]["6"]["mediana_resto"] == pytest.approx(0.025), (
+        "col +300% di MICRO dentro, la mediana del resto sarebbe stata 0,05"
+    )
+
+
+def test_le_soglie_del_paragone_sono_dichiarate():
+    """Un filtro che non si dichiara e' un filtro di cui nessuno sa l'effetto."""
+    _storico_finto()
+
+    soglie = rigioco.rigioca({"ricavi_qoq_minimo": 0.15}, orizzonti=(6,))["soglie"]
+
+    assert soglie["capitalizzazione_minima"] == config.RIGIOCO_CAP_MINIMA_USD
+    assert soglie["scambiato_minimo_al_giorno"] == config.RIGIOCO_SCAMBIATO_MINIMO_USD
+    assert "non di oggi" in soglie["nota"], "va detto che il filtro e' point-in-time"
+
+
+def test_i_tre_orizzonti_si_misurano_nella_stessa_passata():
+    """Sei mesi soli non distinguono un criterio LENTO da uno SBAGLIATO."""
+    _storico_finto()
+
+    esito = rigioco.rigioca({"ricavi_qoq_minimo": 0.15})
+
+    assert esito["orizzonti_mesi"] == list(config.RIGIOCO_ORIZZONTI_MESI)
+    assert set(esito["riepilogo"]) == {"3", "6", "12"}
+    # Lo storico finto copre gennaio-luglio: a dodici mesi non c'e' futuro da
+    # misurare, e il riepilogo lo DICE invece di restare vuoto.
+    assert esito["riepilogo"]["12"]["mesi_utili"] == 0
+    assert esito["riepilogo"]["12"]["reason"]
 
 
 def test_un_criterio_troppo_stretto_non_si_giudica():
@@ -755,10 +821,10 @@ def test_un_criterio_troppo_stretto_non_si_giudica():
 
     _storico_finto()
 
-    esito = rigioco.rigioca({"ricavi_qoq_minimo": 0.15}, orizzonte=6)
+    esito = rigioco.rigioca({"ricavi_qoq_minimo": 0.15}, orizzonti=(6,))
 
-    assert esito["riepilogo"]["mesi_utili"] == 0
-    assert "troppo stretto" in esito["riepilogo"]["reason"]
+    assert esito["riepilogo"]["6"]["mesi_utili"] == 0
+    assert "troppo stretto" in esito["riepilogo"]["6"]["reason"]
 
 
 def test_un_criterio_inventato_si_rifiuta_subito():

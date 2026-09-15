@@ -959,7 +959,7 @@ def fondamentali_universo(run_id: str | None = None) -> Lettura:
 
 
 def _prepara_prezzi_mensili() -> str:
-    """L'ultima chiusura di ogni mese, per ogni titolo, da una data in poi.
+    """L'ultima chiusura di ogni mese, col volume medio e le azioni di allora.
 
     Serve a rigiocare un criterio all'indietro senza rileggere i prezzi un
     titolo alla volta: con undicimila titoli sarebbero undicimila letture, e
@@ -967,25 +967,69 @@ def _prepara_prezzi_mensili() -> str:
 
     Mensile e non giornaliera perche' un rigioco guarda i mesi: la giornaliera
     sarebbe venti volte piu' grande per una precisione che nessuno userebbe.
+
+    ## Perche' porta anche volume e azioni
+
+    Perche' il paragone del rigioco sia investibile bisogna poter escludere le
+    societa' minuscole e poco scambiate — ma con i valori che avevano ALLORA,
+    non con quelli di oggi. Filtrare il 2019 con la capitalizzazione del 2026
+    vorrebbe dire selezionare i sopravvissuti, e costruire il metro con la
+    risposta.
+
+    Il volume medio del mese costa zero letture in piu': il parquet lo si sta
+    gia' attraversando per la chiusura. Le azioni arrivano da un parquet a
+    parte, di 5,7 MB, con un ASOF JOIN che per ogni mese prende **l'ultimo
+    dato gia' pubblico** — cioe' depositato almeno
+    `AS_OF_RITARDO_TRIMESTRALE_GIORNI` giorni prima, la stessa prudenza che si
+    usa sui bilanci.
     """
     _ensure_client()
     prezzi = _table_uri(TABLE_PRICES)
+    azioni = _table_uri(TABLE_SHARES)
     return f"""
-        WITH mensili AS (
+        WITH sedute AS (
             SELECT symbol,
-                   strftime(TRY_CAST(report_date AS DATE), '%Y-%m') AS mese,
-                   close AS chiusura,
-                   ROW_NUMBER() OVER (
-                       PARTITION BY symbol,
-                                    strftime(TRY_CAST(report_date AS DATE), '%Y-%m')
-                       ORDER BY TRY_CAST(report_date AS DATE) DESC
-                   ) AS posizione
+                   TRY_CAST(report_date AS DATE) AS giorno,
+                   close, volume
             FROM '{prezzi}'
             WHERE TRY_CAST(report_date AS DATE) >= DATE '{config.UNIVERSE_PREZZI_DAL}'
+        ),
+        mensili AS (
+            SELECT symbol, giorno, close, volume,
+                   strftime(giorno, '%Y-%m') AS mese,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY symbol, strftime(giorno, '%Y-%m')
+                       ORDER BY giorno DESC
+                   ) AS posizione
+            FROM sedute
+        ),
+        chiusure AS (
+            SELECT symbol, mese, close AS chiusura, giorno AS ultimo_giorno,
+                   -- Cosa era gia' pubblico alla fine di quel mese.
+                   giorno - INTERVAL '{config.AS_OF_RITARDO_TRIMESTRALE_GIORNI}' DAY
+                       AS gia_pubblico_al
+            FROM mensili WHERE posizione = 1 AND close IS NOT NULL
+        ),
+        volumi AS (
+            SELECT symbol, mese, AVG(volume) AS volume_medio
+            FROM mensili GROUP BY symbol, mese
+        ),
+        azioni_note AS (
+            SELECT symbol,
+                   TRY_CAST(report_date AS DATE) AS periodo,
+                   shares_outstanding
+            FROM '{azioni}'
+            WHERE shares_outstanding IS NOT NULL
+              AND TRY_CAST(report_date AS DATE) IS NOT NULL
         )
-        SELECT symbol, mese, chiusura FROM mensili
-        WHERE posizione = 1 AND chiusura IS NOT NULL
-        ORDER BY symbol, mese
+        SELECT c.symbol, c.mese, c.chiusura,
+               v.volume_medio,
+               a.shares_outstanding AS azioni
+        FROM chiusure c
+        LEFT JOIN volumi v ON v.symbol = c.symbol AND v.mese = c.mese
+        ASOF LEFT JOIN azioni_note a
+             ON a.symbol = c.symbol AND a.periodo <= c.gia_pubblico_al
+        ORDER BY c.symbol, c.mese
     """
 
 

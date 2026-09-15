@@ -93,15 +93,44 @@ def comando_rigioco() -> int:
     return EXIT_OK
 
 
+def _stampa_orizzonte(esito: dict, orizzonte: int) -> None:
+    """Il dettaglio mese per mese di UN orizzonte, con il conto finale."""
+    chiave = str(orizzonte)
+    conto = esito["riepilogo"][chiave]
+    print(f"\n--- {orizzonte} mesi " + "-" * 52)
+
+    if conto["reason"]:
+        print(conto["reason"])
+        return
+
+    print(f"{'mese':9}{'invest.':>9}{'trovati':>9}{'loro':>9}{'resto':>10}"
+          f"{'differenza':>13}")
+    for mese in esito["mesi"]:
+        riga = mese["orizzonti"].get(chiave)
+        if not riga or riga["mediana_trovati"] is None or riga["mediana_resto"] is None:
+            continue
+        differenza = riga["mediana_trovati"] - riga["mediana_resto"]
+        print(f"{mese['mese']:9}{mese['investibili']:>9}{riga['trovati']:>9}"
+              f"{riga['mediana_trovati']:>8.1%}{riga['mediana_resto']:>10.1%}"
+              f"{differenza:>13.1%}")
+
+    print(f"mesi giudicabili {conto['mesi_utili']} · vinti {conto['vinti']} "
+          f"({conto['quota_vinti']:.0%}) · vantaggio mediano "
+          f"{conto['vantaggio_mediano']:+.1%} · trovati per mese "
+          f"{conto['trovati_per_mese']}")
+
+
 def comando_criterio(criteri_json: str | None) -> int:
     """Rigioca un criterio dello scanner su tutti i mesi, contro il non-filtrare.
 
     E' la domanda «questo criterio ha mai funzionato?» fatta PRIMA di accenderlo,
     che e' l'ordine in cui non e' stata fatta per i pesi del rilevatore spin-off.
 
-    Il paragone col resto dell'universo e' il pezzo che conta: un criterio che
-    trova titoli col +12% sembra bravo finche' non si scopre che in quei mesi
-    tutto il mercato ha fatto +15%.
+    Il paragone col resto e' il pezzo che conta: un criterio che trova titoli col
+    +12% sembra bravo finche' non si scopre che in quei mesi tutto il mercato ha
+    fatto +15%. E il paragone e' fra INVESTIBILI, con le soglie dichiarate qui
+    sotto: prima comprendeva migliaia di societa' minuscole su cui nessuno
+    comprerebbe, e un criterio che le evitava risultava perdente per quello.
     """
     schema.ensure_schema()
     if not criteri_json:
@@ -117,29 +146,20 @@ def comando_criterio(criteri_json: str | None) -> int:
         print(f"non si puo' rigiocare: {problema}")
         return EXIT_ABORTED
 
-    conto = esito["riepilogo"]
+    soglie = esito["soglie"]
     print(f"criterio: {esito['criteri']}")
-    print(f"rendimento misurato sui {esito['orizzonte_mesi']} mesi successivi\n")
+    print(f"paragone fra investibili: capitalizzazione >= "
+          f"${soglie['capitalizzazione_minima']:,} e scambiato >= "
+          f"${soglie['scambiato_minimo_al_giorno']:,} al giorno")
+    print(f"({soglie['nota']})")
 
-    if conto["reason"]:
-        print(conto["reason"])
-        return EXIT_OK
+    for orizzonte in esito["orizzonti_mesi"]:
+        _stampa_orizzonte(esito, orizzonte)
 
-    print(f"{'mese':9}{'trovati':>9}{'loro':>10}{'tutti':>10}{'differenza':>13}")
-    for mese in esito["mesi"]:
-        if mese["mediana_trovati"] is None or mese["mediana_universo"] is None:
-            continue
-        differenza = mese["mediana_trovati"] - mese["mediana_universo"]
-        print(f"{mese['mese']:9}{mese['trovati']:>9}"
-              f"{mese['mediana_trovati']:>9.1%}{mese['mediana_universo']:>10.1%}"
-              f"{differenza:>13.1%}")
-
-    print(f"\nmesi giudicabili {conto['mesi_utili']} · vinti {conto['vinti']} "
-          f"({conto['quota_vinti']:.0%}) · vantaggio mediano "
-          f"{conto['vantaggio_mediano']:+.1%} · trovati per mese "
-          f"{conto['trovati_per_mese']}")
     print("\nI mesi vinti contano piu' della media delle differenze: una media")
     print("se la porta via un mese solo, e la domanda e' «funziona spesso?».")
+    print("Tre orizzonti perche' LENTO e SBAGLIATO sono due cose diverse: chi")
+    print("perde a tre mesi e vince a dodici sta anticipando, non sbagliando.")
     return EXIT_OK
 
 

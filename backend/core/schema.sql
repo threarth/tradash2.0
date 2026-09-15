@@ -224,11 +224,35 @@ CREATE TABLE IF NOT EXISTS universe_fondamentali (
 -- all'indietro senza rileggere i prezzi un titolo alla volta. Mensile e non
 -- giornaliera: un rigioco guarda i mesi, e la giornaliera sarebbe venti volte
 -- piu' grande per una precisione che nessuno userebbe.
+-- Le due colonne oltre la chiusura non sono un ornamento: sono cio' che rende
+-- ONESTO il paragone del rigioco.
+--
+-- Il paragone confrontava chi un criterio trova con la mediana di TUTTO
+-- l'universo, dentro cui ci sono migliaia di societa' minuscole e poco
+-- scambiate su cui nessuno comprerebbe: un criterio che le evita risultava
+-- perdente anche quando stava solo evitando il fondo del barile.
+--
+-- Filtrare quel paragone con la capitalizzazione e il volume di OGGI sarebbe
+-- stato peggio del difetto: le societa' grandi oggi sono i sopravvissuti e i
+-- vincitori, quindi il metro del 2019 sarebbe stato costruito con la risposta
+-- del 2026. Qui volume e azioni sono quelli che si conoscevano ALLORA, e la
+-- capitalizzazione di un mese e' `chiusura * azioni` di quel mese.
+--
+-- Le azioni portano il ritardo di deposito dei bilanci: un numero di azioni
+-- riferito al 30 giugno diventa pubblico a inizio agosto, e usarlo a giugno
+-- sarebbe lo stesso look-ahead che `as_of` esiste per impedire altrove.
 CREATE TABLE IF NOT EXISTS universe_prezzi_mensili (
-    symbol   TEXT NOT NULL,
-    mese     TEXT NOT NULL,          -- 'YYYY-MM'
-    chiusura REAL NOT NULL,
-    built_at TEXT NOT NULL,
+    symbol       TEXT NOT NULL,
+    mese         TEXT NOT NULL,          -- 'YYYY-MM'
+    chiusura     REAL NOT NULL,
+    -- Volume medio delle sedute DI QUEL MESE. Vuoto non capita, ma la colonna
+    -- resta opzionale: un mese con una sola seduta e' comunque un mese.
+    volume_medio REAL,
+    -- Azioni in circolazione gia' pubbliche a quella data. Vuote per i titoli
+    -- di cui Defeatbeta non pubblica le azioni: sono 2.450 su 11.351, e per
+    -- loro la capitalizzazione non e' assente, e' NON DERIVABILE.
+    azioni       REAL,
+    built_at     TEXT NOT NULL,
     PRIMARY KEY (symbol, mese)
 );
 

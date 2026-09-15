@@ -613,3 +613,31 @@ ACCESSO_MEMORIA_S = SECONDS_PER_HOUR
 # su Sonnet): abbastanza per una giornata di lavoro vero, troppo poco perche' un
 # ciclo impazzito faccia danni.
 LLM_TETTO_GIORNALIERO_USD = float(os.environ.get("TRADASH2_TETTO_USD", "10.0"))
+
+
+# --- Il paragone del rigioco ------------------------------------------------
+#
+# Il rigioco confrontava chi un criterio trova con la mediana di TUTTO
+# l'universo. Dentro ci sono migliaia di societa' minuscole e poco scambiate su
+# cui nessuno comprerebbe: un criterio che le evita risultava perdente anche
+# quando stava solo evitando il fondo del barile.
+#
+# Le soglie sotto definiscono cosa vuol dire «investibile», e si applicano a
+# ENTRAMBE le popolazioni — i trovati e il resto — perche' un criterio che
+# pesca fra i microcap confrontato con un paragone ripulito sarebbe storto
+# nell'altro verso.
+#
+# Si misurano sui valori di QUEL MESE, non di oggi: `universe_prezzi_mensili`
+# porta il volume del mese e le azioni gia' pubbliche allora.
+RIGIOCO_CAP_MINIMA_USD = 300_000_000
+
+# Il controvalore scambiato in media al giorno, non il numero di azioni:
+# centomila azioni da due dollari sono duecentomila dollari, cioe' un titolo su
+# cui un ordine vero muove il prezzo. Il controvalore e' la misura che non
+# dipende da quanto vale un pezzo.
+RIGIOCO_SCAMBIATO_MINIMO_USD = 1_000_000
+
+# Su quanti mesi si misura il rendimento successivo. Tre orizzonti e non uno:
+# un criterio che perde a tre mesi e vince a dodici e' LENTO, uno che perde a
+# tutti e tre e' SBAGLIATO — e sono due cose diverse da sapere.
+RIGIOCO_ORIZZONTI_MESI = (3, 6, 12)

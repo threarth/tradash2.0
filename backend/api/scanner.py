@@ -57,6 +57,10 @@ def rigioca():
     modulo con cui si sta per accenderlo. Ritorna subito il `run_id`: sono
     quindici secondi di conti su dodicimila titoli e quarantun mesi, e una
     richiesta appesa non si potrebbe fermare.
+
+    Gli orizzonti sono tre — 3, 6 e 12 mesi — e non uno: un criterio che perde
+    a tre e vince a dodici e' lento, uno che perde a tutti e tre e' sbagliato.
+    Chi ne vuole uno solo lo passa in `orizzonti`.
     """
     corpo = request.get_json(silent=True) or {}
     richiesti = corpo.get("criteri") or {}
@@ -64,7 +68,7 @@ def rigioca():
         return fail("serve almeno un criterio da rigiocare")
 
     try:
-        run_id = rigioco.avvia(richiesti, corpo.get("orizzonte"))
+        run_id = rigioco.avvia(richiesti, corpo.get("orizzonti"))
     except ValueError as problema:
         return fail(str(problema))
     return ok({"run_id": run_id, "stop": f"/api/ops/stop/{run_id}",

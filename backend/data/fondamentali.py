@@ -218,7 +218,9 @@ def _scrivi_prezzi(frame) -> int:
     versioni della sorgente senza che nessuno se ne accorga."""
     istante = _adesso()
     righe = [(str(r["symbol"]).upper(), str(r["mese"]),
-              float(python_puro(r["chiusura"])), istante)
+              float(python_puro(r["chiusura"])),
+              python_puro(r.get("volume_medio")), python_puro(r.get("azioni")),
+              istante)
              for r in frame.to_dict("records")
              if python_puro(r.get("chiusura")) is not None]
 
@@ -226,7 +228,8 @@ def _scrivi_prezzi(frame) -> int:
         conn.execute("DELETE FROM universe_prezzi_mensili")
         conn.executemany(
             "INSERT OR REPLACE INTO universe_prezzi_mensili "
-            "(symbol, mese, chiusura, built_at) VALUES (?, ?, ?, ?)",
+            "(symbol, mese, chiusura, volume_medio, azioni, built_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
             righe,
         )
     return len(righe)
@@ -285,6 +288,35 @@ def chiusure_mensili(simboli: list[str] | None = None) -> dict[str, dict[str, fl
     per_simbolo: dict[str, dict[str, float]] = {}
     for riga in righe:
         per_simbolo.setdefault(riga["symbol"], {})[riga["mese"]] = riga["chiusura"]
+    return per_simbolo
+
+
+def mercato_mensile() -> dict[str, dict[str, dict]]:
+    """`{simbolo: {mese: {chiusura, volume_medio, capitalizzazione}}}`.
+
+    E' `chiusure_mensili()` con accanto cio' che serve a dire se un titolo, IN
+    QUEL MESE, era abbastanza grande e abbastanza scambiato da poterlo comprare.
+
+    La capitalizzazione si calcola qui e non si conserva, per lo stesso motivo
+    per cui la vista `universe` la calcola invece di tenerla: e' il prodotto di
+    due numeri, e conservare un prodotto significa poterlo avere disallineato
+    dai suoi fattori. Vale `None` dove mancano le azioni — 21,3% delle righe,
+    misurato il 15/09/2026 — e li' non e' assente, e' non derivabile.
+    """
+    with db_read() as conn:
+        righe = conn.execute(
+            "SELECT symbol, mese, chiusura, volume_medio, azioni "
+            "FROM universe_prezzi_mensili ORDER BY symbol, mese"
+        ).fetchall()
+
+    per_simbolo: dict[str, dict[str, dict]] = {}
+    for riga in righe:
+        azioni = riga["azioni"]
+        per_simbolo.setdefault(riga["symbol"], {})[riga["mese"]] = {
+            "chiusura": riga["chiusura"],
+            "volume_medio": riga["volume_medio"],
+            "capitalizzazione": riga["chiusura"] * azioni if azioni else None,
+        }
     return per_simbolo
 
 
