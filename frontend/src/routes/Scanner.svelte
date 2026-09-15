@@ -63,12 +63,21 @@
     // rigioco viene rifatto.
     let preset = $state([]);
     let presetScelto = $state(null);
+    let presetMisura = $state(null);
 
     onMount(() => {
         // Una lettura sola, da un elenco che sta in memoria nel backend: non e'
         // lavoro pesante e serve a disegnare il modulo (regola 2 resta salva).
         api.scannerCriteri()
-            .then((dati) => (preset = dati.preset ?? []))
+            .then((dati) => {
+                preset = dati.preset ?? [];
+                presetMisura = {
+                    misuratoIl: dati.misurato_il,
+                    daRimisurare: dati.da_rimisurare,
+                    perche: dati.perche ?? [],
+                    azione: dati.azione
+                };
+            })
             .catch(() => (preset = []));
 
         return () => {
@@ -203,11 +212,12 @@
 
             <div class="d-flex flex-wrap gap-2 mb-2">
                 {#each preset as scelto (scelto.nome)}
-                    <button class="btn btn-sm {scelto.vince
+                    <button class="btn btn-sm {scelto.verdetto?.vince
                                 ? 'btn-outline-success' : 'btn-outline-secondary'}"
                             class:active={presetScelto?.nome === scelto.nome}
                             onclick={() => applica(scelto)}>
-                        <i class="bi {scelto.vince ? 'bi-check2' : 'bi-x'}"
+                        <i class="bi {scelto.verdetto?.vince ? 'bi-check2'
+                                    : scelto.verdetto ? 'bi-x' : 'bi-question'}"
                            aria-hidden="true"></i>
                         {scelto.etichetta}
                     </button>
@@ -217,17 +227,51 @@
             {#if presetScelto}
                 <div class="border rounded p-3 small">
                     <div class="mb-1"><Testo testo={presetScelto.idea} /></div>
-                    <div class:text-success={presetScelto.vince}
-                         class:text-warning={!presetScelto.vince}>
-                        <strong>{presetScelto.verdetto}</strong>
-                        <span class="text-secondary numerico">
-                            · {presetScelto.mesi_giudicabili} mesi giudicabili a sei
-                        </span>
-                    </div>
+
+                    {#if !presetScelto.verdetto}
+                        <!-- Regola 5: un preset senza misura non e' un preset
+                             neutro, e' uno a cui la domanda non e' mai stata
+                             fatta — e va detto col comando per farla. -->
+                        <div class="text-warning">
+                            mai rigiocato: non si sa se funziona
+                            <span class="numerico">· {presetMisura?.azione}</span>
+                        </div>
+                    {:else}
+                        {@const v = presetScelto.verdetto}
+                        <div class:text-success={v.vince} class:text-warning={!v.vince}>
+                            <strong>{v.forma}</strong>
+                            {#each Object.entries(v.orizzonti) as [mesi, riga] (mesi)}
+                                <span class="numerico ms-2">
+                                    {mesi}m {riga.vantaggio === null ? "n.g."
+                                        : (riga.vantaggio > 0 ? "+" : "")
+                                          + (riga.vantaggio * 100).toFixed(1) + "%"}
+                                </span>
+                            {/each}
+                            <span class="text-secondary numerico">
+                                · {v.mesi_giudicabili} mesi giudicabili a sei
+                            </span>
+                        </div>
+                    {/if}
+
                     <div class="text-secondary mt-1">
                         <Testo testo={presetScelto.cautela} />
                     </div>
                 </div>
+            {/if}
+
+            <!-- Un verdetto vecchio non si aggiorna da solo: il sistema lo DICE
+                 e la decisione di rigiocare resta tua. Nessuno scheduler. -->
+            {#if presetMisura?.daRimisurare}
+                <div class="alert alert-warning small mt-2 mb-0 py-2">
+                    <strong>I verdetti sono da rimisurare.</strong>
+                    {presetMisura.perche.join("; ")}.
+                    Da terminale: <span class="numerico">{presetMisura.azione}</span>
+                </div>
+            {:else if presetMisura?.misuratoIl}
+                <p class="small text-secondary mt-2 mb-0">
+                    Verdetti misurati il <span class="numerico">
+                        {presetMisura.misuratoIl.slice(0, 10)}</span>.
+                </p>
             {/if}
         </div>
     </div>

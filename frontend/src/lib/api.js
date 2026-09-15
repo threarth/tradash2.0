@@ -196,6 +196,7 @@ export const api = {
     scegliModello: (modello) =>
         chiama("/impostazioni/llm", corpoJson("PUT", { modello })),
 
+    freschezza: () => chiama("/ops/freschezza"),
     lavoriAttivi: () => chiama("/ops/active"),
     processo: () => chiama("/ops/processo"),
     lavoriStorici: () => chiama("/ops/history"),

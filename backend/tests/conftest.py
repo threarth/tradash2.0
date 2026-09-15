@@ -41,6 +41,7 @@ os.environ["TRADASH2_IMPOSTAZIONI"] = str(Path(_TEMP_DIR) / "impostazioni.json")
 os.environ["TRADASH2_SPINOFF"] = str(Path(_TEMP_DIR) / "spinoff.json")
 os.environ["TRADASH2_UTENTE"] = str(Path(_TEMP_DIR) / "utente.json")
 os.environ["TRADASH2_CHIAVE_SESSIONE"] = str(Path(_TEMP_DIR) / "chiave_sessione")
+os.environ["TRADASH2_PRESET_VERDETTI"] = str(Path(_TEMP_DIR) / "preset_verdetti.json")
 
 # Queste due non sono percorsi ma interruttori, e si fissano per lo stesso
 # motivo: cio' che la suite misura non deve dipendere da com'e' configurata la
@@ -139,7 +140,8 @@ def tabelle_pulite(schema):
 # pulizia fra un test e l'altro, se nessuno li cancella.
 # `UTENTE_PATH` sta qui perche' un test che cambia la password non deve lasciare
 # l'utente cambiato a quelli dopo: la fixture `client` lo ricrea ogni volta.
-FILE_DI_STATO = ("IMPOSTAZIONI_PATH", "SPINOFF_PATH", "UTENTE_PATH")
+FILE_DI_STATO = ("IMPOSTAZIONI_PATH", "SPINOFF_PATH", "UTENTE_PATH",
+                 "PRESET_VERDETTI_PATH")
 
 
 @pytest.fixture(autouse=True)

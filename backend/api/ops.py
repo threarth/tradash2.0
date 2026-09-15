@@ -11,6 +11,7 @@ import config
 from api import HTTP_NOT_FOUND, fail, ok
 from core import registry
 from core.db import db_read
+from data import allarmi
 
 # Le cartelle che contengono il codice dell'applicazione. Se una di queste e'
 # piu' recente dell'avvio del processo, il server sta servendo codice vecchio.
@@ -60,6 +61,20 @@ def _ultima_modifica() -> str:
         default=0.0,
     )
     return datetime.fromtimestamp(piu_recente, UTC).isoformat(timespec="seconds")
+
+
+@bp.get("/freschezza")
+def freschezza():
+    """Cosa e' invecchiato. Non ricostruisce niente: lo dice e basta.
+
+    Sta in `ops` perche' e' la regola 1 vista dall'altro lato: quella pagina
+    mostra cosa STA girando, questo endpoint cosa DOVREBBE girare e non gira —
+    e non girera' finche' non lo chiedi tu.
+
+    E' una lettura di SQLite e di un file: si puo' chiedere all'apertura di una
+    pagina senza violare la regola 2.
+    """
+    return ok(allarmi.stato())
 
 
 @bp.post("/stop/<run_id>")

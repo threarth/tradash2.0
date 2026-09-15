@@ -14,6 +14,7 @@
 <script>
     import { onMount } from "svelte";
 
+    import { freschezza } from "../lib/freschezza.svelte.js";
     import { glossario } from "../lib/glossario.svelte.js";
     import { lavori } from "../lib/lavori.svelte.js";
     import { intercettaClick, percorso } from "../lib/router.js";
@@ -41,6 +42,18 @@
         // serve perche' la sottolineatura funzioni ovunque senza che ogni
         // pagina se la vada a prendere per conto suo.
         glossario.carica();
+        // Cosa e' invecchiato: una lettura di SQLite e di un file, all'apertura.
+        // Non e' un battito e non ricostruisce niente — il sistema DICE, tu
+        // decidi. E' la scelta dichiarata: nessuno scheduler.
+        freschezza.carica();
+    });
+
+    // Quando un lavoro finisce, qualcosa puo' essere tornato fresco: si
+    // richiede allora, non a intervalli.
+    let lavoriPrima = 0;
+    $effect(() => {
+        if (lavoriPrima > 0 && lavori.quanti === 0) freschezza.carica();
+        lavoriPrima = lavori.quanti;
     });
 
     const attiva = (destinazione) =>
@@ -89,6 +102,23 @@
                  decorativo: su una macchina raggiungibile da internet, sapere
                  con quale accesso stai guardando e' parte di cosa stai
                  guardando. -->
+            <!-- L'allarme. Sta nella barra e non nella pagina Universo perche'
+                 un avviso che si vede solo se vai a cercarlo non e' un avviso:
+                 e' una nota a pie' di pagina. -->
+            <button class="btn btn-sm {freschezza.quanti
+                        ? 'btn-outline-warning' : 'btn-outline-secondary'}"
+                    onclick={() => freschezza.alterna()}
+                    title={freschezza.quanti
+                        ? `${freschezza.quanti} cose da aggiornare`
+                        : "dati aggiornati"}
+                    aria-label="Freschezza dei dati">
+                <i class="bi {freschezza.quanti ? 'bi-exclamation-triangle' : 'bi-check2-circle'}"
+                   aria-hidden="true"></i>
+                {#if freschezza.quanti}
+                    <span class="badge text-bg-warning ms-1">{freschezza.quanti}</span>
+                {/if}
+            </button>
+
             <a class="btn btn-sm btn-outline-secondary" href="/privacy"
                title="Privacy, cosa viene salvato, e la tua password">
                 <i class="bi bi-person-circle" aria-hidden="true"></i>
@@ -101,6 +131,55 @@
         </div>
     </div>
 </nav>
+
+<!-- Il pannello dell'allarme: cosa e' vecchio, da quanto, e CHE COSA FARE.
+     L'azione e' il nome del pulsante, non quello dell'endpoint: chi legge un
+     avviso vuole sapere dove cliccare, non quale rotta chiamare. -->
+{#if freschezza.aperto}
+    <div class="container-fluid contenuto pt-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h2 class="h6 mb-2">Freschezza dei dati</h2>
+                    <button class="btn-close" aria-label="Chiudi"
+                            onclick={() => freschezza.alterna()}></button>
+                </div>
+
+                <table class="table table-sm small mb-2">
+                    <tbody>
+                        {#each freschezza.tutti as riga (riga.categoria)}
+                            <tr class:text-secondary={!riga.vecchio}>
+                                <td style="width: 1.5rem">
+                                    <i class="bi {riga.vecchio
+                                        ? 'bi-exclamation-triangle text-warning'
+                                        : 'bi-check2'}" aria-hidden="true"></i>
+                                </td>
+                                <td>{riga.etichetta}</td>
+                                <td class="numerico text-end" style="width: 7rem">
+                                    {riga.eta_giorni === null ? "—"
+                                        : riga.eta_giorni + " giorni"}
+                                </td>
+                                <td class="numerico text-end" style="width: 7rem">
+                                    {riga.limite_giorni === null ? ""
+                                        : "su " + riga.limite_giorni}
+                                </td>
+                                <td class="text-end">
+                                    {#if riga.vecchio}<strong>{riga.azione}</strong>
+                                    {:else}<span class="text-secondary">aggiornato</span>{/if}
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+
+                <p class="small text-secondary mb-0">
+                    <i class="bi bi-hand-index" aria-hidden="true"></i>
+                    {freschezza.nota}
+                </p>
+            </div>
+        </div>
+    </div>
+{/if}
 
 <main class="container-fluid contenuto py-4">
     {@render children()}
