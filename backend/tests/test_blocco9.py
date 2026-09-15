@@ -816,6 +816,127 @@ def test_i_tre_orizzonti_si_misurano_nella_stessa_passata():
     assert esito["riepilogo"]["12"]["reason"]
 
 
+def _storico_prezzi_finto():
+    """Quattordici mesi di un titolo solo: abbastanza per le misure di prezzo.
+
+    CADUTO parte da 100, scende a 50 a meta' strada e risale a 70: un drawdown
+    del 50% con un recupero del 40% dal fondo. PIATTO resta fermo e serve da
+    paragone.
+
+    Le azioni sono quattro volte quelle degli altri finti, e non per capriccio:
+    con cinque milioni, CADUTO sul fondo varrebbe 250 M$ e **uscirebbe dalla
+    soglia di capitalizzazione proprio nel mese in cui lo si vuole misurare**.
+    E' il filtro che fa il suo mestiere — un titolo che si dimezza puo' davvero
+    smettere di essere investibile — ma qui renderebbe il test cieco.
+    """
+    azioni = AZIONI_INVESTIBILE * 4
+    mesi = [f"2025-{m:02d}" for m in range(1, 13)] + ["2026-01", "2026-02"]
+    caduto = [100.0, 95.0, 90.0, 80.0, 70.0, 60.0, 50.0, 55.0, 60.0, 65.0, 70.0,
+              70.0, 70.0, 70.0]
+    piatto = [100.0] * len(mesi)
+
+    righe = []
+    for simbolo, serie in (("CADUTO", caduto), ("PIATTO", piatto)):
+        for mese, chiusura in zip(mesi, serie, strict=True):
+            righe.append((simbolo, mese, chiusura, VOLUME_INVESTIBILE, azioni))
+
+    with db_session() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO universe_prezzi_mensili "
+            "(symbol, mese, chiusura, volume_medio, azioni, built_at) "
+            "VALUES (?, ?, ?, ?, ?, '2026-09-15')", righe)
+
+
+def test_il_rigioco_regge_anche_i_criteri_di_prezzo():
+    """Il difetto: `rigioca` accettava qualunque criterio dello scanner e poi
+    sollevava KeyError su tutti quelli di prezzo — sei su dieci.
+
+    Il pulsante «Ha mai funzionato?» quindi funzionava solo per i quattro di
+    bilancio, e per gli altri rompeva il lavoro dentro al thread.
+    """
+    _storico_prezzi_finto()
+
+    esito = rigioco.rigioca({"drawdown_minimo": 0.30}, orizzonti=(3,))
+    per_mese = {m["mese"]: m for m in esito["mesi"]}
+
+    # A luglio 2025 CADUTO e' sul fondo: -50% dal massimo. PIATTO non scende mai.
+    assert per_mese["2025-07"]["orizzonti"]["3"]["trovati"] == 1
+    assert per_mese["2025-07"]["orizzonti"]["3"]["resto"] == 1
+
+
+def test_chi_si_dimezza_puo_uscire_dalla_popolazione_investibile():
+    """Non e' un effetto collaterale: e' il filtro che fa il suo mestiere.
+
+    Un titolo che perde meta' del valore puo' scendere sotto la soglia di
+    capitalizzazione, e da quel mese non e' piu' uno che compreresti. Contarlo
+    lo stesso vorrebbe dire misurare un paragone che non si poteva giocare.
+    """
+    mesi = [f"2025-{m:02d}" for m in range(1, 13)]
+    # A 100 vale 500 M$, a 50 ne vale 250: sotto la soglia di 300.
+    serie = [100.0, 100.0, 100.0, 100.0, 100.0, 100.0,
+             50.0, 50.0, 50.0, 50.0, 50.0, 50.0]
+    with db_session() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO universe_prezzi_mensili "
+            "(symbol, mese, chiusura, volume_medio, azioni, built_at) "
+            "VALUES (?, ?, ?, ?, ?, '2026-09-15')",
+            [("MEZZO", mese, chiusura, VOLUME_INVESTIBILE, AZIONI_INVESTIBILE)
+             for mese, chiusura in zip(mesi, serie, strict=True)])
+
+    esito = rigioco.rigioca({"drawdown_minimo": 0.30}, orizzonti=(3,))
+    per_mese = {m["mese"]: m["investibili"] for m in esito["mesi"]}
+
+    assert per_mese["2025-03"] == 1, "a 100 dollari e' dentro"
+    assert per_mese["2025-08"] == 0, "a 50 dollari vale 250 M\u0024: fuori"
+
+
+def test_il_rigioco_dichiara_che_le_misure_di_prezzo_sono_mensili():
+    """Non sono gli stessi numeri dello scanner dal vivo, e va detto.
+
+    Il piu' diverso e' il drawdown: su chiusure di fine mese un crollo rientrato
+    dentro al mese non si vede affatto.
+    """
+    _storico_prezzi_finto()
+
+    nota = rigioco.rigioca({"drawdown_minimo": 0.30}, orizzonti=(3,))["nota_prezzi"]
+
+    assert "MESE" in nota
+    assert "drawdown" in nota and "sottostima" in nota
+
+
+# --- i preset: combinazioni gia' rigiocate ---------------------------------
+
+def test_ogni_preset_usa_criteri_che_esistono():
+    """Un preset che nomina un criterio cancellato non fallisce: non trova nulla,
+    e sembra un criterio severo invece che un preset rotto."""
+    for nome, dati in scansione.PRESET.items():
+        sconosciuti = sorted(set(dati["criteri"]) - set(scansione.CRITERI))
+        assert not sconosciuti, f"il preset {nome} nomina criteri inesistenti: {sconosciuti}"
+
+
+def test_ogni_preset_porta_il_suo_verdetto_misurato():
+    """Un preset senza verdetto e' esattamente cio' che questo progetto esiste
+    per non rifare: una combinazione proposta senza che nessuno le abbia mai
+    chiesto se funziona."""
+    for nome, dati in scansione.PRESET.items():
+        assert dati["verdetto"], f"{nome} non dice com'e' andato il rigioco"
+        assert dati["cautela"], f"{nome} non dice cosa NON dice la sua misura"
+        assert isinstance(dati["vince"], bool), f"{nome} non dichiara se vince"
+        assert dati["mesi_giudicabili"] > 0, f"{nome} non dice su quanti mesi"
+
+
+def test_i_preset_che_perdono_restano_in_elenco():
+    """Un'idea scartata che non si scrive da qualche parte torna da sola fra sei
+    mesi. Il buon drawdown e' la prima della lista: e' l'idea di partenza del
+    progetto, ed e' stata misurata perdente su ottantadue mesi."""
+    perdenti = [n for n, d in scansione.PRESET.items() if not d["vince"]]
+
+    assert "buon_drawdown" in perdenti
+    assert scansione.PRESET["buon_drawdown"]["mesi_giudicabili"] > 50, (
+        "un verdetto negativo su pochi mesi non basta a scartare un'idea"
+    )
+
+
 def test_un_criterio_troppo_stretto_non_si_giudica():
     """La mediana di due titoli e' un aneddoto con l'aria di una misura."""
 

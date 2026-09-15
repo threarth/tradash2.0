@@ -16,6 +16,23 @@ FINESTRA_BREVE = 21
 FINESTRA_MEDIA = 63
 FINESTRA_LUNGA = 252
 
+# Le stesse finestre quando i punti sono MESI invece che sedute, per il rigioco:
+# li' la storia si legge da `universe_prezzi_mensili`, un punto per mese, perche'
+# rileggere i prezzi giornalieri di dodicimila titoli per ogni mese sarebbe un
+# lavoro da ore invece che da secondi.
+#
+# I 200 e i 50 giorni diventano 10 e 2 mesi (~21 sedute per mese). NON sono lo
+# stesso numero della versione giornaliera, ed e' scritto: una media a 200
+# sedute calcolata su dieci chiusure di fine mese e' una media diversa, non una
+# sua approssimazione. Chi legge un rigioco lo deve sapere.
+FINESTRE_MENSILI = {"breve": 1, "media": 3, "lunga": 12, "media_50": 2, "media_200": 10}
+
+
+def finestre_in_sedute() -> dict:
+    """Le finestre della scansione dal vivo, dove un punto e' una seduta."""
+    return {"breve": FINESTRA_BREVE, "media": FINESTRA_MEDIA, "lunga": FINESTRA_LUNGA,
+            "media_50": 50, "media_200": 200}
+
 # Quanti trimestri fanno un anno. Serve al confronto anno su anno, che e' l'unico
 # modo di guardare i ricavi senza guardare il calendario.
 TRIMESTRI_PER_ANNO = 4
@@ -33,22 +50,29 @@ def _variazione(chiusure: list[float], sedute: int) -> float | None:
     return None if prima == 0 else (chiusure[-1] - prima) / prima
 
 
-def misure(chiusure: list[float], volumi: list[float] | None = None) -> dict:
+def misure(chiusure: list[float], volumi: list[float] | None = None,
+           finestre: dict | None = None) -> dict:
     """Tutto quello che si puo' dire di un titolo guardando solo i suoi prezzi.
 
     Le misure che non si possono calcolare valgono `None` e non zero: un titolo
     quotato da tre mesi non ha una variazione a un anno pari a zero, non ce
     l'ha affatto.
+
+    `finestre` esiste perche' questa stessa matematica serve su due serie
+    diverse: le sedute, per lo scanner dal vivo, e i mesi, per il rigioco. Due
+    implementazioni della stessa media sarebbero due posti dove sbagliarla.
     """
+    finestre = finestre or finestre_in_sedute()
+    lunga, corta = finestre["media_200"], finestre["media_50"]
     return {
         "ultimo_prezzo": chiusure[-1] if chiusure else None,
         "sedute": len(chiusure),
-        "variazione_1m": _variazione(chiusure, FINESTRA_BREVE),
-        "variazione_3m": _variazione(chiusure, FINESTRA_MEDIA),
-        "variazione_1a": _variazione(chiusure, FINESTRA_LUNGA),
-        "media_50": _media(chiusure[-50:]) if len(chiusure) >= 50 else None,
-        "media_200": _media(chiusure[-200:]) if len(chiusure) >= 200 else None,
-        "volume_medio": _media(volumi[-FINESTRA_BREVE:]) if volumi else None,
+        "variazione_1m": _variazione(chiusure, finestre["breve"]),
+        "variazione_3m": _variazione(chiusure, finestre["media"]),
+        "variazione_1a": _variazione(chiusure, finestre["lunga"]),
+        "media_50": _media(chiusure[-corta:]) if len(chiusure) >= corta else None,
+        "media_200": _media(chiusure[-lunga:]) if len(chiusure) >= lunga else None,
+        "volume_medio": _media(volumi[-finestre["breve"]:]) if volumi else None,
         "drawdown": drawdown.profilo(chiusure),
         # I bilanci li mette chi chiama, perche' vanno letti: qui c'e' il posto
         # dove vanno, cosi' un criterio di bilancio trova sempre la casella —
@@ -162,6 +186,89 @@ CRITERI = {
         "(adesso {valore:.2f})",
     ),
 }
+
+
+# --- I preset: combinazioni gia' rigiocate ----------------------------------
+#
+# Un preset non e' una scorciatoia, e' una combinazione **a cui e' gia' stata
+# fatta la domanda**. Ognuno porta il proprio verdetto misurato — compresi i due
+# che perdono, che restano in elenco proprio per quello: un'idea scartata che
+# non si scrive da qualche parte torna da sola fra sei mesi.
+#
+# Misurati tutti il 15/09/2026 con `manage.py criterio`, finestra 2019-2026,
+# paragone fra investibili ($300 M di capitalizzazione, $1 M al giorno di
+# controvalore), a tre orizzonti. I numeri qui sotto sono il vantaggio mediano
+# a 3, 6 e 12 mesi, e i mesi giudicabili a sei.
+#
+# ATTENZIONE a leggerli: piu' un criterio e' stretto, meno mesi sono
+# giudicabili, e un vantaggio grande su undici mesi vale meno di uno piccolo su
+# settantacinque.
+PRESET = {
+    "forza_confermata": {
+        "etichetta": "Forza confermata",
+        "criteri": {"sopra_media_200": 0.05, "variazione_1a_minima": 0.20},
+        "idea": "sale da un anno ed e' ancora sopra la sua media lunga",
+        "verdetto": "vince a tutti e tre gli orizzonti: +1,2% / +2,9% / +2,1%",
+        "mesi_giudicabili": 75,
+        "vince": True,
+        # Il rigioco calcola la «media a 200 sedute» su dieci chiusure mensili:
+        # e' un numero diverso da quello che lo scanner applica dal vivo, e
+        # questo preset e' l'unico in cui la differenza tocca un criterio.
+        "cautela": "nel rigioco la media a 200 sedute e' una media di dieci mesi, "
+                   "quindi il verdetto misura una cosa simile ma non identica a "
+                   "quella che il criterio applica dal vivo",
+    },
+    "crescita_con_utili": {
+        "etichetta": "Cresce e guadagna",
+        "criteri": {"ricavi_yoy_minimo": 0.15, "eps_minimo": 0.0},
+        "idea": "ricavi in crescita sull'anno prima, e l'ultimo trimestre in utile",
+        "verdetto": "vince: +1,2% / +5,9% / +4,7%",
+        "mesi_giudicabili": 14,
+        "vince": True,
+        "cautela": "quattordici mesi giudicabili a sei mesi: il vantaggio e' il "
+                   "piu' grande dell'elenco, ma il campione e' il piu' piccolo",
+    },
+    "buon_drawdown": {
+        "etichetta": "Buon drawdown",
+        "criteri": {"drawdown_minimo": 0.30, "recupero_minimo": 0.15},
+        "idea": "sceso molto e gia' ripartito dal fondo",
+        "verdetto": "PERDE a tutti e tre: -0,7% / -0,9% / -0,5%",
+        "mesi_giudicabili": 82,
+        "vince": False,
+        "cautela": "e' l'idea del vecchio «Good Drawdown Monitor», ed e' stata "
+                   "misurata su ottantadue mesi: non e' un caso sfortunato. Sul "
+                   "rigioco il drawdown si misura fra chiusure di fine mese, "
+                   "quindi sottostima i crolli rientrati dentro al mese",
+    },
+    "crollo_e_ripresa": {
+        "etichetta": "Crollo e ripresa",
+        "criteri": {"drawdown_minimo": 0.50, "recupero_minimo": 0.20},
+        "idea": "come il precedente ma piu' estremo: dimezzato e in risalita",
+        "verdetto": "PERDE, e peggio: -2,3% / -3,0% / -3,0%",
+        "mesi_giudicabili": 76,
+        "vince": False,
+        "cautela": "irrigidire le soglie del buon drawdown lo peggiora invece di "
+                   "migliorarlo, il che e' l'indizio che il difetto sta "
+                   "nell'idea e non nella taratura",
+    },
+    "numeri_che_girano": {
+        "etichetta": "Numeri che girano",
+        "criteri": {"ricavi_yoy_minimo": 0.20, "margine_crescita_minima": 0.02},
+        "idea": "ricavi in accelerazione E margine in miglioramento insieme",
+        "verdetto": "PERDE: -3,9% / -1,8%, e a dodici mesi non e' giudicabile",
+        "mesi_giudicabili": 11,
+        "vince": False,
+        "cautela": "i ricavi anno su anno DA SOLI vincono (+5,2% a sei mesi): "
+                   "aggiungere il margine peggiora il risultato e dimezza i mesi "
+                   "giudicabili. Due filtri buoni non fanno un filtro migliore",
+    },
+}
+
+
+def preset_validi() -> list[str]:
+    """I preset i cui criteri esistono tutti. Serve al test che li sorveglia."""
+    return [nome for nome, dati in PRESET.items()
+            if all(c in CRITERI for c in dati["criteri"])]
 
 
 def valuta(misurato: dict, criteri: dict) -> tuple[bool, list[str]]:

@@ -169,6 +169,37 @@ def soglie() -> dict:
     }
 
 
+def nota_prezzi() -> str:
+    """Come sono calcolate, nel rigioco, le misure di prezzo. Va detto sempre.
+
+    Lo scanner dal vivo legge le SEDUTE; il rigioco legge un punto per mese,
+    perche' rileggere i prezzi giornalieri di dodicimila titoli per ognuno dei
+    quarantun mesi sarebbe un lavoro da ore. Le due serie non danno gli stessi
+    numeri, e il piu' diverso e' il drawdown: su chiusure di fine mese un crollo
+    rientrato dentro il mese non si vede affatto.
+    """
+    return (
+        "Nel rigioco le misure di prezzo si calcolano su un punto per MESE, non "
+        "sulle sedute: la variazione a un anno e' fra due chiusure di fine mese, "
+        "la «media a 200 sedute» e' la media di dieci chiusure mensili, e il "
+        "drawdown non vede i minimi toccati dentro al mese — quindi lo "
+        "sottostima. Sono numeri confrontabili fra loro nel tempo, non con "
+        "quelli che vedi nello scanner dal vivo."
+    )
+
+
+def _storia_fino_a(mesi: dict, mese: str) -> tuple[list[float], list[float]]:
+    """Chiusure e volumi fino a quel mese COMPRESO, in ordine. Niente futuro.
+
+    E' l'equivalente mensile della serie di sedute che lo scanner dal vivo
+    riceve: la stessa matematica ci gira sopra, con le finestre in mesi.
+    """
+    fino = sorted(m for m in mesi if m <= mese)
+    chiusure = [mesi[m]["chiusura"] for m in fino]
+    volumi = [mesi[m]["volume_medio"] for m in fino if mesi[m]["volume_medio"] is not None]
+    return chiusure, volumi
+
+
 def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
                  orizzonti: tuple[int, ...]) -> dict:
     """Un mese: chi era investibile, chi il criterio trovava, e come sono andati.
@@ -187,15 +218,21 @@ def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
         investibili += 1
         rese = {o: _rendimento(mesi, mese, o) for o in orizzonti}
 
-        dove = resto
+        # Le misure di prezzo si calcolano sulla storia fino a QUEL mese, con la
+        # stessa funzione dello scanner dal vivo e le finestre in mesi. Prima
+        # qui c'era il solo dizionario dei fondamentali, e un criterio di
+        # prezzo faceva saltare tutto il rigioco con un KeyError.
+        chiusure, volumi = _storia_fino_a(mesi, mese)
+        misurato = scansione.misure(chiusure, volumi, scansione.FINESTRE_MENSILI)
+
         voci, depositi = bilanci.get(simbolo, ({}, {}))
         if voci:
             periodi = sorted(voci.get("total_revenue", {}))
             pubblici = [p for p in periodi
                         if publication_dates.was_public(depositi, p, quando)]
-            misurato = {"fondamentali": scansione.fondamentali(voci, pubblici)}
-            if scansione.valuta(misurato, criteri)[0]:
-                dove = trovati
+            misurato["fondamentali"] = scansione.fondamentali(voci, pubblici)
+
+        dove = trovati if scansione.valuta(misurato, criteri)[0] else resto
 
         for orizzonte, resa in rese.items():
             if resa is not None:
@@ -246,6 +283,7 @@ def rigioca(criteri: dict, orizzonti: tuple[int, ...] | None = None) -> dict:
         "criteri": criteri,
         "orizzonti_mesi": list(orizzonti),
         "soglie": soglie(),
+        "nota_prezzi": nota_prezzi(),
         "mesi": per_mese,
         "riepilogo": {str(o): riepiloga(per_mese, o) for o in orizzonti},
     }

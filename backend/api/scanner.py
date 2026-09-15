@@ -22,8 +22,17 @@ bp = Blueprint("scanner", __name__, url_prefix="/api/scanner")
 
 @bp.get("/criteri")
 def criteri():
-    """Quali criteri si possono chiedere. Il frontend ci costruisce il modulo."""
-    return ok({"criteri": sorted(scansione.CRITERI), "titoli_max": config.SCANNER_TITOLI_MAX})
+    """Quali criteri si possono chiedere, e i preset gia' rigiocati.
+
+    I preset arrivano da qui e non sono scritti nella pagina: portano il loro
+    verdetto misurato, e un verdetto scritto a mano nel frontend invecchierebbe
+    senza che nessuno se ne accorga il giorno in cui il rigioco viene rifatto.
+    """
+    return ok({
+        "criteri": sorted(scansione.CRITERI),
+        "titoli_max": config.SCANNER_TITOLI_MAX,
+        "preset": [{"nome": nome, **dati} for nome, dati in scansione.PRESET.items()],
+    })
 
 
 @bp.post("")
