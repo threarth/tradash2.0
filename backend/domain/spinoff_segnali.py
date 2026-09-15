@@ -66,6 +66,22 @@ MESI_VOLUME = 4
 # su cui non si puo' ancora dire niente.
 TRIMESTRI_MINIMI = 2
 
+# Quanti ne servono ai RICAVI, che si confrontano con lo stesso trimestre
+# dell'anno prima: cinque, cioe' l'ultimo piu' i quattro che lo precedono.
+#
+# Prima erano due, e il confronto era col trimestre precedente. Il rigioco ha
+# mostrato perche' non andava: sullo scanner `ricavi QoQ` perde il 14% mediano
+# contro il non-filtrare e `ricavi anno su anno` solo il 3,6% — una differenza
+# troppo grande per essere caso. La spiegazione e' che **un trimestre di Natale
+# batte quello prima quasi sempre**: il trimestre su trimestre selezionava il
+# calendario, non la crescita.
+#
+# Il prezzo di questa correzione e' dichiarato: uno spin-off di sei mesi non ha
+# cinque trimestri suoi, quindi per i primi ~15 mesi di vita il segnale dei
+# ricavi e' ASSENTE — esce dal denominatore invece di valere zero, che e' il
+# trattamento che questo modulo riserva a tutto cio' che non sa.
+TRIMESTRI_RICAVI = 5
+
 # Il ritardo con cui un trimestre si considera depositato QUANDO non si hanno le
 # date vere. E' il ripiego, non la regola: chi ha l'indice dei depositi passa i
 # periodi gia' filtrati, e quello e' il taglio buono.
@@ -200,6 +216,32 @@ def trimestri_utili(periodi: list[str], spin: str, oggi: date | None = None,
             if date.fromisoformat(p) + timedelta(days=RITARDO_DEPOSITO_GIORNI) <= quando]
 
 
+def _ricavi_anno_su_anno(ricavi: dict, utili: list[str]) -> dict:
+    """La crescita dei ricavi contro lo stesso trimestre dell'anno prima.
+
+    Anno su anno e non trimestre su trimestre: il QoQ misura anche il
+    calendario, e un trimestre di Natale batte quello prima quasi sempre. Il
+    rigioco lo ha misurato sullo scanner — QoQ perde il 14% mediano contro il
+    non-filtrare, YoY solo il 3,6%.
+
+    Chi non ha cinque trimestri DOPO la separazione non riceve uno zero: riceve
+    un'assenza col motivo, e quel peso esce dal denominatore. Per uno spin-off
+    giovane il punteggio poggia su cinque segnali invece di sei, e il fatto che
+    ne manchi uno e' scritto accanto al numero.
+    """
+    if len(utili) < TRIMESTRI_RICAVI:
+        return _assente(f"{len(utili)} trimestri dopo lo spin, per il confronto "
+                        f"anno su anno ne servono {TRIMESTRI_RICAVI}")
+
+    ora, anno_prima = utili[-1], utili[-TRIMESTRI_RICAVI]
+    if ora not in ricavi or anno_prima not in ricavi or not ricavi[anno_prima]:
+        return _assente("ricavi non confrontabili con l'anno prima")
+
+    crescita = ricavi[ora] / ricavi[anno_prima] - 1
+    return _livello(crescita, RICAVI_PIENO, RICAVI_MEZZO,
+                    f"{crescita:+.0%} sull'anno prima")
+
+
 def _fondamentali(voci: dict, utili: list[str]) -> dict:
     """Margine, ricavi ed EPS sugli ultimi due trimestri utili."""
     if len(utili) < TRIMESTRI_MINIMI:
@@ -221,11 +263,7 @@ def _fondamentali(voci: dict, utili: list[str]) -> dict:
     else:
         esito["margine"] = _assente("margine non ricavabile")
 
-    if ora in ricavi and prima in ricavi and ricavi[prima]:
-        crescita = ricavi[ora] / ricavi[prima] - 1
-        esito["ricavi"] = _livello(crescita, RICAVI_PIENO, RICAVI_MEZZO, f"{crescita:+.0%} QoQ")
-    else:
-        esito["ricavi"] = _assente("ricavi non confrontabili")
+    esito["ricavi"] = _ricavi_anno_su_anno(ricavi, utili)
 
     adesso, allora = eps.get(ora), eps.get(prima)
     if adesso is None or allora is None:

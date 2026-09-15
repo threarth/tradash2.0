@@ -186,6 +186,25 @@ def test_una_pagina_che_non_risponde_e_un_400_col_motivo(client, monkeypatch):
 SPIN = "2025-06-30"
 OGGI = date(2026, 9, 5)
 
+# Uno spin-off piu' vecchio, con cinque trimestri suoi: da quando i ricavi si
+# confrontano con l'anno prima, il punteggio pieno non e' raggiungibile prima.
+# Non e' un dettaglio del test: e' la conseguenza dichiarata della correzione —
+# per i primi ~15 mesi di vita il segnale dei ricavi e' assente.
+SPIN_MATURO = "2025-03-31"
+
+# Cinque trimestri dopo SPIN_MATURO, tutti gia' depositati al 05/09/2026.
+# I ricavi crescono del 30% sull'anno prima, il margine passa dal 30% al 40%
+# nell'ultimo trimestre, e l'EPS raddoppia restando positivo: tutti e tre i
+# segnali di bilancio al massimo.
+VOCI_CINQUE_TRIMESTRI = {
+    "total_revenue": {"2025-06-30": 100.0, "2025-09-30": 105.0, "2025-12-31": 110.0,
+                      "2026-03-31": 120.0, "2026-06-30": 130.0},
+    "gross_profit": {"2025-06-30": 30.0, "2025-09-30": 33.0, "2025-12-31": 36.0,
+                     "2026-03-31": 36.0, "2026-06-30": 52.0},
+    "diluted_eps": {"2025-06-30": 0.08, "2025-09-30": 0.12, "2025-12-31": 0.15,
+                    "2026-03-31": 0.20, "2026-06-30": 0.40},
+}
+
 
 def _barre(quante: int, prezzo=lambda i: 100.0, volume=lambda i: 1000.0,
            dal=date(2025, 7, 1)) -> list[dict]:
@@ -298,14 +317,10 @@ def test_il_volume_confronta_l_ultimo_mese_coi_tre_prima():
 
 
 def test_il_punteggio_dice_su_quanti_segnali_e_stato_calcolato():
-    voci = {"total_revenue": {"2025-09-30": 100.0, "2025-12-31": 130.0},
-            "gross_profit": {"2025-09-30": 30.0, "2025-12-31": 52.0},
-            "diluted_eps": {"2025-09-30": 0.10, "2025-12-31": 0.40}}
-
     barre = _barre(200, prezzo=lambda i: 100.0 + i,
                    volume=lambda i: 1000.0 if i < 170 else 4000.0, dal=date(2026, 2, 17))
 
-    esito = segnali.segnali(barre, voci, SPIN, oggi=OGGI)
+    esito = segnali.segnali(barre, VOCI_CINQUE_TRIMESTRI, SPIN_MATURO, oggi=OGGI)
     conto = segnali.punteggio(esito)
 
     assert conto["presi"] == conto["disponibili"], "tutti i segnali calcolabili sono pieni"
@@ -314,18 +329,55 @@ def test_il_punteggio_dice_su_quanti_segnali_e_stato_calcolato():
     assert segnali.stato(esito) == segnali.NUMERI_GIRATI
 
 
-def test_i_fondamentali_accesi_col_volume_girato_sono_raffreddamento():
-    """E' lo stato che su SanDisk ha anticipato il calo: bilanci al massimo,
-    volume che si gira, e da li' il prezzo ha fatto -8%."""
+def test_i_ricavi_si_confrontano_con_l_anno_prima_non_col_trimestre_prima():
+    """Il QoQ misurava anche il calendario: un trimestre di Natale batte quello
+    prima quasi sempre.
+
+    Il rigioco lo ha quantificato sullo scanner: `ricavi QoQ` perde il 14%
+    mediano contro il non-filtrare, `ricavi anno su anno` solo il 3,6%.
+    """
+    barre = _barre(200, dal=date(2026, 2, 17))
+    esito = segnali.segnali(barre, VOCI_CINQUE_TRIMESTRI, SPIN_MATURO, oggi=OGGI)
+
+    # 100 -> 130 sull'anno prima e' +30%; sul trimestre prima sarebbe +8,3%,
+    # cioe' mezzo punto invece che pieno.
+    assert esito["ricavi"]["valore"] == pytest.approx(0.30)
+    assert esito["ricavi"]["quota"] == 1.0
+    assert "anno prima" in esito["ricavi"]["nota"]
+
+
+def test_uno_spinoff_giovane_perde_il_segnale_dei_ricavi_col_motivo():
+    """Il prezzo dichiarato della correzione.
+
+    Uno spin-off di sei mesi non ha cinque trimestri suoi, quindi il confronto
+    anno su anno non esiste proprio per la popolazione che questo rilevatore
+    cerca. Il segnale non vale zero: esce dal denominatore, e dice perche'.
+    """
     voci = {"total_revenue": {"2025-09-30": 100.0, "2025-12-31": 130.0},
             "gross_profit": {"2025-09-30": 30.0, "2025-12-31": 52.0},
             "diluted_eps": {"2025-09-30": 0.10, "2025-12-31": 0.40}}
 
+    barre = _barre(200, prezzo=lambda i: 100.0 + i,
+                   volume=lambda i: 1000.0 if i < 170 else 4000.0, dal=date(2026, 2, 17))
+    esito = segnali.segnali(barre, voci, SPIN, oggi=OGGI)
+    conto = segnali.punteggio(esito)
+
+    assert esito["ricavi"]["quota"] is None, "assente, non zero"
+    assert "ne servono 5" in esito["ricavi"]["nota"]
+    assert conto["disponibili"] == sum(segnali.PESI.values()) - segnali.PESI["ricavi"]
+    assert segnali.stato(esito) == segnali.TROPPO_PRESTO, (
+        "senza i ricavi non si dice che i numeri sono girati"
+    )
+
+
+def test_i_fondamentali_accesi_col_volume_girato_sono_raffreddamento():
+    """E' lo stato che su SanDisk ha anticipato il calo: bilanci al massimo,
+    volume che si gira, e da li' il prezzo ha fatto -8%."""
     def discesa(i):
         return 3000.0 if i < 90 else 800.0
 
     esito = segnali.segnali(_barre(120, volume=discesa, dal=date(2026, 5, 9)),
-                            voci, SPIN, oggi=OGGI)
+                            VOCI_CINQUE_TRIMESTRI, SPIN_MATURO, oggi=OGGI)
 
     assert esito["volume"]["quota"] == 0.0
     assert segnali.stato(esito) == segnali.IN_RAFFREDDAMENTO
