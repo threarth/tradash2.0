@@ -1,0 +1,73 @@
+# La suite a ogni push, perche' 471 test che girano in quindici secondi non
+# hanno nessuna scusa per girare solo quando qualcuno si ricorda di lanciarli.
+#
+# Nessun segreto, nessuna chiave: la suite e' isolata per costruzione — la rete
+# e' spenta sui socket e sul getaddrinfo, e il database vero e' irraggiungibile.
+# Se un giorno questo workflow avesse bisogno di una credenziale, vorrebbe dire
+# che quell'isolamento si e' rotto.
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Dipendenze
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Stile
+        run: python -m ruff check .
+
+      - name: Suite
+        # Senza `-m network`: i test che escono su internet restano esclusi,
+        # come in locale. Un workflow che li lanciasse dipenderebbe dal fatto
+        # che Defeatbeta sia in piedi — e il 15/09/2026 non lo era.
+        run: python -m pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Dipendenze
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test
+
+      - name: Il build passa
+        # Non e' una formalita': il difetto del pulsante «Ha mai funzionato?»
+        # non lo prendeva nessun test del backend, e un build rotto e' l'unica
+        # cosa che si vede senza aprire la pagina.
+        run: pnpm build

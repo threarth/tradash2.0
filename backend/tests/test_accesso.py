@@ -78,15 +78,54 @@ def test_ogni_rotta_api_e_chiusa_tranne_quelle_dichiarate(client_anonimo):
     )
 
 
+# Le uniche famiglie di rotte che hanno una ragione strutturale per essere
+# pubbliche. Tutto il resto, se compare fra le pubbliche, e' quasi certamente un
+# errore — e questo test esiste per farlo notare.
+#
+# `/api/auth/` perche' e' la porta stessa. `/api/salute` perche' la chiedono
+# nginx e systemd, che una password non ce l'hanno.
+PUBBLICHE_AMMESSE = ("/api/auth/", "/api/salute")
+
+
 def test_ogni_eccezione_pubblica_porta_il_suo_motivo():
-    """Aprire una porta sull'internet pubblico si giustifica in una riga."""
+    """Aprire una porta sull'internet pubblico si giustifica in una riga.
+
+    E si giustifica anche il TIPO di porta: una rotta pubblica che non sia
+    l'accesso o il controllo di salute non ha una ragione strutturale per
+    esserlo, e chi ne aggiunge una deve passare da qui a voce alta.
+    """
     assert accesso.API_PUBBLICHE, "l'elenco non puo' essere vuoto: il login sta li'"
     for percorso, motivo in accesso.API_PUBBLICHE.items():
-        assert percorso.startswith("/api/auth/"), (
-            f"{percorso} e' pubblica ma non riguarda l'accesso: e' quasi certamente "
-            f"un errore"
+        assert percorso.startswith(PUBBLICHE_AMMESSE), (
+            f"{percorso} e' pubblica e non e' ne' l'accesso ne' la salute: "
+            f"e' quasi certamente un errore"
         )
         assert len(motivo) > 20, f"{percorso} non ha un motivo scritto, ne ha uno accennato"
+
+
+def test_la_salute_risponde_senza_accesso_e_dice_pochissimo():
+    """E' l'unica rotta pubblica che tocca il database, quindi anche l'unica che
+    uno sconosciuto puo' far lavorare: fa un SELECT 1 e nient'altro.
+
+    E non dice COSA c'e' dentro. Che il servizio sia vivo non e' un segreto;
+    quanti titoli ha in pancia, o dove tiene i suoi file, lo e'.
+    """
+    # Volutamente `client_anonimo`: e' il punto.
+    pass
+
+
+def test_la_salute_e_pubblica_e_minimale(client_anonimo):
+    """Il controllo che nginx e systemd possono fare senza credenziali."""
+    risposta = client_anonimo.get("/api/salute")
+
+    assert risposta.status_code == HTTP_OK
+    dati = risposta.get_json()["data"]
+    assert dati["stato"] == "vivo"
+    assert dati["avviato_il"]
+    assert set(dati) == {"stato", "avviato_il"}, (
+        "la salute dice se sei vivo, non cosa hai in pancia: ogni campo in piu' "
+        "e' un'informazione regalata a chi non si e' presentato"
+    )
 
 
 def test_chi_non_e_entrato_riceve_un_motivo_non_un_muro(client_anonimo):

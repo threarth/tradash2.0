@@ -58,6 +58,8 @@ API_PUBBLICHE = {
     "/api/auth/stato": "dice se sei dentro o fuori: e' la domanda che si fa PRIMA di entrare",
     "/api/auth/login": "e' la porta stessa: chiuderla vorrebbe dire non poter entrare",
     "/api/auth/logout": "uscire non richiede di essere entrati, e non puo' fare danni",
+    "/api/salute": "la chiedono nginx e systemd, che non hanno una password. Dice "
+                   "solo «vivo» e da quando: nessun conteggio, nessun percorso",
 }
 
 # Le intestazioni di sicurezza, tutte con il loro perche'.

@@ -23,6 +23,7 @@ from api.calls import bp as calls_bp
 from api.glossary import bp as glossary_bp
 from api.impostazioni import bp as impostazioni_bp
 from api.ops import bp as ops_bp
+from api.salute import bp as salute_bp
 from api.scanner import bp as scanner_bp
 from api.spinoff import bp as spinoff_bp
 from api.titolo import bp as titolo_bp
@@ -56,6 +57,7 @@ def create_app() -> Flask:
     installa_gestori(app)
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(salute_bp)
     app.register_blueprint(ops_bp)
     app.register_blueprint(analisi_bp)
     app.register_blueprint(calls_bp)

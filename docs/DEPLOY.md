@@ -147,7 +147,7 @@ ExecStart=/opt/tradash2/app/backend/.venv/bin/gunicorn \
     --workers 1 --threads 8 --timeout 300 \
     --bind 127.0.0.1:5001 \
     --access-logfile - --error-logfile - \
-    "app:create_app()"
+    wsgi:app
 
 Environment=TRADASH2_TETTO_USD=10
 Environment=TRADASH2_COOKIE_SICURO=1
@@ -173,8 +173,15 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 sudo systemctl enable --now tradash2
 sudo systemctl status tradash2
-curl -s localhost:5001/api/auth/stato
+
+# Il controllo di salute: e' pubblico apposta, perche' systemd e nginx una
+# password non ce l'hanno. Dice «vivo» e da quando, e nient'altro.
+curl -s localhost:5001/api/salute
 ```
+
+**Il punto d'ingresso e' `wsgi:app`**, cioe' `backend/wsgi.py`. Non fa niente di
+piu' di `"app:create_app()"` — e' la convenzione, e serve a chi apre il repo e
+va a cercarlo dove se lo aspetta.
 
 **`PrivateTmp=true` e la cache di Defeatbeta.** La libreria metterebbe i byte
 scaricati in `/tmp`, che con questa impostazione e' privato e sparisce a ogni
@@ -194,6 +201,13 @@ server {
 
     # Il corpo delle richieste e' piccolo: nessun caricamento di file.
     client_max_body_size 1m;
+
+    # Il controllo di salute, senza log: sarebbero migliaia di righe inutili.
+    location = /api/salute {
+        proxy_pass http://127.0.0.1:5001;
+        proxy_set_header Host $host;
+        access_log off;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:5001;
