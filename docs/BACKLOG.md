@@ -1,6 +1,6 @@
 # Backlog
 
-Cosa resta, all'08/09/2026. Sta in un file e non in una chat perche' una
+Cosa resta, al 15/09/2026. Sta in un file e non in una chat perche' una
 conversazione si azzera e questo elenco no.
 
 L'ordine e' per valore, non per fatica. Ogni voce dice **perche'** vale, cosi'
@@ -15,51 +15,53 @@ vista che tiene insieme i due pezzi per chi legge. Chi oggi non deve filtrare
 per capitalizzazione non paga piu' i 3 GB di picco e i 445 MB di scaricamento.
 Il perche' e le misure stanno in `docs/DECISIONI.md`.
 
-**Cosa ha lasciato aperto:** i **68 titoli con anagrafica e senza prezzo** oggi
-si vedono con le caselle vuote, il che e' giusto, ma nessuno dice **quanti
-sono** in pagina. `stato()` ha il numero (`titoli` meno `titoli_con_prezzo`):
-manca solo mostrarlo.
+**Chiuso anche il seguito, il 15/09/2026:** i titoli con anagrafica e senza
+prezzo — 68 — adesso hanno la loro scheda nella pagina Universo, col motivo.
+Si vedevano gia' nell'elenco con le caselle vuote, ma un buco che si nota solo
+scorrendo e' un buco che nessuno conta.
 
 ---
 
-## 1. Il paragone del rigioco non e' investibile
+## ~~1. Il paragone del rigioco non e' investibile~~ — FATTO il 15/09/2026
 
-`manage.py criterio` confronta chi il criterio trova con **la mediana di tutto
-l'universo**: dentro ci sono migliaia di societa' minuscole e poco scambiate, su
-cui nessuno comprerebbe. Un criterio che le evita risulta perdente anche quando
-sta solo evitando il fondo del barile.
+**E aveva ragione: un criterio aveva perso contro un avversario che non
+esisteva.** `ricavi_yoy_minimo 0.20` col vecchio paragone dava 7 mesi vinti su
+26 e un vantaggio mediano di **-3,6%**. Col paragone fra investibili da' **10
+mesi su 14 e +5,2%** a sei mesi. Non e' cambiato il criterio: e' cambiato con
+chi lo si confrontava.
 
-E' il primo miglioramento da fare, perche' **tutte le misure fatte finora
-poggiano su quel paragone**: i cinque criteri che hanno perso potrebbero aver
-perso contro un avversario che non esiste.
+Le soglie sono capitalizzazione >= $300 M e controvalore scambiato >= $1 M al
+giorno, applicate a **entrambe** le popolazioni e dichiarate nel resoconto. Il
+controvalore e non il numero di azioni: centomila azioni da due dollari sono un
+titolo su cui un ordine vero muove il prezzo.
 
-**Cosa fare:** filtrare il paragone per capitalizzazione e volume, con le stesse
-soglie che si userebbero davvero, e dichiararle nel resoconto. I dati ci sono
-gia' nella tabella `universe`; costa una join.
+**Il pezzo che il backlog sbagliava** era «costa una join» con la tabella
+`universe`: li' dentro c'e' la capitalizzazione di OGGI, e filtrare il 2019 con
+quella avrebbe selezionato i sopravvissuti — un look-ahead peggiore del difetto
+che correggeva. Volume e azioni sono adesso in `universe_prezzi_mensili`, con le
+azioni prese all'ultimo dato gia' depositato a quella data.
 
-E gia' che c'e': l'orizzonte e' solo sei mesi e la finestra solo 2019-2026. Tre
-orizzonti (3, 6, 12) direbbero se un criterio e' lento o sbagliato — che sono due
-cose diverse.
+**E i tre orizzonti dicono quello che sei mesi soli non dicevano:**
+`ricavi_yoy_minimo` perde a tre mesi (-1,1%) e vince a sei (+5,2%) — e' **lento**,
+non sbagliato. `ricavi_qoq_minimo` perde a tutti e tre: quello e' **sbagliato**.
 
 ---
 
-## 2. Il segnale sui ricavi misura il calendario
+## ~~2. Il segnale sui ricavi misura il calendario~~ — FATTO il 15/09/2026
 
-Il rigioco ha mostrato che `ricavi QoQ` perde il 14% mediano contro il
-non-filtrare e `ricavi anno su anno` solo il 3,6%: la differenza e' troppo
-grande per essere caso, e la spiegazione e' che **un trimestre di Natale batte
-quello prima quasi sempre**. Il trimestre su trimestre seleziona il calendario,
-non la crescita.
+Il rilevatore spin-off confronta i ricavi con **lo stesso trimestre dell'anno
+prima**, non con quello precedente. Scelta dell'utente fra le due che il backlog
+proponeva, ed e' la piu' onesta: il trimestre su trimestre seleziona il
+calendario, perche' un trimestre di Natale batte quello prima quasi sempre.
 
-Nello scanner il criterio anno su anno c'e' gia'. **Nel rilevatore spin-off no,
-e li' e' un problema aperto**: uno spin-off di sei mesi non ha cinque trimestri
-suoi, quindi il confronto anno su anno non esiste proprio per la popolazione che
-quel rilevatore cerca.
+Il prezzo e' dichiarato e non piccolo: uno spin-off non ha cinque trimestri suoi
+prima di ~15 mesi di vita, quindi per tutto quel periodo il segnale dei ricavi e'
+**assente** — esce dal denominatore invece di valere zero — e lo stato resta
+«troppo presto» piu' a lungo. Su una popolazione di tredici casi giudicabili,
+sono meno.
 
-**Cosa fare:** o si accetta il QoQ dichiarando che li' dentro misura anche la
-stagionalita', o si aspetta il quinto trimestre e si dice «troppo presto» piu' a
-lungo. La seconda e' piu' onesta e riduce ancora i casi giudicabili, che sono
-gia' tredici.
+La misura che lo giustifica sta qui sopra: a sei mesi il QoQ perde il 3,2% e lo
+YoY guadagna il 5,2%, sullo stesso paragone e nella stessa finestra.
 
 ---
 

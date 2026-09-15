@@ -2102,3 +2102,93 @@ regge perche' i tentativi sono frenati, non perche' sia robusta.
 /api/analisi/tecnica/NVDA`, cookie senza scadenza con `SameSite=Lax`, stesso
 messaggio per nome e password sbagliati, consenso scritto nel file dell'utente,
 e il cambio password che fa scadere la sessione da cui era stato chiesto.*
+
+
+---
+
+## Un criterio aveva perso contro un avversario che non esisteva
+
+*15/09/2026. La voce 1 del backlog, e quello che ha trovato aprendola.*
+
+Il rigioco confrontava chi un criterio trova con la mediana di **tutto**
+l'universo: dentro ci sono migliaia di societa' minuscole e poco scambiate su
+cui nessuno comprerebbe. Un criterio che le evita risultava perdente anche
+quando stava solo evitando il fondo del barile — e **tutte le misure fatte
+prima di oggi poggiavano su quel paragone**.
+
+Non era un sospetto teorico. Stesso criterio, stessa finestra, stesso codice:
+
+| `ricavi_yoy_minimo 0.20`, sei mesi | mesi vinti | vantaggio mediano |
+|---|---|---|
+| paragone con tutto l'universo | 7 su 26 | **-3,6%** |
+| paragone fra investibili | 10 su 14 | **+5,2%** |
+
+Il criterio non e' cambiato. E' cambiato con chi lo si confrontava.
+
+### Il pezzo che il backlog sbagliava
+
+C'era scritto «i dati ci sono gia' nella tabella `universe`; costa una join».
+Sarebbe stato un look-ahead: `universe` porta la capitalizzazione di **oggi**, e
+filtrare il 2019 con quella significa tenere le societa' che sono grandi adesso,
+cioe' i sopravvissuti e i vincitori. Il metro sarebbe stato costruito con la
+risposta.
+
+Quindi `universe_prezzi_mensili` ha due colonne in piu': il **volume medio di
+quel mese** — gratis, il parquet lo si stava gia' attraversando — e le **azioni
+in circolazione gia' pubbliche a quella data**, con un ASOF JOIN e lo stesso
+ritardo di deposito che si usa sui bilanci. La capitalizzazione di un mese e'
+`chiusura * azioni` di quel mese.
+
+Le soglie — $300 M di capitalizzazione, $1 M al giorno di controvalore scambiato
+— si applicano a **entrambe** le popolazioni. Filtrare solo il paragone avrebbe
+storto la misura nell'altro verso. E il controvalore, non il numero di azioni:
+centomila azioni da due dollari sono duecentomila dollari, cioe' un titolo su
+cui un ordine vero muove il prezzo.
+
+### Tre orizzonti, e la distinzione che sei mesi soli non davano
+
+|  | 3 mesi | 6 mesi | 12 mesi |
+|---|---|---|---|
+| `ricavi_yoy_minimo 0.20` | 47% · -1,1% | 71% · **+5,2%** | 67% · +4,5% |
+| `ricavi_qoq_minimo 0.15` | 36% · -0,6% | 36% · **-3,2%** | 42% · -1,7% |
+
+Il criterio anno su anno **perde a tre mesi e vince a sei**: e' lento, non
+sbagliato — anticipa piu' di quanto il prezzo impieghi a seguirlo. Quello
+trimestre su trimestre perde a tutti e tre, ed e' un'altra cosa.
+
+Con un orizzonte solo le due sarebbero sembrate la stessa: due criteri che
+perdono.
+
+### Cosa questa misura ancora NON dice
+
+* la finestra e' il 2019-2026, un regime solo, e a dodici mesi restano tre soli
+  mesi giudicabili — quella riga e' un indizio, non una misura;
+* le soglie sono scelte, non ottimizzate: $300 M e $1 M al giorno sono cio' che
+  si userebbe davvero, non cio' che fa vincere il criterio. Cercare le soglie
+  che lo fanno vincere sarebbe un altro modo di costruire il metro con la
+  risposta;
+* non e' un backtest di strategia: non si compra, non si vende, non ci sono
+  costi ne' pesi.
+
+---
+
+## I ricavi dello spin-off si confrontano con l'anno prima
+
+*15/09/2026, voce 2 del backlog. Scelta dell'utente fra le due che il backlog
+proponeva.*
+
+Il rilevatore misurava i ricavi trimestre su trimestre, e il numero qui sopra
+dice perche' non andava: sullo stesso paragone e nella stessa finestra, il QoQ
+perde il 3,2% e lo YoY guadagna il 5,2%. **Il trimestre su trimestre seleziona
+il calendario**, perche' un trimestre di Natale batte quello prima quasi sempre.
+
+Il prezzo e' dichiarato, e per questo rilevatore e' alto: uno spin-off non ha
+cinque trimestri suoi prima di una quindicina di mesi di vita, e la popolazione
+che questo rilevatore cerca e' fatta proprio di titoli giovani. Per tutto quel
+periodo il segnale dei ricavi e' **assente** — esce dal denominatore invece di
+valere zero, che e' il trattamento riservato a tutto cio' che il modulo non sa —
+e lo stato resta «troppo presto» piu' a lungo.
+
+Su tredici casi giudicabili, sono meno. E' stato accettato sapendolo: un segnale
+che misura la stagionalita' e la chiama crescita e' peggio di un segnale
+mancante, perche' il secondo lo dichiara.
