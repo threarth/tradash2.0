@@ -2192,3 +2192,66 @@ e lo stato resta «troppo presto» piu' a lungo.
 Su tredici casi giudicabili, sono meno. E' stato accettato sapendolo: un segnale
 che misura la stagionalita' e la chiama crescita e' peggio di un segnale
 mancante, perche' il secondo lo dichiara.
+
+
+---
+
+## Il rigioco funzionava su quattro criteri su dieci, e nessuno se n'era accorto
+
+*15/09/2026. Trovato aprendo la voce «metti dei preset».*
+
+`rigioca()` validava i nomi dei criteri contro `scansione.CRITERI` — quindi li
+accettava tutti — e poi costruiva `misurato = {"fondamentali": ...}` e basta.
+Ogni criterio di prezzo cercava `m["drawdown"]`, `m["variazione_1a"]`,
+`m["media_200"]` o `m["volume_medio"]` e trovava un `KeyError`.
+
+**Sei criteri su dieci facevano esplodere il pulsante «Ha mai funzionato?»**, e
+l'errore moriva dentro al thread del lavoro. Non era emerso perche' le uniche
+prove fatte — a mano e nei test — usavano criteri di bilancio.
+
+La correzione non e' stata scrivere le misure di prezzo una seconda volta: e'
+stato **parametrizzare le finestre** di `scansione.misure()`. La stessa funzione
+serve ora due serie diverse — le sedute per lo scanner dal vivo, i mesi per il
+rigioco — e la matematica resta in un posto solo. Due implementazioni della
+stessa media sarebbero due posti dove sbagliarla.
+
+**Il prezzo e' un'approssimazione, e va dichiarata ogni volta.** Nel rigioco la
+«media a 200 sedute» e' la media di dieci chiusure mensili — un numero diverso,
+non un'approssimazione dello stesso — e il drawdown non vede i minimi toccati
+dentro al mese, quindi li **sottostima**. La risposta del rigioco porta adesso
+un campo `nota_prezzi` che lo dice, e la pagina lo mostra.
+
+### E cosi' si e' scoperto che l'idea di partenza non funziona
+
+Con i criteri di prezzo rigiocabili, la prima cosa misurabile era quella da cui
+il progetto e' nato: il **buon drawdown**.
+
+| preset | 3 mesi | 6 mesi | 12 mesi | mesi giudicabili |
+|---|---|---|---|---|
+| sceso 30%, recuperato 15% | -0,7% | -0,9% | -0,5% | 82 |
+| sceso 50%, recuperato 20% | -2,3% | -3,0% | -3,0% | 76 |
+
+Perde a tutti e tre gli orizzonti, su ottantadue mesi giudicabili: non e' un
+campione piccolo ne' un caso sfortunato. E **irrigidire le soglie lo peggiora**,
+che e' l'indizio che il difetto sta nell'idea e non nella taratura.
+
+Il `PIANO` aveva gia' scritto del Good Drawdown Monitor «carino come concetto, ma
+basato su cosa?». Adesso c'e' la risposta, ed e' un numero.
+
+### I preset portano il verdetto, compresi quelli che perdono
+
+Cinque combinazioni, e **tre perdono**. Restano in elenco proprio per questo:
+un'idea scartata che non sta scritta da nessuna parte torna da sola fra sei mesi.
+
+La terza scoperta e' la piu' utile: **due filtri buoni non fanno un filtro
+migliore**. I ricavi anno su anno da soli vincono (+5,2% a sei mesi);
+aggiungerci il margine in crescita li fa perdere (-1,8%) e dimezza i mesi
+giudicabili. Ogni criterio in piu' restringe la popolazione, e il punto in cui
+si smette di misurare arriva prima di quanto sembri.
+
+### E il criterio che vince era invisibile
+
+`ricavi_yoy_minimo` esisteva nel backend ma **non era nell'elenco della pagina**:
+si poteva premere solo dall'API. Quindi dalla pagina si poteva accendere il
+criterio sui ricavi che perde, e non quello che vince. Una riga mancante
+nell'elenco del frontend, invisibile a qualunque test del backend.

@@ -130,6 +130,11 @@ Per rimettere tutto: si copia la cartella indietro e si lancia
 - **`docs/DECISIONI.md`** — ogni decisione con il difetto misurato che l'ha
   causata: perimetro, stack, i quattro archivi, perche' niente migrazioni,
   perche' i test sono isolati per costruzione, le trappole di Defeatbeta.
+- **`docs/SCANNER.md`** — come si usa lo scanner e come NON farsi ingannare dal
+  rigioco: i dieci criteri, i cinque preset col loro verdetto misurato (tre su
+  cinque perdono), e i quattro errori che il rigioco invita a fare.
+- **`docs/DEPLOY.md`** — come si mette online: Contabo Cloud VPS 4, Ubuntu 26.04,
+  nginx, e perche' un worker solo.
 - `docs/COPERTURA_DEFEATBETA.md` — cosa copre e cosa non copre Defeatbeta
   rispetto a tutte le analisi, misurato dal vivo.
 
