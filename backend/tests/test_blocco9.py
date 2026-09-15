@@ -914,27 +914,22 @@ def test_ogni_preset_usa_criteri_che_esistono():
         assert not sconosciuti, f"il preset {nome} nomina criteri inesistenti: {sconosciuti}"
 
 
-def test_ogni_preset_porta_il_suo_verdetto_misurato():
-    """Un preset senza verdetto e' esattamente cio' che questo progetto esiste
-    per non rifare: una combinazione proposta senza che nessuno le abbia mai
-    chiesto se funziona."""
+def test_ogni_preset_dichiara_cosa_la_sua_misura_NON_dira():
+    """`cautela` resta scritta a mano, ed e' giusto: non e' un risultato, e'
+    cio' che quel risultato non potra' mai dire. Non cambia rigiocando.
+
+    Il verdetto invece NON sta qui: lo produce `manage.py preset` e vive in
+    `data/preset_verdetti.json`, con la data e le soglie con cui e' stato
+    misurato. I numeri scritti a mano accanto ai criteri diventavano falsi in
+    silenzio al primo cambio di soglia.
+    """
     for nome, dati in scansione.PRESET.items():
-        assert dati["verdetto"], f"{nome} non dice com'e' andato il rigioco"
-        assert dati["cautela"], f"{nome} non dice cosa NON dice la sua misura"
-        assert isinstance(dati["vince"], bool), f"{nome} non dichiara se vince"
-        assert dati["mesi_giudicabili"] > 0, f"{nome} non dice su quanti mesi"
-
-
-def test_i_preset_che_perdono_restano_in_elenco():
-    """Un'idea scartata che non si scrive da qualche parte torna da sola fra sei
-    mesi. Il buon drawdown e' la prima della lista: e' l'idea di partenza del
-    progetto, ed e' stata misurata perdente su ottantadue mesi."""
-    perdenti = [n for n, d in scansione.PRESET.items() if not d["vince"]]
-
-    assert "buon_drawdown" in perdenti
-    assert scansione.PRESET["buon_drawdown"]["mesi_giudicabili"] > 50, (
-        "un verdetto negativo su pochi mesi non basta a scartare un'idea"
-    )
+        assert dati["etichetta"], f"{nome} non ha un nome leggibile"
+        assert dati["idea"], f"{nome} non dice cosa cerca"
+        assert dati["cautela"], f"{nome} non dice cosa la sua misura non dira'"
+        assert "verdetto" not in dati, (
+            f"{nome} ha un verdetto scritto a mano: quello si misura, non si scrive"
+        )
 
 
 def test_un_criterio_troppo_stretto_non_si_giudica():

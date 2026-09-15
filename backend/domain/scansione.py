@@ -188,29 +188,25 @@ CRITERI = {
 }
 
 
-# --- I preset: combinazioni gia' rigiocate ----------------------------------
+# --- I preset: combinazioni a cui e' gia' stata fatta la domanda ------------
 #
-# Un preset non e' una scorciatoia, e' una combinazione **a cui e' gia' stata
-# fatta la domanda**. Ognuno porta il proprio verdetto misurato — compresi i due
-# che perdono, che restano in elenco proprio per quello: un'idea scartata che
-# non si scrive da qualche parte torna da sola fra sei mesi.
+# Qui c'e' solo la DEFINIZIONE: come si chiama, quali criteri, qual e' l'idea, e
+# cosa quella misura non potra' comunque dire. Il verdetto — chi vince, di
+# quanto, su quanti mesi — **non sta qui**: lo produce `manage.py preset`
+# rigiocandoli, e vive in `data/preset_verdetti.json`.
 #
-# Misurati tutti il 15/09/2026 con `manage.py criterio`, finestra 2019-2026,
-# paragone fra investibili ($300 M di capitalizzazione, $1 M al giorno di
-# controvalore), a tre orizzonti. I numeri qui sotto sono il vantaggio mediano
-# a 3, 6 e 12 mesi, e i mesi giudicabili a sei.
+# La separazione non e' pignoleria. La prima versione aveva i numeri scritti a
+# mano accanto ai criteri, e sarebbero diventati falsi in silenzio al primo
+# cambio di soglia o al primo mese di dati in piu'. Un verdetto misurato deve
+# poter dire QUANDO e' stato misurato, e con cosa.
 #
-# ATTENZIONE a leggerli: piu' un criterio e' stretto, meno mesi sono
-# giudicabili, e un vantaggio grande su undici mesi vale meno di uno piccolo su
-# settantacinque.
+# `cautela` invece resta scritta a mano, ed e' giusto: non e' un risultato, e'
+# cio' che quel risultato non potra' mai dire. Non cambia rigiocando.
 PRESET = {
     "forza_confermata": {
         "etichetta": "Forza confermata",
         "criteri": {"sopra_media_200": 0.05, "variazione_1a_minima": 0.20},
         "idea": "sale da un anno ed e' ancora sopra la sua media lunga",
-        "verdetto": "vince a tutti e tre gli orizzonti: +1,2% / +2,9% / +2,1%",
-        "mesi_giudicabili": 75,
-        "vince": True,
         # Il rigioco calcola la «media a 200 sedute» su dieci chiusure mensili:
         # e' un numero diverso da quello che lo scanner applica dal vivo, e
         # questo preset e' l'unico in cui la differenza tocca un criterio.
@@ -222,45 +218,32 @@ PRESET = {
         "etichetta": "Cresce e guadagna",
         "criteri": {"ricavi_yoy_minimo": 0.15, "eps_minimo": 0.0},
         "idea": "ricavi in crescita sull'anno prima, e l'ultimo trimestre in utile",
-        "verdetto": "vince: +1,2% / +5,9% / +4,7%",
-        "mesi_giudicabili": 14,
-        "vince": True,
-        "cautela": "quattordici mesi giudicabili a sei mesi: il vantaggio e' il "
-                   "piu' grande dell'elenco, ma il campione e' il piu' piccolo",
+        "cautela": "i ricavi anno su anno vogliono cinque trimestri gia' depositati, "
+                   "quindi questo preset non vede i titoli quotati da poco — ed e' "
+                   "il motivo per cui ha meno mesi giudicabili degli altri",
     },
     "buon_drawdown": {
         "etichetta": "Buon drawdown",
         "criteri": {"drawdown_minimo": 0.30, "recupero_minimo": 0.15},
         "idea": "sceso molto e gia' ripartito dal fondo",
-        "verdetto": "PERDE a tutti e tre: -0,7% / -0,9% / -0,5%",
-        "mesi_giudicabili": 82,
-        "vince": False,
-        "cautela": "e' l'idea del vecchio «Good Drawdown Monitor», ed e' stata "
-                   "misurata su ottantadue mesi: non e' un caso sfortunato. Sul "
-                   "rigioco il drawdown si misura fra chiusure di fine mese, "
-                   "quindi sottostima i crolli rientrati dentro al mese",
+        "cautela": "e' l'idea del vecchio «Good Drawdown Monitor». Sul rigioco il "
+                   "drawdown si misura fra chiusure di fine mese, quindi sottostima "
+                   "i crolli rientrati dentro al mese",
     },
     "crollo_e_ripresa": {
         "etichetta": "Crollo e ripresa",
         "criteri": {"drawdown_minimo": 0.50, "recupero_minimo": 0.20},
         "idea": "come il precedente ma piu' estremo: dimezzato e in risalita",
-        "verdetto": "PERDE, e peggio: -2,3% / -3,0% / -3,0%",
-        "mesi_giudicabili": 76,
-        "vince": False,
-        "cautela": "irrigidire le soglie del buon drawdown lo peggiora invece di "
-                   "migliorarlo, il che e' l'indizio che il difetto sta "
-                   "nell'idea e non nella taratura",
+        "cautela": "un titolo che si dimezza puo' scendere sotto la soglia di "
+                   "capitalizzazione e uscire dalla popolazione investibile proprio "
+                   "nel mese in cui questo preset lo cercherebbe",
     },
     "numeri_che_girano": {
         "etichetta": "Numeri che girano",
         "criteri": {"ricavi_yoy_minimo": 0.20, "margine_crescita_minima": 0.02},
         "idea": "ricavi in accelerazione E margine in miglioramento insieme",
-        "verdetto": "PERDE: -3,9% / -1,8%, e a dodici mesi non e' giudicabile",
-        "mesi_giudicabili": 11,
-        "vince": False,
-        "cautela": "i ricavi anno su anno DA SOLI vincono (+5,2% a sei mesi): "
-                   "aggiungere il margine peggiora il risultato e dimezza i mesi "
-                   "giudicabili. Due filtri buoni non fanno un filtro migliore",
+        "cautela": "due criteri di bilancio insieme restringono molto la "
+                   "popolazione: guarda i mesi giudicabili prima del vantaggio",
     },
 }
 

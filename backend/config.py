@@ -641,3 +641,19 @@ RIGIOCO_SCAMBIATO_MINIMO_USD = 1_000_000
 # un criterio che perde a tre mesi e vince a dodici e' LENTO, uno che perde a
 # tutti e tre e' SBAGLIATO — e sono due cose diverse da sapere.
 RIGIOCO_ORIZZONTI_MESI = (3, 6, 12)
+
+# I verdetti dei preset, prodotti da `manage.py preset` rigiocandoli tutti.
+#
+# **Questo file STA in git**, al contrario di tutti gli altri JSON del progetto,
+# e la ragione e' che non e' tuo: e' una misura. Chi clona il repo deve vedere
+# subito che il buon drawdown perde, senza dover prima derivare tre tabelle e
+# aspettare settanta secondi. Rigiocarlo produce un diff, che si legge.
+PRESET_VERDETTI_PATH = Path(
+    os.environ.get("TRADASH2_PRESET_VERDETTI", BASE_DIR / "data" / "preset_verdetti.json")
+)
+PRESET_VERDETTI_VERSIONE = 1
+
+# L'orizzonte su cui si decide se un preset «vince», fra i tre misurati. Sei
+# mesi perche' e' quello con cui sono state fatte tutte le misure precedenti, e
+# cambiarlo renderebbe incomparabili i verdetti vecchi coi nuovi.
+PRESET_ORIZZONTE_DI_RIFERIMENTO = 6

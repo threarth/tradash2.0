@@ -12,7 +12,7 @@ from flask import Blueprint, request
 
 import config
 from api import HTTP_NOT_FOUND, fail, ok
-from data import rigioco, scanner
+from data import preset, rigioco, scanner
 from domain import scansione
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ def criteri():
     return ok({
         "criteri": sorted(scansione.CRITERI),
         "titoli_max": config.SCANNER_TITOLI_MAX,
-        "preset": [{"nome": nome, **dati} for nome, dati in scansione.PRESET.items()],
+        **preset.con_verdetto(),
     })
 
 

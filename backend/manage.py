@@ -11,6 +11,7 @@ manage.py — comandi di manutenzione di tradash2.0.
                                 rigioca un criterio dello scanner contro il non-filtrare
     python manage.py utente     crea l'utente che potra' entrare, o gli cambia la
                                 password (--password, oppure chiesta a voce)
+    python manage.py preset     rigioca tutti i preset e riscrive i loro verdetti
 """
 import argparse
 import getpass
@@ -21,7 +22,7 @@ import sys
 import config
 from core import llm, schema, utente
 from core.db import db_read
-from data import analisi, rigioco, spinoff_rigioco
+from data import analisi, preset, rigioco, spinoff_rigioco
 from domain import scansione
 
 CONFIRMATION_WORD = "RICOSTRUISCI"
@@ -263,6 +264,48 @@ def comando_rebuild() -> int:
     return EXIT_OK
 
 
+def comando_preset() -> int:
+    """Rigioca tutti i preset e riscrive `data/preset_verdetti.json`.
+
+    Va lanciato a mano, come tutto il resto: nessuno scheduler, nessun
+    automatismo. Il sistema DICE quando i verdetti sono invecchiati — l'API lo
+    dichiara e la pagina lo mostra — ma rigiocarli e' una tua decisione, perche'
+    sono settanta secondi di conti e perche' il risultato va guardato.
+
+    Produce un diff nel repo: e' il modo in cui un verdetto che cambia si vede
+    invece di sostituirsi in silenzio a quello di prima.
+    """
+    schema.ensure_schema()
+    try:
+        documento = preset.rigioca_tutti()
+    except ValueError as problema:
+        print(f"non si puo' rigiocare: {problema}")
+        return EXIT_ABORTED
+
+    finestra = documento["finestra_dati"]
+    print(f"misurato il {documento['misurato_il']}")
+    print(f"finestra dei dati: {finestra['dal']} → {finestra['al']} "
+          f"({finestra['mesi']} mesi)")
+    soglie = documento["soglie"]
+    print(f"paragone: cap >= ${soglie['capitalizzazione_minima']:,} · "
+          f"scambiato >= ${soglie['scambiato_minimo_al_giorno']:,}/giorno\n")
+
+    orizzonti = documento["orizzonti_mesi"]
+    intestazione = "".join(f"{str(o) + 'm':>10}" for o in orizzonti)
+    print(f"{'preset':<22}{intestazione}{'giudicabili':>13}  forma")
+    for nome, verdetto in documento["verdetti"].items():
+        numeri = ""
+        for orizzonte in orizzonti:
+            riga = verdetto["orizzonti"][str(orizzonte)]
+            numeri += (f"{riga['vantaggio']:>+9.1%}" if riga["vantaggio"] is not None
+                       else f"{'n.g.':>10}")
+        print(f"{nome:<22}{numeri}{verdetto['mesi_giudicabili']:>13}  {verdetto['forma']}")
+
+    print(f"\nScritto in {config.PRESET_VERDETTI_PATH}")
+    print("Questo file STA in git: il diff e' come si vede che un verdetto e' cambiato.")
+    return EXIT_OK
+
+
 def _chiedi_password() -> str | None:
     """Chiede la password senza mostrarla. `None` se non c'e' un terminale."""
     try:
@@ -324,6 +367,7 @@ COMANDI = {
     "rigioco": lambda a: comando_rigioco(),
     "criterio": lambda a: comando_criterio(a.criteri),
     "utente": lambda a: comando_utente(a.password),
+    "preset": lambda a: comando_preset(),
     "rebuild": lambda a: comando_rebuild(),
 }
 
