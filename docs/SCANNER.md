@@ -78,6 +78,14 @@ Premerne una riempie il modulo; la ricerca la lanci tu.
 **Tre su cinque perdono, e restano in elenco per questo.** Un'idea scartata che
 non sta scritta da nessuna parte torna da sola fra sei mesi.
 
+**Questi numeri non sono scritti a mano.** Li produce `python manage.py preset`,
+che rigioca tutti i preset e scrive `backend/data/preset_verdetti.json` — un file
+che sta in git apposta, cosi' un verdetto che cambia si vede come diff invece di
+sostituirsi in silenzio a quello di prima. Il file porta con se' **la data della
+misura, le soglie e la finestra di dati** usate; se una delle tre non combacia
+piu' con quelle di adesso, la pagina lo dice e ti chiede di rigiocare. Non lo fa
+da sola: vedi «Niente si aggiorna da solo» qui sotto.
+
 Tre cose che questi numeri dicono, e che vale la pena leggere due volte:
 
 **Il «buon drawdown» non funziona.** E' l'idea di partenza del progetto — il
@@ -137,6 +145,30 @@ Sono numeri confrontabili fra loro nel tempo, non con quelli che vedi
 nell'elenco dei risultati.
 
 ---
+
+## Niente si aggiorna da solo
+
+Non c'e' nessuno scheduler in tutto il sistema, e non e' una mancanza: e' una
+scelta. Un sistema che si ricostruisce da solo spende la tua banda, la tua CPU
+e — quando di mezzo c'e' un modello — i tuoi soldi, mentre tu guardi un'altra
+pagina. Il vecchio tradash lo faceva, e il 28/08 ha scaricato ~500 ticker da
+solo al riavvio del backend perche' una scheda del browser era rimasta aperta.
+
+Al suo posto c'e' un **allarme**, nella barra in alto di ogni pagina: una
+pastiglia col numero di cose invecchiate. Aprendola si vede cosa, da quanti
+giorni, contro quale limite, e **cosa premere**:
+
+| cosa | limite | dove si rifa' |
+|---|---|---|
+| Anagrafica dell'universo | 14 giorni | Universo → Anagrafica |
+| Prezzi dell'universo | 1 giorno | Universo → Prezzi |
+| Bilanci dell'universo | 1 giorno | Universo → Deriva i bilanci |
+| Storico mensile | 1 giorno | Universo → Deriva lo storico |
+| Verdetti dei preset | quando cambiano soglie o dati | `python manage.py preset` |
+
+L'allarme legge SQLite e un file: non tocca la rete, e un test verifica che
+chiederlo non produca **nemmeno una riga** nel registro delle chiamate — perche'
+se ne producesse una vorrebbe dire che e' andato a prendere qualcosa.
 
 ## Gli errori da non fare
 

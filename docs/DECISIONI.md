@@ -2255,3 +2255,52 @@ si smette di misurare arriva prima di quanto sembri.
 si poteva premere solo dall'API. Quindi dalla pagina si poteva accendere il
 criterio sui ricavi che perde, e non quello che vince. Una riga mancante
 nell'elenco del frontend, invisibile a qualunque test del backend.
+
+
+---
+
+## Niente scheduler: allarme si', automatismo no
+
+*15/09/2026, deciso dall'utente mentre si scriveva `manage.py preset`.*
+
+«Non mettere scheduler o rebuild automatici. Se il db invecchia e passano
+quattordici giorni voglio un alert e faccio il rebuild dell'anagrafica a mano.
+Tutto manuale ma con alert.»
+
+E' la regola 2 portata alle conseguenze, e vale la pena scrivere perche' la
+tentazione opposta e' forte: un'anagrafica che si rifa' da sola ogni due
+settimane sembra una comodita'. Non lo e'. Un sistema che si ricostruisce da
+solo spende la banda, la CPU e — quando di mezzo c'e' un modello — i soldi di
+chi lo ospita, mentre lui guarda un'altra pagina. Il vecchio tradash lo faceva:
+il 28/08 ha scaricato ~500 ticker al riavvio del backend perche' una scheda del
+browser era rimasta aperta.
+
+### Cosa e' stato aggiunto al posto dello scheduler
+
+La freschezza era gia' dichiarata — per categoria, come vuole la regola 3 — ma
+**solo dentro la pagina Universo**: per vederla bisognava aver gia' deciso di
+aprire quella pagina. Un avviso che si vede solo se lo vai a cercare non e' un
+avviso, e' una nota a pie' di pagina.
+
+Adesso c'e' `data/allarmi.py` e la pastiglia nella barra in alto, su ogni
+pagina. Ogni riga porta **motivo** e **azione**, e l'azione e' il nome del
+pulsante — «Universo → Anagrafica» — non quello dell'endpoint: chi legge un
+avviso vuole sapere dove cliccare.
+
+### I due test che tengono ferma la scelta
+
+**Il primo verifica il NON fare**: chiedere lo stato della freschezza non deve
+produrre nemmeno una riga nel registro delle chiamate. Se ne producesse una
+vorrebbe dire che e' andato a prendere qualcosa, e da li' a ricostruire da soli
+il passo e' corto.
+
+**Il secondo legge i sorgenti** e fallisce se qualcuno introduce `APScheduler`,
+un `crontab`, uno `schedule.every` o un `threading.Timer` in `api/`, `core/`,
+`data/` o `domain/`. Fra sei mesi la regola sara' ancora scritta qui, ma sara'
+il test a farla rispettare.
+
+*Nota su cosa NON e' uno scheduler: la barra in alto chiede i lavori attivi ogni
+due secondi. E' una lettura di una tabella locale per mostrare una pastiglia, e
+non fa partire niente. La freschezza invece si chiede all'apertura e quando un
+lavoro finisce, perche' cambia una volta al giorno e interrogarla di continuo
+sarebbe traffico per una risposta che si sa gia'.*
