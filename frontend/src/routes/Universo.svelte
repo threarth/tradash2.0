@@ -206,6 +206,22 @@
                         {/if}
                     </div></div>
                 </div>
+                <!-- I titoli con anagrafica e senza quotazione. Si vedevano gia'
+                     nell'elenco con le caselle vuote, ma nessuno diceva QUANTI
+                     fossero: un buco che si nota solo scorrendo e' un buco che
+                     nessuno conta (regola 5). -->
+                <div class="col-6 col-lg-3">
+                    <div class="card h-100"><div class="card-body">
+                        <div class="text-secondary small">Senza quotazione</div>
+                        <div class="fs-4 numerico">
+                            {(dati.titoli - dati.titoli_con_prezzo).toLocaleString("it")}
+                        </div>
+                        <div class="small text-secondary">
+                            hanno anagrafica ma nessun prezzo: restano nell'elenco
+                            con le caselle vuote
+                        </div>
+                    </div></div>
+                </div>
                 <div class="col-6 col-lg-3">
                     <div class="card h-100"><div class="card-body">
                         <div class="text-secondary small">Prezzo piu' vecchio di

@@ -53,7 +53,10 @@
 
     let battito = null;
 
-    onMount(() => () => clearInterval(battito));
+    onMount(() => () => {
+        clearInterval(battito);
+        clearInterval(battitoRigioco);
+    });
 
     /** I criteri valorizzati, riportati alla scala del backend (le % in frazioni). */
     function criteriScelti() {
@@ -97,6 +100,55 @@
 
     async function ferma() {
         await api.fermaLavoro(runId);
+    }
+
+    // --- «Ha mai funzionato?»: gli stessi criteri, ma all'indietro -----------
+    //
+    // Questo blocco mancava del tutto: il markup piu' in basso usava `rigioco`,
+    // `rigiocoInCorso` e `rigioca()` senza che nessuno li dichiarasse, quindi la
+    // pagina sollevava un ReferenceError appena si disegnava. Il build non lo
+    // dice, e il commit che aveva aggiunto il pulsante era stato verificato
+    // attraverso l'API invece che aprendo la pagina.
+    let rigioco = $state(null);
+    let rigiocoInCorso = $state(false);
+    let rigiocoRunId = $state(null);
+    let battitoRigioco = null;
+
+    // Quale dei tre orizzonti si sta guardando. Sei mesi e' quello con cui sono
+    // state fatte tutte le misure precedenti, quindi e' il punto di partenza.
+    const ORIZZONTE_PREDEFINITO = 6;
+    let orizzonteMostrato = $state(ORIZZONTE_PREDEFINITO);
+
+    // Derivati invece che `{@const}` nel markup: quello vuole essere figlio
+    // diretto di un blocco, e qui starebbe dentro a un <div>.
+    const chiaveOrizzonte = $derived(String(orizzonteMostrato));
+    const riepilogoMostrato = $derived(rigioco?.riepilogo?.[chiaveOrizzonte] ?? null);
+
+    /** Rigioca i criteri scelti su tutti i mesi che i dati coprono. */
+    async function rigioca() {
+        errore = null;
+        rigioco = null;
+        try {
+            const avvio = await api.rigiocaCriteri(criteriScelti());
+            rigiocoRunId = avvio.run_id;
+            rigiocoInCorso = true;
+            battitoRigioco = setInterval(guardaRigioco, RITMO_MS);
+        } catch (problema) {
+            errore = problema;
+        }
+    }
+
+    async function guardaRigioco() {
+        try {
+            rigioco = await api.rigiocoEsito(rigiocoRunId);
+            rigiocoInCorso = false;
+            clearInterval(battitoRigioco);
+            orizzonteMostrato = rigioco.orizzonti_mesi.includes(ORIZZONTE_PREDEFINITO)
+                ? ORIZZONTE_PREDEFINITO
+                : rigioco.orizzonti_mesi[0];
+        } catch {
+            // Ancora in corso: il backend risponde 404 finche' non ha finito.
+        }
     }
 </script>
 
@@ -180,27 +232,55 @@
 {/if}
 
 {#if rigioco}
-    {@const r = rigioco.riepilogo}
     <div class="card mb-3">
         <div class="card-body">
             <h2 class="h6">Questo criterio, all'indietro</h2>
             <p class="small text-secondary mb-2">
-                <Testo testo="Per ogni mese: come sono andati nei {rigioco.orizzonte_mesi} mesi dopo i titoli che il criterio avrebbe trovato, contro come e' andato TUTTO il resto. La seconda colonna e' il paragone che conta: un criterio che trova titoli col +12% non vale niente se in quei mesi il mercato ha fatto +15%." />
+                <Testo testo="Per ogni mese: come sono andati nei mesi dopo i titoli che il criterio avrebbe trovato, contro come e' andato IL RESTO degli investibili. La seconda colonna e' il paragone che conta: un criterio che trova titoli col +12% non vale niente se in quei mesi il resto ha fatto +15%." />
             </p>
 
-            {#if r.reason}
-                <p class="small text-warning mb-0"><Testo testo={r.reason} /></p>
+            <!-- Le soglie si dichiarano PRIMA dei numeri: un filtro che non si
+                 dichiara e' un filtro di cui nessuno sa l'effetto. -->
+            <p class="small text-secondary mb-3">
+                Paragone fra investibili: capitalizzazione <span class="numerico"
+                >&ge; ${(rigioco.soglie.capitalizzazione_minima / 1e6).toFixed(0)}M</span>
+                e scambiato <span class="numerico"
+                >&ge; ${(rigioco.soglie.scambiato_minimo_al_giorno / 1e6).toFixed(1)}M</span>
+                al giorno — <Testo testo={rigioco.soglie.nota} />
+            </p>
+
+            <!-- Tre orizzonti e non uno: chi perde a tre mesi e vince a dodici
+                 e' LENTO, chi perde a tutti e tre e' SBAGLIATO. -->
+            <ul class="nav nav-tabs mb-3">
+                {#each rigioco.orizzonti_mesi as mesi (mesi)}
+                    <li class="nav-item">
+                        <button class="nav-link" class:active={orizzonteMostrato === mesi}
+                                onclick={() => (orizzonteMostrato = mesi)}>
+                            {mesi} mesi
+                        </button>
+                    </li>
+                {/each}
+            </ul>
+
+            {#if !riepilogoMostrato}
+                <p class="small text-secondary mb-0">
+                    <Testo testo="nessun riepilogo per questo orizzonte" />
+                </p>
+            {:else if riepilogoMostrato.reason}
+                <p class="small text-warning mb-0">
+                    <Testo testo={riepilogoMostrato.reason} />
+                </p>
             {:else}
                 <p class="mb-2">
-                    <strong class="numerico">{r.vinti} mesi su {r.mesi_utili}</strong>
-                    ({(r.quota_vinti * 100).toFixed(0)}%) battono il non-filtrare ·
+                    <strong class="numerico">{riepilogoMostrato.vinti} mesi su {riepilogoMostrato.mesi_utili}</strong>
+                    ({(riepilogoMostrato.quota_vinti * 100).toFixed(0)}%) battono il non-filtrare ·
                     vantaggio mediano
                     <strong class="numerico"
-                            class:text-success={r.vantaggio_mediano > 0}
-                            class:text-danger={r.vantaggio_mediano < 0}>
-                        {r.vantaggio_mediano > 0 ? "+" : ""}{(r.vantaggio_mediano * 100).toFixed(1)}%
+                            class:text-success={riepilogoMostrato.vantaggio_mediano > 0}
+                            class:text-danger={riepilogoMostrato.vantaggio_mediano < 0}>
+                        {riepilogoMostrato.vantaggio_mediano > 0 ? "+" : ""}{(riepilogoMostrato.vantaggio_mediano * 100).toFixed(1)}%
                     </strong>
-                    · {r.trovati_per_mese} titoli trovati al mese
+                    · {riepilogoMostrato.trovati_per_mese} titoli trovati al mese
                 </p>
 
                 <div class="table-responsive" style="max-height: 22rem">
@@ -208,24 +288,29 @@
                         <thead class="sticky-top">
                             <tr>
                                 <th>mese</th>
+                                <th class="text-end">investibili</th>
                                 <th class="text-end">trovati</th>
                                 <th class="text-end">loro</th>
-                                <th class="text-end">tutti</th>
+                                <th class="text-end">il resto</th>
                                 <th class="text-end">differenza</th>
                             </tr>
                         </thead>
                         <tbody>
                             {#each rigioco.mesi as m (m.mese)}
-                                {#if m.mediana_trovati !== null && m.mediana_universo !== null}
-                                    {@const differenza = m.mediana_trovati - m.mediana_universo}
+                                {@const riga = m.orizzonti[chiaveOrizzonte]}
+                                {#if riga && riga.mediana_trovati !== null && riga.mediana_resto !== null}
+                                    {@const differenza = riga.mediana_trovati - riga.mediana_resto}
                                     <tr>
                                         <td class="numerico">{m.mese}</td>
-                                        <td class="text-end numerico">{m.trovati}</td>
+                                        <td class="text-end numerico text-secondary">
+                                            {m.investibili.toLocaleString("it")}
+                                        </td>
+                                        <td class="text-end numerico">{riga.trovati}</td>
                                         <td class="text-end numerico">
-                                            {(m.mediana_trovati * 100).toFixed(1)}%
+                                            {(riga.mediana_trovati * 100).toFixed(1)}%
                                         </td>
                                         <td class="text-end numerico text-secondary">
-                                            {(m.mediana_universo * 100).toFixed(1)}%
+                                            {(riga.mediana_resto * 100).toFixed(1)}%
                                         </td>
                                         <td class="text-end numerico"
                                             class:text-success={differenza > 0}
@@ -240,7 +325,7 @@
                 </div>
 
                 <p class="small text-warning mt-2 mb-0">
-                    <Testo testo="Il paragone e' con la mediana di TUTTO l'universo, comprese migliaia di societa' minuscole e poco scambiate: un criterio che le evita risulta perdente anche quando sta solo evitando il fondo del barile. Va letto sapendolo." />
+                    <Testo testo="Non e' un backtest di strategia: non si compra, non si vende, non ci sono costi ne' pesi di portafoglio. E' la domanda «cosa avresti trovato quel mese, e come sarebbe andata» ripetuta su tutti i mesi che i dati coprono." />
                 </p>
             {/if}
         </div>
