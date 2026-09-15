@@ -301,6 +301,38 @@ generazione, niente altro.
 chiamata al modello. Si cambia con `TRADASH2_TETTO_USD` nel servizio; a zero e'
 spento.
 
+**Niente parte da solo, e non e' un'opinione.** Misurato il 15/09/2026:
+
+| misura | esito |
+|---|---|
+| accendere il servizio | **0 chiamate, 0 lavori** |
+| aprire tutte e cinque le pagine | **+2 chiamate, 0 di rete, 0 lavori** |
+| chiedere l'allarme di freschezza | **0 chiamate** |
+
+Le due chiamate sono letture del glossario da un file locale (`source=local`).
+Ogni funzione che avvia un thread e' raggiungibile **solo da una POST**, cioe'
+solo da un pulsante: `universe.build_in_background`,
+`fondamentali.costruisci_in_background`, `costruisci_prezzi_in_background`,
+`scanner.avvia`, `rigioco.avvia`, `spinoff_elenco.calcola_in_background`. Un test
+della suite legge i sorgenti e fallisce se qualcuno introduce uno scheduler.
+
+**Le tre uscite di rete, e cosa le fa partire:**
+
+| dove va | cosa esce | quando |
+|---|---|---|
+| HuggingFace (Defeatbeta) | il nome di una tabella | apri la scheda di un titolo, o premi una derivazione |
+| OpenAI / Anthropic | numeri gia' calcolati e testo di documenti SEC pubblici | **solo** `POST /api/analisi/...`, cioe' un pulsante |
+| stockanalysis.com | niente, e' una GET | **solo** i due pulsanti degli spin-off |
+
+Non ce ne sono altre: `grep` su tutto il backend trova `urlopen` in un file solo.
+
+**Quando la fonte cade.** Succede: il 15/09/2026, mentre si scriveva questa
+sezione, tutti i parquet di Defeatbeta hanno risposto 404 per qualche ora. Il
+sistema adesso lo dichiara con un 503 e una frase leggibile — «non e' un guasto
+di tradash» — invece di un 500 con stack trace, e **tutto cio' che e' gia' in
+locale continua a funzionare**: universo, watchlist, scanner e allarmi leggono
+da SQLite. Solo la scheda di un titolo ha bisogno della rete.
+
 **Quello che resta aperto, e va saputo:**
 
 * la pagina, il JavaScript e i fogli di stile sono pubblici — sono il guscio

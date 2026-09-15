@@ -16,6 +16,7 @@ import os
 from flask import Flask
 
 import config
+from api import installa_gestori
 from api.analisi import bp as analisi_bp
 from api.auth import bp as auth_bp
 from api.calls import bp as calls_bp
@@ -50,6 +51,9 @@ def create_app() -> Flask:
     # Messa cosi', un endpoint aggiunto domani nasce protetto invece di nascere
     # aperto e aspettare che qualcuno se ne accorga.
     accesso.configura(app)
+    # Il guasto della fonte diventa una risposta leggibile invece di un 500 con
+    # stack trace. Sta qui, una volta, perche' il provider cade tutto insieme.
+    installa_gestori(app)
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(ops_bp)

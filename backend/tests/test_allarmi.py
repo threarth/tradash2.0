@@ -216,3 +216,49 @@ def test_la_rotta_della_freschezza(client):
                    if r["categoria"] == defeatbeta.CATEGORY_MERCATO)
     assert vecchio["azione"] == "Universo → Prezzi"
     assert dati["nota"]
+
+
+# --- quando la fonte cade -----------------------------------------------
+
+def test_la_fonte_giu_diventa_un_motivo_non_un_500(client, monkeypatch):
+    """Il difetto, trovato mentre Defeatbeta era davvero in avaria.
+
+    `DefeatbetaUnavailable` risaliva fino a Flask, che rispondeva 500 con uno
+    stack trace: ventiquattro rotte su ventisei di `api/titolo.py` non lo
+    catturavano. Bastava un quarto d'ora di problemi della fonte perche' la
+    scheda di un titolo mostrasse un errore illeggibile invece di dire cosa
+    stava succedendo.
+    """
+    def _giu(*args, **kwargs):
+        raise defeatbeta.DefeatbetaUnavailable(
+            "HTTP Error: HTTP GET error on stock_profile.parquet (HTTP 404)")
+
+    monkeypatch.setattr(defeatbeta, "profile", _giu)
+
+    risposta = client.get("/api/titolo/NVDA")
+
+    assert risposta.status_code == 503, "non e' un errore nostro: e' la fonte"
+    errore = risposta.get_json()["error"]
+    assert "Defeatbeta" in errore, "va detto CHI non risponde"
+    assert "non e' un guasto di tradash" in errore.lower()
+    assert "404" not in errore and "parquet" not in errore, (
+        "il dettaglio tecnico resta nel log del server, non va all'utente"
+    )
+
+
+def test_col_provider_giu_quello_che_e_gia_locale_continua_a_funzionare(client, monkeypatch):
+    """La distinzione che rende utile il messaggio: non e' tutto rotto.
+
+    Universo, watchlist e scanner leggono da SQLite e non si accorgono di
+    niente; solo cio' che ha bisogno della rete si ferma.
+    """
+    def _giu(*args, **kwargs):
+        raise defeatbeta.DefeatbetaUnavailable("la fonte non risponde")
+
+    for nome in ("profile", "prices", "sec_filings", "news"):
+        monkeypatch.setattr(defeatbeta, nome, _giu)
+
+    assert client.get("/api/universe/stato").status_code == 200
+    assert client.get("/api/watchlist").status_code == 200
+    assert client.get("/api/scanner/criteri").status_code == 200
+    assert client.get("/api/ops/freschezza").status_code == 200
