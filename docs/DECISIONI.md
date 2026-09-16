@@ -2304,3 +2304,68 @@ due secondi. E' una lettura di una tabella locale per mostrare una pastiglia, e
 non fa partire niente. La freschezza invece si chiede all'apertura e quando un
 lavoro finisce, perche' cambia una volta al giorno e interrogarla di continuo
 sarebbe traffico per una risposta che si sa gia'.*
+
+---
+
+## Il prezzo della fonte unica non e' «niente intraday»: e' «quando si muovono loro, ti fermi tu»
+
+*15-16/09/2026. Non una decisione: una fattura arrivata a una decisione vecchia.*
+
+Il perimetro dice **fonte unica Defeatbeta**, e il prezzo era scritto fin
+dall'inizio: niente dato intraday, il piu' fresco e' la chiusura del giorno
+prima. Quel prezzo era noto e accettato.
+
+Il 15/09/2026 e' arrivato il secondo, che nessuno aveva messo in conto:
+Defeatbeta ha spostato tutti i parquet da `data/<tabella>.parquet` a
+**`data/US/<tabella>.parquet`** — la cartella `US` dice che si preparano ad
+aggiungere altri mercati. La libreria pinnata alla 0.0.60 componeva ancora il
+vecchio percorso, e per circa ventiquattro ore **ogni lettura nuova ha ricevuto
+404**.
+
+### Cosa ha retto e cosa no
+
+Ha retto quasi tutto, ed e' la parte che vale la pena scrivere:
+
+* il **ritentativo** di `data/defeatbeta.py` ha fatto esattamente il suo mestiere
+  — ha svuotato cache e client, ha riprovato, ha fallito di nuovo, e ha passato
+  l'errore a chi chiamava invece di mascherarlo. Era stato scritto per il caso
+  «il dataset si aggiorna mentre il processo e' acceso», e ha riconosciuto anche
+  un caso diverso senza guardare il testo dell'errore;
+* **tutto cio' che era gia' in SQLite ha continuato a rispondere**: universo,
+  watchlist, scanner, rigioco, allarmi. Solo la scheda di un titolo, che ha
+  bisogno della rete, si e' fermata;
+* il codice non ha richiesto **nessuna modifica**: `data/defeatbeta.py` chiede
+  sempre l'URL alla libreria e non fa ipotesi sulla sua forma. La correzione e'
+  stata una riga in `requirements.txt`.
+
+Non ha retto una cosa sola, ed e' stata trovata proprio li': `DefeatbetaUnavailable`
+risaliva fino a Flask e diventava un **500 con stack trace** su ventiquattro
+rotte su ventisei. Corretto con un `errorhandler` unico — sta nel commit suo.
+
+### Perche' la libreria e' una dipendenza, e non una copia
+
+Il PIANO del Blocco 1 aveva gia' scritto il motivo: «si usa la libreria, non
+DuckDB a mano, perche' in cambio da' **l'URL delle tabelle** e l'invalidazione
+della cache». Quella frase e' stata pagata il 15/09 e ha restituito il resto: chi
+avesse scritto gli URL a mano, per risparmiarsi quattordici dipendenze, avrebbe
+dovuto trovare lo spostamento da solo e correggerlo in casa propria.
+
+### Cosa resta vero, e va detto prima di dipenderne
+
+Se un giorno la correzione non esistesse — libreria abbandonata, dataset ritirato
+— **non ci sarebbe un piano B**, perche' la fonte e' una sola per scelta. Il
+sistema resterebbe usabile in sola consultazione su quello che ha gia', e non
+entrerebbe un dato nuovo.
+
+E' un rischio accettato, non uno scoperto. Ma prima del 15/09 era astratto, e
+adesso ha una forma, una durata misurata (ventiquattro ore) e una procedura
+scritta: `docs/DEPLOY.md`, sezione «Quando la fonte si muove sotto i piedi».
+
+### Una nota sul tempo, che non c'entra col guasto ma e' emersa rifacendo le misure
+
+La ricostruzione dei prezzi, stessa macchina e stesso lavoro, e' stata misurata
+**761 secondi il 14/09 e 104 secondi il 16/09**. Sette volte. Il 94% di quel
+tempo e' attesa di rete, quindi un numero solo non descrive niente: nel
+`DEPLOY.md` adesso ci sono entrambi. La memoria invece e' rimasta 3,0-3,2 GB in
+tutte le misure — **il tempo e' la rete, la RAM e' la query**, ed e' la stessa
+conclusione a cui si era arrivati separando l'universo in due meta'.

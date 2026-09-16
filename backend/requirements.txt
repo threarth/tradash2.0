@@ -4,11 +4,24 @@
 # ritrovarsi pytest addosso.
 Flask==3.1.3
 
-# Defeatbeta: la fonte unica dei dati di mercato. 58k download/mese, ultima
-# release il 10/06/2026. Si porta dietro 14 dipendenze d'obbligo (fra cui duckdb,
-# pandas, nltk, openai, matplotlib): pesa, e in cambio da' l'URL delle tabelle e
-# soprattutto l'invalidazione della cache quando Defeatbeta pubblica dati nuovi.
-defeatbeta-api==0.0.60
+# Defeatbeta: la fonte unica dei dati di mercato. 58k download/mese. Si porta
+# dietro 14 dipendenze d'obbligo (fra cui duckdb, pandas, nltk, openai,
+# matplotlib): pesa, e in cambio da' l'URL delle tabelle e soprattutto
+# l'invalidazione della cache quando Defeatbeta pubblica dati nuovi.
+#
+# **0.0.61 e non 0.0.60, e non e' un aggiornamento facoltativo.** Il 15/09/2026
+# Defeatbeta ha spostato tutti i parquet da `data/<tabella>.parquet` a
+# `data/US/<tabella>.parquet` — il nome della cartella dice che si preparano ad
+# aggiungere altri mercati. La 0.0.60 compone ancora il vecchio percorso e
+# riceve 404 su ogni lettura; la 0.0.61 e' la correzione.
+#
+# Il `spec.json` invece non si e' mosso: per questo la libreria si inizializza
+# senza lamentarsi e fallisce solo alla prima lettura vera.
+#
+# Fra le due versioni cambiano quattro file e nessuna query: l'URL delle tabelle,
+# quello di `company_tickers.json`, la configurazione di DuckDB e il numero di
+# versione.
+defeatbeta-api==0.0.61
 
 # Il client ufficiale di Anthropic: e' il solo modo in cui questo sistema parla
 # con un modello, e passa tutto da `core/llm.py`. 1.2.0 pubblicata il

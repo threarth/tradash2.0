@@ -248,14 +248,22 @@ sorgenti per la stessa intestazione sono due posti dove sbagliarla.
 Entra dal browser e costruisci l'universo **in quest'ordine**, perche' i prezzi
 si appoggiano all'anagrafica e senza si rifiutano di partire:
 
-1. **Universo → Anagrafica.** ~95 MB da scaricare. Misurata: 4,9 s e 248 MB di
-   picco a cache calda; la prima volta dipende dalla rete della macchina.
-2. **Universo → Prezzi.** ~445 MB. Misurata: 8,4 s e 3.022 MB di picco a cache
-   calda. **A freddo e' stata di 12 minuti e 41 secondi da una connessione
-   domestica** — e il 94% di quel tempo era attesa di rete, non calcolo: sul VPS
-   sara' molto meno, ma mettilo in conto e non farlo mentre qualcuno guarda.
-3. **Deriva i bilanci** e **Deriva lo storico**, quando ti servono lo scanner e
-   il rigioco.
+1. **Universo → Anagrafica.** ~95 MB. A freddo 25 s, 285 MB di picco; a cache
+   calda 4,9 s.
+2. **Universo → Prezzi.** ~445 MB. A freddo **104 s**, 3.183 MB di picco; a
+   cache calda 8,4 s.
+3. **Deriva i bilanci** (~75 s) e **Deriva lo storico** (~9 s), quando ti
+   servono lo scanner e il rigioco.
+
+**Sul tempo a freddo non fidarti di un numero solo.** La stessa costruzione dei
+prezzi, sulla stessa macchina e con lo stesso lavoro, e' stata misurata **761
+secondi il 14/09 e 104 secondi il 16/09**: sette volte piu' veloce, senza che
+cambiasse una riga. Il 94% di quel tempo e' attesa di rete, quindi dipende
+interamente dal link fra la macchina e HuggingFace. Sul VPS aspettati la parte
+bassa, ma non pianificare niente su quel numero.
+
+La memoria invece **non** cambia: 3,0-3,2 GB in tutte le misure, a freddo e a
+caldo. Il tempo e' la rete, la RAM e' la query.
 
 **Dopo una ricostruzione dei prezzi, riavvia il servizio.** Il worker resta a
 ~2,6 GB residenti anche a lavoro finito, e su 8 GB non e' un problema ma non c'e'
@@ -295,6 +303,68 @@ sudo systemctl restart tradash2
 Se lo schema e' cambiato, l'avvio si ferma da solo dicendo di lanciare
 `manage.py rebuild`. Quel comando **cancella il registro delle chiamate, lo
 storico dei lavori e i costi**; i referti tornano con `manage.py referti`.
+
+---
+
+## 7bis. Quando la fonte si muove sotto i piedi
+
+**Succede, ed e' successo.** Il 15/09/2026 Defeatbeta ha spostato tutti i suoi
+parquet da `data/<tabella>.parquet` a `data/US/<tabella>.parquet` — il nome della
+cartella dice che si preparano ad aggiungere altri mercati. Da quel momento ogni
+lettura nuova ha ricevuto 404, per circa ventiquattro ore, finche' non e' stata
+aggiornata la libreria.
+
+E' il prezzo della fonte unica, ed e' bene conoscerne la forma: non e' solo
+«niente intraday». E' anche **quando si muovono loro, ti fermi tu**.
+
+### Come si riconosce
+
+Il sintomo e' preciso: il servizio parte, l'accesso funziona, universo e
+watchlist si aprono — e **ogni scheda titolo da' 503** con «la fonte dei dati non
+risponde». Nel log del servizio compare un `HTTP 404 Not Found` su un URL di
+huggingface.co.
+
+Il `spec.json` non si sposta mai, per questo la libreria si inizializza senza
+lamentarsi e fallisce solo alla prima lettura vera.
+
+### Cosa controllare, in quest'ordine
+
+```bash
+# 1. Il dataset esiste ancora?
+curl -s -o /dev/null -w "%{http_code}\n" \
+  https://huggingface.co/datasets/defeatbeta/yahoo-finance-data
+
+# 2. Che forma ha adesso? (e' qui che si vede uno spostamento)
+curl -s https://huggingface.co/api/datasets/defeatbeta/yahoo-finance-data/tree/main/data
+
+# 3. Che URL compone la libreria installata?
+.venv/bin/python -c "from defeatbeta_api.client.hugging_face_client import HuggingFaceClient; \
+  print(HuggingFaceClient().get_url_path('stock_profile'))"
+
+# 4. C'e' una versione piu' recente della libreria?
+curl -s https://pypi.org/pypi/defeatbeta-api/json | python3 -c \
+  "import json,sys; print(json.load(sys.stdin)['info']['version'])"
+```
+
+Se il punto 2 e il punto 3 non combaciano, la correzione e' aggiornare il pin in
+`requirements.txt` e reinstallare. **Non toccare il codice**: `data/defeatbeta.py`
+non fa nessuna ipotesi sulla forma dell'URL, lo chiede sempre alla libreria — ed
+e' il motivo per cui questa rottura e' costata una riga.
+
+### Dopo l'aggiornamento
+
+La cache dei parquet e' indicizzata **sull'URL**: cambiando percorso, i byte gia'
+scaricati diventano inutili. Vanno rifatte tutte e quattro le derivazioni, in
+ordine, come alla prima accensione. In pratica la cache si era gia' svuotata da
+sola — il ritentativo di `data/defeatbeta.py` la pulisce al primo fallimento —
+quindi non c'e' niente da cancellare a mano.
+
+### E se non esistesse una versione corretta
+
+Allora saresti fermo finche' non esce, perche' la fonte e' una sola per scelta.
+Il sistema resta usabile in sola consultazione — tutto cio' che e' gia' in SQLite
+continua a rispondere — ma non entra un dato nuovo. Vale la pena saperlo prima di
+dipenderne, non dopo.
 
 ---
 
