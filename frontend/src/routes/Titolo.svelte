@@ -38,6 +38,17 @@
 
     let intervallo = $state("1A");
 
+    // La data a cui guardare il grafico. Vuota significa oggi.
+    //
+    // Serve a vedere il grafico com'era, non a ricalcolarlo diversamente: gli
+    // indicatori del motore guardano tutti solo indietro — misurato su tutti e
+    // dodici — quindi i numeri sono gli stessi, si ferma la storia.
+    let graficoAl = $state("");
+
+    // Il massimo selezionabile: una data futura darebbe un grafico identico a
+    // oggi, e chi la sceglie penserebbe di aver sbagliato qualcos'altro.
+    const oggi = new Date().toISOString().slice(0, 10);
+
     // Cosa e' aperto attorno al contenuto: il pannello degli indicatori e
     // l'indice laterale. Si ricordano nel browser — chi lavora su uno schermo
     // stretto li chiude una volta, non a ogni visita.
@@ -56,7 +67,7 @@
     }
 
     const scheda = richiedi(() => api.titolo(simbolo));
-    const grafico = richiedi(() => api.titoloPrezzi(simbolo, intervallo));
+    const grafico = richiedi(() => api.titoloPrezzi(simbolo, intervallo, graficoAl || null));
 
     // La scheda si ricarica quando cambia il simbolo, il grafico anche quando
     // cambia l'intervallo. Leggerli qui li rende dipendenze dell'effetto.
@@ -72,6 +83,7 @@
     $effect(() => {
         simbolo;
         intervallo;
+        graficoAl;
         grafico.ricarica();
     });
 </script>
@@ -133,7 +145,8 @@
     </div>
 
     <!-- I selettori di periodo governano il confronto qui sopra E il grafico. -->
-    <div class="btn-group btn-group-sm mb-3">
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+    <div class="btn-group btn-group-sm">
         {#each (grafico.dato?.intervalli ?? []) as nome (nome)}
             {@const v = grafico.dato?.variazioni?.[nome]}
             <button class="btn {intervallo === nome
@@ -151,6 +164,35 @@
             </button>
         {/each}
     </div>
+
+    <!-- Il grafico a una data passata. Non e' un filtro: e' la domanda «cosa si
+         vedeva allora», ed e' la stessa che fa la sezione Ricostruzione piu' in
+         basso — li' coi numeri, qui con la figura. -->
+    <div class="d-flex align-items-center gap-2">
+        <label class="form-label small mb-0 text-secondary" for="grafico-al">
+            Guarda al
+        </label>
+        <input id="grafico-al" type="date" class="form-control form-control-sm"
+               style="width: 10rem" bind:value={graficoAl} max={oggi} />
+        {#if graficoAl}
+            <button class="btn btn-sm btn-outline-secondary"
+                    onclick={() => (graficoAl = "")}>torna a oggi</button>
+        {/if}
+    </div>
+    </div>
+
+    {#if graficoAl && grafico.dato?.as_of}
+        <div class="alert alert-info py-2 small">
+            Stai vedendo il grafico com'era al
+            <strong class="numerico">{grafico.dato.as_of}</strong>:
+            la storia si ferma li', e gli indicatori sono calcolati solo su
+            quello che esisteva a quella data.
+            <span class="text-secondary">
+                Ultima seduta mostrata: {grafico.dato.ultima_seduta} ·
+                {grafico.dato.sedute_calcolate.toLocaleString("it")} sedute nel calcolo.
+            </span>
+        </div>
+    {/if}
 
     {#if !profilo.available}
         <Assente titolo="Questo titolo non ha un profilo"

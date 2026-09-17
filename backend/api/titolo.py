@@ -103,8 +103,14 @@ def _nome(simbolo: str) -> str | None:
     return riga["name"] if riga else None
 
 
-def _intervallo(nome: str | None) -> tuple[str | None, str | None]:
-    """La data da cui partire per l'intervallo chiesto. Ritorna (data, errore)."""
+def _intervallo(nome: str | None, fino_a: str | None = None) -> tuple[str | None, str | None]:
+    """La data da cui partire per l'intervallo chiesto. Ritorna (data, errore).
+
+    `fino_a` sposta la finestra indietro nel tempo: «un anno» a una data passata
+    e' l'anno PRIMA di quella data, non l'ultimo anno. Senza, chiedere un anno di
+    grafico al 2020 restituirebbe una finestra vuota — la finestra sarebbe
+    finita nel 2025 e le barre si fermano al 2020.
+    """
     scelto = nome or config.INTERVALLO_GRAFICO_PREDEFINITO
     if scelto not in config.INTERVALLI_GRAFICO:
         return None, (f"intervallo sconosciuto: {scelto!r}. "
@@ -113,7 +119,10 @@ def _intervallo(nome: str | None) -> tuple[str | None, str | None]:
     giorni = config.INTERVALLI_GRAFICO[scelto]
     if giorni is None:
         return None, None
-    return (datetime.now(UTC) - timedelta(days=giorni)).strftime("%Y-%m-%d"), None
+
+    fine = (datetime.strptime(fino_a, "%Y-%m-%d").replace(tzinfo=UTC)
+            if fino_a else datetime.now(UTC))
+    return (fine - timedelta(days=giorni)).strftime("%Y-%m-%d"), None
 
 
 @bp.get("/<simbolo>")
@@ -172,7 +181,10 @@ def prezzi(simbolo: str):
     il parquet dei prezzi, e leggerlo una volta per tenersi tutta la storia
     rende gratis il cambio di periodo.
     """
-    da, errore = _intervallo(request.args.get("intervallo"))
+    quando, errore = _as_of(request.args.get("as_of"))
+    if errore:
+        return fail(errore)
+    da, errore = _intervallo(request.args.get("intervallo"), quando)
     if errore:
         return fail(errore)
 
@@ -181,12 +193,33 @@ def prezzi(simbolo: str):
         return fail(lettura.reason, HTTP_NOT_FOUND)
 
     tutte = _barre(lettura.frame)
+    if quando:
+        # Il taglio viene PRIMA del calcolo. **Oggi non cambia un numero**, ed e'
+        # stato misurato: tutti e dodici gli indicatori del motore — adx, atr,
+        # bb, cci, ema, macd, obv, roc, rsi, sma, stoch, volume — guardano solo
+        # indietro, quindi calcolarli su tutta la storia e tagliare dopo da' gli
+        # stessi identici valori.
+        #
+        # Si taglia prima lo stesso, per due ragioni che non dipendono da quel
+        # risultato: perche' e' **l'ordine giusto per costruzione** — cio' che
+        # non esisteva a quella data non entra nel calcolo, e non si deve
+        # dipendere da una proprieta' degli indicatori attuali per essere
+        # onesti — e perche' il primo indicatore non causale che qualcuno
+        # aggiungera' (un percentile calcolato sull'intera serie, per dirne una)
+        # renderebbe l'altro ordine sbagliato in silenzio.
+        #
+        # Un test della suite verifica che la proprieta' valga ancora.
+        tutte = [b for b in tutte if b["timestamp"] <= quando]
+        if not tutte:
+            return fail(f"nessuna seduta fino al {quando}: e' prima della prima "
+                        f"quotazione di questo titolo", HTTP_NOT_FOUND)
+
     configurazione = grafici.configurazione(simbolo)
     try:
-        # Si calcola su TUTTA la storia e si taglia dopo. Calcolare sul solo
-        # intervallo mostrato darebbe, a un mese di grafico, una "media a 50
-        # giorni" costruita su ventidue sedute: un numero che sembra giusto e
-        # non lo e'. Le medie mobili hanno bisogno del passato che non si vede.
+        # Si calcola su tutta la storia DISPONIBILE e si taglia dopo. Calcolare
+        # sul solo intervallo mostrato darebbe, a un mese di grafico, una "media
+        # a 50 giorni" costruita su ventidue sedute: un numero che sembra giusto
+        # e non lo e'. Le medie mobili hanno bisogno del passato che non si vede.
         serie = indicators.compute(tutte, configurazione)
     except indicators.IndicatorConfigError as exc:
         logger.exception("[TITOLO] configurazione del grafico rotta per %s", simbolo)
@@ -196,6 +229,10 @@ def prezzi(simbolo: str):
     return ok({"symbol": simbolo.strip().upper(), "barre": barre, "serie": serie,
                "configurazione": configurazione, "source": lettura.source,
                "sedute_calcolate": len(tutte),
+               # Dichiarato sempre, anche quando e' `None`: chi guarda un grafico
+               # deve poter sapere se sta vedendo oggi o un giorno passato, e un
+               # campo che compare solo a volte non si legge.
+               "as_of": quando,
                "ultimo_prezzo": tutte[-1]["close"] if tutte else None,
                "ultima_seduta": tutte[-1]["timestamp"] if tutte else None,
                # Le variazioni su tutti gli intervalli, non solo su quello

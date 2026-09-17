@@ -139,8 +139,10 @@ export const api = {
 
     // --- scheda di un titolo ---
     titolo: (simbolo) => chiama(`/titolo/${encodeURIComponent(simbolo)}`),
-    titoloPrezzi: (simbolo, intervallo) =>
-        chiama(`/titolo/${encodeURIComponent(simbolo)}/prezzi${query({ intervallo })}`),
+    // `asOf` mostra il grafico com'era a una data passata: la storia si ferma
+    // li' e gli indicatori si calcolano solo su quello che esisteva.
+    titoloPrezzi: (simbolo, intervallo, asOf) =>
+        chiama(`/titolo/${encodeURIComponent(simbolo)}/prezzi${query({ intervallo, as_of: asOf })}`),
     fondamentali: (simbolo, asOf, periodicita) =>
         chiama(`/titolo/${encodeURIComponent(simbolo)}/fondamentali${query({ as_of: asOf, periodicita })}`),
     filings: (simbolo, asOf) =>

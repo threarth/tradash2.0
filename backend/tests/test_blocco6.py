@@ -8,6 +8,7 @@ portandolo non tornino — il ciclo nell'albero dei source, e gli indicatori
 calcolati sul solo intervallo mostrato.
 """
 import json
+import math
 from datetime import date, timedelta
 
 import pandas as pd
@@ -254,3 +255,164 @@ def test_un_intervallo_piu_lungo_della_storia_non_vale_zero(client, monkeypatch)
     assert d["variazioni"]["5A"]["variazione"] is None
     assert "non copre" in d["variazioni"]["5A"]["reason"]
     assert d["variazioni"]["1M"]["variazione"] is not None, "il mese invece c'e'"
+
+
+# --- il grafico a una data passata ------------------------------------------
+#
+# Il difetto che questi test impediscono e' sottile e invisibile a occhio: una
+# media a 50 sedute calcolata su tutta la storia e poi TAGLIATA alla data
+# passata ha gia' visto il mese dopo. Il grafico sembrerebbe identico, e i
+# numeri sarebbero quelli di un veggente.
+
+def _barre_finte(giorni: int, dal: date) -> list[dict]:
+    """Le stesse barre che vede l'API, per poter rifare il calcolo qui."""
+    return [{"timestamp": (dal + timedelta(days=i)).isoformat(),
+             "open": 100.0, "high": 100.0, "low": 100.0,
+             "close": 100.0 + i, "volume": 1e6}
+            for i in range(giorni)]
+
+
+def _prezzi_finti(monkeypatch, giorni: int, dal: date) -> None:
+    """Sostituisce la lettura dei prezzi con una serie che sale di 1 al giorno."""
+    monkeypatch.setattr(defeatbeta, "prices", lambda s, run_id=None: defeatbeta.Lettura(
+        frame=pd.DataFrame({
+            "report_date": [(dal + timedelta(days=i)).isoformat() for i in range(giorni)],
+            "open": [100.0] * giorni, "high": [100.0] * giorni, "low": [100.0] * giorni,
+            "close": [100.0 + i for i in range(giorni)], "volume": [1e6] * giorni,
+        }),
+        scope=s, category="price", source="cache", available=True, reason="finto"))
+
+
+def test_col_grafico_a_una_data_passata_le_barre_si_fermano_li(client, monkeypatch):
+    """Il taglio e' rigido: solo le sedute con data minore o uguale."""
+    _prezzi_finti(monkeypatch, 400, date(2024, 1, 1))
+    quando = "2024-06-30"
+
+    corpo = client.get(f"/api/titolo/X/prezzi?intervallo=tutto&as_of={quando}").get_json()
+    assert corpo["success"], corpo["error"]
+    d = corpo["data"]
+
+    assert d["as_of"] == quando
+    assert d["ultima_seduta"] <= quando
+    assert all(b["timestamp"] <= quando for b in d["barre"])
+
+
+def test_le_serie_mostrate_sono_quelle_della_storia_troncata(client, monkeypatch):
+    """L'invariante che conta: quello che vedi e' calcolato su cio' che c'era.
+
+    Si verifica **contro il motore stesso** e non con una formula chiusa: la
+    serie predefinita e' una EMA, e una formula sbagliata farebbe fallire il
+    test per il motivo sbagliato.
+    """
+    giorni, dal = 400, date(2024, 1, 1)
+    _prezzi_finti(monkeypatch, giorni, dal)
+    quando = "2024-06-30"
+
+    corpo = client.get(f"/api/titolo/X/prezzi?intervallo=tutto&as_of={quando}").get_json()
+    assert corpo["success"], corpo["error"]
+    dall_api = corpo["data"]["serie"]
+
+    troncate = [b for b in _barre_finte(giorni, dal) if b["timestamp"] <= quando]
+    attese = indicators.compute(troncate, indicators.DEFAULT_CONFIG)
+
+    for nome, punti in attese.items():
+        if not punti:
+            continue
+        assert dall_api[nome][-1]["v"] == pytest.approx(punti[-1]["v"]), nome
+
+
+def test_tutti_gli_indicatori_guardano_solo_indietro():
+    """La proprieta' su cui NON ci si appoggia, ma che e' bene sapere quando cade.
+
+    Misurato il 17/09/2026 su tutti e dodici i kind: calcolare su tutta la
+    storia e tagliare dopo, oppure troncare e poi calcolare, da' gli stessi
+    identici valori. Sono tutti filtri causali.
+
+    Per questo il grafico a una data passata mostra numeri giusti **comunque**,
+    e per questo l'ordine del taglio in `api/titolo.py` non e' oggi un dettaglio
+    di correttezza ma di costruzione.
+
+    Il giorno in cui qualcuno aggiunge un indicatore che guarda l'intera serie —
+    un percentile annuale, una normalizzazione sul massimo storico — questo test
+    fallisce, ed e' il momento in cui quell'ordine diventa l'unica cosa che
+    tiene onesto il point-in-time. Meglio scoprirlo qui che in pagina.
+    """
+    giorni, dal = 400, date(2024, 1, 1)
+    quando = "2024-06-30"
+    # Una serie NON lineare: su una lineare i numeri potrebbero coincidere per caso.
+    barre = [{"timestamp": (dal + timedelta(days=i)).isoformat(),
+              "open": 100 + math.sin(i / 7) * 10, "high": 105 + math.sin(i / 7) * 10,
+              "low": 95 + math.sin(i / 7) * 10,
+              "close": 100 + math.sin(i / 7) * 10 + i * 0.05,
+              "volume": 1e6 + (i % 13) * 1e5}
+             for i in range(giorni)]
+    troncate = [b for b in barre if b["timestamp"] <= quando]
+
+    nodi = []
+    for kind in sorted(indicators.VALID_KINDS):
+        for sorgente in ("price", "volume"):
+            nodo = {"id": kind, "kind": kind, "source": sorgente, "enabled": True,
+                    "params": {}, "style": {}}
+            try:
+                indicators.compute(barre[:60], {"nodes": [nodo]})
+            except indicators.IndicatorConfigError:
+                continue
+            nodi.append(nodo)
+            break
+
+    assert len(nodi) == len(indicators.VALID_KINDS), "qualche kind non e' stato provato"
+
+    intera = indicators.compute(barre, {"nodes": nodi})
+    tronca = indicators.compute(troncate, {"nodes": nodi})
+
+    non_causali = []
+    for nome, punti in tronca.items():
+        if not punti:
+            continue
+        ultimo = punti[-1]
+        allo_stesso_istante = next((p["v"] for p in intera[nome] if p["t"] == ultimo["t"]), None)
+        if allo_stesso_istante is None or abs(allo_stesso_istante - ultimo["v"]) > 1e-9:
+            non_causali.append(nome)
+
+    assert not non_causali, (
+        f"questi indicatori cambiano se hanno visto il futuro: {non_causali}. "
+        f"Da adesso il taglio prima del calcolo NON e' piu' una scelta di "
+        f"costruzione: e' l'unica cosa che tiene onesto il grafico a una data "
+        f"passata. Verificare che `api/titolo.py` lo faccia ancora."
+    )
+
+
+def test_la_finestra_dell_intervallo_segue_la_data_scelta(client, monkeypatch):
+    """«Un anno» a una data passata e' l'anno PRIMA di quella data.
+
+    Senza, chiedere un anno di grafico al 2024 darebbe una finestra che finisce
+    nel 2026: vuota, e per un motivo che nessuno indovinerebbe guardandola.
+    """
+    _prezzi_finti(monkeypatch, 800, date(2023, 1, 1))
+    quando = "2024-06-30"
+
+    d = client.get(f"/api/titolo/X/prezzi?intervallo=1A&as_of={quando}").get_json()["data"]
+
+    assert d["barre"], "la finestra non deve essere vuota"
+    assert d["barre"][-1]["timestamp"] <= quando
+    assert d["barre"][0]["timestamp"] >= "2023-06-30", "parte circa un anno prima"
+
+
+def test_una_data_prima_della_prima_quotazione_lo_dice(client, monkeypatch):
+    """Regola 5: non un grafico vuoto, un motivo."""
+    _prezzi_finti(monkeypatch, 100, date(2024, 1, 1))
+
+    risposta = client.get("/api/titolo/X/prezzi?as_of=2010-01-01")
+
+    assert risposta.status_code == 404
+    assert "prima quotazione" in risposta.get_json()["error"]
+
+
+def test_senza_data_il_grafico_e_quello_di_oggi(client, monkeypatch):
+    """Il campo si dichiara sempre, anche quando e' vuoto: un campo che compare
+    solo a volte non si legge."""
+    _prezzi_finti(monkeypatch, 100, date.today() - timedelta(days=99))
+
+    d = client.get("/api/titolo/X/prezzi").get_json()["data"]
+
+    assert "as_of" in d and d["as_of"] is None
