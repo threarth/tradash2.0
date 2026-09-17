@@ -62,6 +62,11 @@ TRIMESTRI_ANNO = 4
 TRIMESTRI_MOSTRATI = 8
 
 
+# Quanti trimestri entrano nei GRAFICI delle metriche. Piu' della tabella: una
+# tabella di venti righe non si legge, una linea di venti punti si'.
+TRIMESTRI_NEL_GRAFICO = 20
+
+
 def _ultimo(prospetto: dict, voce: str) -> float | None:
     valori = serie(prospetto, voce)
     return valori[-1][1] if valori else None
@@ -71,6 +76,28 @@ def _ttm(prospetto: dict, voce: str) -> float | None:
     """La somma degli ultimi quattro trimestri. `None` se non ce ne sono quattro."""
     valori = [v for _, v in serie(prospetto, voce)]
     return sum(valori[-TRIMESTRI_ANNO:]) if len(valori) >= TRIMESTRI_ANNO else None
+
+
+def _storia(prospetto: dict, voce: str) -> dict:
+    """Tutti i valori di una voce, per periodo."""
+    return dict(serie(prospetto, voce))
+
+
+def _storia_ttm(prospetto: dict, voce: str) -> dict:
+    """La somma mobile dei quattro trimestri che FINISCONO in ognuno.
+
+    Non e' la stessa cosa del valore del trimestre: EBIT, EBITDA e oneri
+    finanziari si guardano sempre su dodici mesi, perche' un trimestre solo li
+    fa sembrare stagionali. Il primo periodo con un valore e' il quarto: prima
+    non ci sono quattro trimestri da sommare, e il punto non esiste invece di
+    valere una somma parziale.
+    """
+    valori = serie(prospetto, voce)
+    return {
+        periodo: sum(v for _, v in valori[indice - TRIMESTRI_ANNO + 1:indice + 1])
+        for indice, (periodo, _) in enumerate(valori)
+        if indice >= TRIMESTRI_ANNO - 1
+    }
 
 
 def _rapporto(numeratore: float | None, denominatore: float | None,
@@ -118,6 +145,70 @@ def rapporti(valori: dict) -> dict:
             valori["attivo_totale"], valori["passivo_totale"], "il passivo totale"),
         "debito_netto_su_ebitda": _rapporto(
             valori["debito_netto"], valori["ebitda_ttm"], "l'EBITDA"),
+    }
+
+
+def figure_storiche(conto: dict, patrimoniale: dict) -> dict:
+    """Le stesse figure, ma trimestre per trimestre, per poterle disegnare.
+
+    `figure()` da' l'ultimo valore, che e' cio' che serve a una tabella. Un
+    grafico ha bisogno della storia, e finora non c'era: la pagina poteva
+    mostrare il debito di adesso ma non come ci era arrivato.
+
+    La cassa ha due voci possibili e si prende la piu' completa disponibile,
+    come in `figure()`: cambiare fonte a meta' serie farebbe un gradino che
+    sembra un fatto aziendale e non lo e'.
+    """
+    cassa = _storia(patrimoniale, VOCE_CASSA) or _storia(patrimoniale, VOCE_CASSA_STRETTA)
+    debito = _storia(patrimoniale, VOCE_DEBITO)
+
+    storie = {
+        "patrimonio_netto": _storia(patrimoniale, VOCE_PATRIMONIO),
+        "debito_totale": debito,
+        "cassa": cassa,
+        "debito_netto": {periodo: debito[periodo] - cassa[periodo]
+                         for periodo in sorted(set(debito) & set(cassa))},
+        "attivo_totale": _storia(patrimoniale, VOCE_ATTIVO),
+        "passivo_totale": _storia(patrimoniale, VOCE_PASSIVO),
+        "ebit_ttm": _storia_ttm(conto, VOCE_EBIT),
+        "ebitda_ttm": _storia_ttm(conto, VOCE_EBITDA),
+        "oneri_finanziari_ttm": _storia_ttm(conto, VOCE_ONERI),
+    }
+    return {nome: _punti(valori) for nome, valori in storie.items()}
+
+
+def _punti(valori: dict) -> list[dict]:
+    """Da `{periodo: valore}` alla lista ordinata che il grafico si aspetta."""
+    return [{"periodo": periodo, "valore": valori[periodo]}
+            for periodo in sorted(valori)[-TRIMESTRI_NEL_GRAFICO:]]
+
+
+def rapporti_storici(storiche: dict) -> dict:
+    """I quattro rapporti, trimestre per trimestre.
+
+    Si calcolano dalle figure storiche e non dai prospetti: un rapporto e' il
+    quoziente di due figure, e ricavarlo altrove vorrebbe dire due strade per
+    lo stesso numero, cioe' due modi di farlo diverso.
+
+    Un periodo in cui manca uno dei due lati, o il denominatore e' zero, **non
+    produce un punto**. Un buco nella linea dice «qui non si sapeva»; uno zero
+    direbbe una cosa falsa.
+    """
+    def dividi(sopra: str, sotto: str) -> list[dict]:
+        numeratori = {p["periodo"]: p["valore"] for p in storiche[sopra]}
+        denominatori = {p["periodo"]: p["valore"] for p in storiche[sotto]}
+        return [
+            {"periodo": periodo,
+             "valore": round(numeratori[periodo] / denominatori[periodo], 4)}
+            for periodo in sorted(set(numeratori) & set(denominatori))
+            if denominatori[periodo]
+        ]
+
+    return {
+        "copertura_interessi": dividi("ebit_ttm", "oneri_finanziari_ttm"),
+        "debito_su_patrimonio": dividi("debito_totale", "patrimonio_netto"),
+        "copertura_attivi": dividi("attivo_totale", "passivo_totale"),
+        "debito_netto_su_ebitda": dividi("debito_netto", "ebitda_ttm"),
     }
 
 
@@ -180,10 +271,15 @@ def quadro(tabelle: dict) -> dict:
 
     valori = figure(conto, patrimoniale)
     mancanti = [nome for nome, valore in valori.items() if valore is None]
+    storiche = figure_storiche(conto, patrimoniale)
 
     return {
         "figure": valori,
         "rapporti": rapporti(valori),
+        # Le stesse grandezze nel tempo: la tabella mostra dov'e' adesso, il
+        # grafico come ci e' arrivato. Sono due domande diverse sullo stesso dato.
+        "figure_storiche": storiche,
+        "rapporti_storici": rapporti_storici(storiche),
         "storia_del_debito": storia_del_debito(patrimoniale),
         "dall_utile_alla_cassa": dall_utile_alla_cassa(conto, conto_cassa),
         "figure_mancanti": mancanti,

@@ -1935,3 +1935,95 @@ def test_una_riga_illeggibile_non_ferma_le_altre(tmp_path, monkeypatch):
 
     assert esito["illeggibili"] == 1
     assert esito["rimessi"] == 1, "le due buone sono identiche: una sola entra"
+
+
+# --- la storia delle metriche di salute -------------------------------------
+
+def _prospetti_con_storia(quanti: int = 12) -> dict:
+    """Prospetti finti con `quanti` trimestri, per provare le serie.
+
+    Il debito cala di 100 a trimestre e la cassa sale di 50: cosi' il debito
+    netto ha una direzione sua, diversa da quella dei due pezzi che lo fanno.
+    """
+    periodi = [f"202{2 + i // 4}-{(i % 4) * 3 + 3:02d}-30" for i in range(quanti)]
+    # La forma che produce `domain/prospetti.py`: le voci stanno sotto «voci».
+    patrimoniale = {"periodi": periodi, "voci": {
+        salute.VOCE_DEBITO: {p: 10_000 - i * 100 for i, p in enumerate(periodi)},
+        salute.VOCE_CASSA: {p: 2_000 + i * 50 for i, p in enumerate(periodi)},
+        salute.VOCE_PATRIMONIO: {p: 5_000 for p in periodi},
+        salute.VOCE_ATTIVO: {p: 20_000 for p in periodi},
+        salute.VOCE_PASSIVO: {p: 15_000 for p in periodi},
+    }}
+    conto = {"periodi": periodi, "voci": {
+        salute.VOCE_EBIT: {p: 1_000 for p in periodi},
+        salute.VOCE_EBITDA: {p: 1_500 for p in periodi},
+        salute.VOCE_ONERI: {p: 100 for p in periodi},
+    }}
+    return conto, patrimoniale, periodi
+
+
+def test_ogni_figura_ha_la_sua_storia():
+    """Il grafico ha bisogno della storia; la tabella dell'ultimo valore. Sono
+    due domande diverse sullo stesso dato, e adesso ci sono entrambe."""
+    conto, patrimoniale, periodi = _prospetti_con_storia()
+
+    storiche = salute.figure_storiche(conto, patrimoniale)
+
+    assert set(storiche) == set(salute.figure(conto, patrimoniale))
+    assert [p["periodo"] for p in storiche["debito_totale"]] == periodi
+    assert storiche["debito_totale"][-1]["valore"] == salute.figure(
+        conto, patrimoniale)["debito_totale"], (
+        "l'ultimo punto della storia e' il valore che mostra la tabella: due "
+        "strade per lo stesso numero sarebbero due modi di farlo diverso"
+    )
+
+
+def test_il_debito_netto_ha_una_direzione_sua():
+    """Debito che cala e cassa che sale danno un debito netto che cala piu' in
+    fretta di entrambi: e' il motivo per cui si mostra a parte."""
+    conto, patrimoniale, _ = _prospetti_con_storia()
+
+    netto = salute.figure_storiche(conto, patrimoniale)["debito_netto"]
+
+    assert netto[0]["valore"] == 10_000 - 2_000
+    assert netto[-1]["valore"] < netto[0]["valore"]
+    passo = netto[0]["valore"] - netto[1]["valore"]
+    assert passo == 150, "cala di 100 di debito PIU' 50 di cassa"
+
+
+def test_le_voci_ttm_non_esistono_prima_del_quarto_trimestre():
+    """Una somma su dodici mesi fatta con due trimestri non e' una somma
+    parziale: e' un numero che non significa niente. Il punto non c'e'."""
+    conto, patrimoniale, periodi = _prospetti_con_storia()
+
+    ebit = salute.figure_storiche(conto, patrimoniale)["ebit_ttm"]
+
+    assert [p["periodo"] for p in ebit] == periodi[3:]
+    assert ebit[0]["valore"] == 4_000, "quattro trimestri da 1.000"
+
+
+def test_un_rapporto_senza_denominatore_non_fa_un_punto():
+    """Un buco nella linea dice «qui non si sapeva». Uno zero direbbe il falso."""
+    conto, patrimoniale, periodi = _prospetti_con_storia()
+    # Il patrimonio va a zero a meta' strada: da li' il rapporto non esiste.
+    for periodo in periodi[6:]:
+        patrimoniale["voci"][salute.VOCE_PATRIMONIO][periodo] = 0
+
+    storici = salute.rapporti_storici(salute.figure_storiche(conto, patrimoniale))
+    debito_su_patrimonio = storici["debito_su_patrimonio"]
+
+    assert [p["periodo"] for p in debito_su_patrimonio] == periodi[:6]
+    assert all(p["valore"] is not None for p in debito_su_patrimonio)
+
+
+def test_il_quadro_porta_anche_le_storie():
+    """Sono nella stessa risposta della tabella: la pagina non deve chiedere due
+    volte lo stesso bilancio per disegnarlo in due modi."""
+    conto, patrimoniale, _ = _prospetti_con_storia()
+
+    quadro = salute.quadro({"income_statement": conto, "balance_sheet": patrimoniale,
+                            "cash_flow": {"periodi": [], "voci": {}}})
+
+    assert "figure_storiche" in quadro and "rapporti_storici" in quadro
+    assert quadro["figure_storiche"]["cassa"], "la cassa ha una storia"
+    assert quadro["rapporti_storici"]["copertura_attivi"], "e i rapporti anche"

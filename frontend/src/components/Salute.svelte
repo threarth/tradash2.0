@@ -13,6 +13,7 @@
 -->
 <script>
     import Assente from "./Assente.svelte";
+    import MetricheSalute from "./MetricheSalute.svelte";
     import Riquadro from "./Riquadro.svelte";
     import Testo from "./Testo.svelte";
     import Valore from "./Valore.svelte";
@@ -131,6 +132,16 @@
                 {/each}
             </div>
         </div>
+
+        <!-- Un grafico solo, e le metriche che ci si accendono sopra. La tabella
+             qui sopra dice dove sono ADESSO; questo dice come ci sono arrivate. -->
+        {#if d.figure_storiche}
+            <div class="mb-4">
+                <div class="fw-semibold small mb-2">Come ci sono arrivate</div>
+                <MetricheSalute figure={d.figure_storiche}
+                                rapporti={d.rapporti_storici} />
+            </div>
+        {/if}
 
         {#if d.storia_del_debito.length}
             <div class="mt-3">
