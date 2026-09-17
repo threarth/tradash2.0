@@ -36,6 +36,7 @@
 
     import Testo from "./Testo.svelte";
     import { KIND_META, priceOverlays, resolvePanels, seriesKeys } from "../lib/indicators.ts";
+    import { creaLineaVerticale } from "../lib/lineaVerticale.js";
 
     let { barre = [], serie = {}, configurazione = { nodes: [] }, altezza = 420 } = $props();
 
@@ -72,6 +73,10 @@
     // Riferimenti vivi al grafico, tenuti FUORI dallo stato reattivo apposta.
     let serieCandele = null;
     let segnaposti = null;
+    // Una riga per grafico: prezzo e pannelli condividono l'asse del tempo, e
+    // una riga sul solo prezzo lascerebbe il volume senza riferimento proprio
+    // quando lo si sta confrontando.
+    let righeVerticali = [];
     let ultimoIntervallo = null;
     let graficiVivi = [];
 
@@ -132,7 +137,11 @@
             testo: prendi("--bs-body-color", "#e9f0f5"),
             griglia: prendi("--bs-border-color", "#263544"),
             su: prendi("--bs-success", "#66d19e"),
-            giu: prendi("--bs-danger", "#ff7b8d")
+            giu: prendi("--bs-danger", "#ff7b8d"),
+            // Il punto fissato usa il colore di richiamo del tema, non quello
+            // del testo: deve staccarsi dalle candele e dalla griglia, ed e'
+            // l'unica riga del grafico che sta li' perche' l'hai messa tu.
+            fissato: prendi("--bs-warning", "#ffc107")
         };
     }
 
@@ -153,6 +162,10 @@
     /** Disegna un nodo dentro un grafico gia' creato. */
     function disegnaNodo(grafico, nodo) {
         const meta = KIND_META[nodo.kind];
+        // La prima serie disegnata torna a chi chiama: e' l'appiglio a cui si
+        // attacca la riga verticale del punto fissato, che ha bisogno di una
+        // serie per stare dentro al ciclo di disegno di quel pannello.
+        let prima = null;
         for (const { key, def } of seriesKeys(nodo)) {
             const dati = punti(key);
             if (dati.length === 0) continue;
@@ -164,13 +177,25 @@
                 : { color: colore, lineWidth: nodo.style?.strokeWidth ?? 1.5,
                     lineStyle: def.dash ? 2 : 0, priceLineVisible: false,
                     lastValueVisible: false };
-            grafico.addSeries(tipoSerie, opzioni).setData(dati);
+            const serie = grafico.addSeries(tipoSerie, opzioni);
+            serie.setData(dati);
+            prima = prima ?? serie;
         }
+        return prima;
+    }
+
+    /** Appende una riga verticale a una serie, e la porta subito al punto fissato. */
+    function attaccaRiga(serie) {
+        const riga = creaLineaVerticale(() => coloriTema().fissato);
+        serie.attachPrimitive(riga);
+        riga.muovi(untrack(() => fissato));
+        righeVerticali.push(riga);
     }
 
     /** Il segnaposto del punto fissato. Si aggiorna senza rifare il grafico. */
     function aggiornaSegnaposto() {
         if (!segnaposti) return;
+        for (const riga of righeVerticali) riga.muovi(fissato);
         segnaposti.setMarkers(fissato === null ? [] : [{
             time: fissato, position: "belowBar", shape: "arrowUp",
             color: coloriTema().testo, text: "fissato"
@@ -224,6 +249,8 @@
             : candele);
 
         segnaposti = createSeriesMarkers(serieCandele, []);
+        righeVerticali = [];
+        attaccaRiga(serieCandele);
         untrack(aggiornaSegnaposto);
 
         for (const nodo of sovrapposti) disegnaNodo(prezzo, nodo);
@@ -239,8 +266,9 @@
             const sotto = creaGrafico(contenitore, ALTEZZA_PANNELLO);
             // Il proprietario del pannello, piu' gli overlay che gli stanno sopra:
             // una media mobile sul volume vive nel pannello del volume.
-            disegnaNodo(sotto, pannello.owner);
+            const serieDelPannello = disegnaNodo(sotto, pannello.owner);
             for (const figlio of pannello.children) disegnaNodo(sotto, figlio);
+            if (serieDelPannello) attaccaRiga(serieDelPannello);
             grafici.push(sotto);
         }
 

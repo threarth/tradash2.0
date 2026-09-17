@@ -136,8 +136,11 @@
      L'azione e' il nome del pulsante, non quello dell'endpoint: chi legge un
      avviso vuole sapere dove cliccare, non quale rotta chiamare. -->
 {#if freschezza.aperto}
-    <div class="container-fluid contenuto pt-3">
-        <div class="card">
+    <!-- Fisso sotto la barra, come il pannello dei lavori: un avviso che scorre
+         via mentre leggi la pagina e' un avviso che devi rincorrere. Si apre e
+         si chiude dall'icona nella barra. -->
+    <aside class="pannello-freschezza" aria-label="Freschezza dei dati">
+        <div class="card shadow">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <h2 class="h6 mb-2">Freschezza dei dati</h2>
@@ -199,7 +202,7 @@
                 </p>
             </div>
         </div>
-    </div>
+    </aside>
 {/if}
 
 <main class="container-fluid contenuto py-4">
@@ -208,3 +211,18 @@
 
 <PannelloGlossario />
 <PannelloLavori />
+
+<style>
+    /* Sotto la barra, e fermo li'. Le stesse coordinate del pannello dei
+       lavori, dall'altro lato: due pannelli che si aprissero nello stesso
+       angolo si coprirebbero a vicenda. */
+    .pannello-freschezza {
+        position: fixed;
+        top: 4rem;
+        left: 1rem;
+        z-index: 1030;
+        width: min(40rem, calc(100vw - 2rem));
+        max-height: calc(100vh - 5rem);
+        overflow-y: auto;
+    }
+</style>

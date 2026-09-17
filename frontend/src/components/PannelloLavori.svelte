@@ -8,9 +8,16 @@
     finora, sulla scheda di un titolo, di tre minuti di analisi si vedeva un
     numero in un pallino giallo.
 
-    Compare quando qualcosa parte e se ne va qualche secondo dopo la fine. Non
-    c'e' un interruttore per aprirlo o chiuderlo perche' non serve: quando non
-    gira niente non c'e' niente da mostrare, ed e' il 95% del tempo.
+    Compare quando qualcosa parte e se ne va qualche secondo dopo la fine: non
+    serve aprirlo, perche' quando non gira niente non c'e' niente da mostrare,
+    ed e' il 95% del tempo.
+
+    **Si puo' pero' ridurre a una riga.** Un'analisi lunga tiene il pannello
+    aperto per minuti sopra l'angolo della pagina, e su schermi stretti copre
+    proprio cio' che stai guardando mentre aspetti. Ridotto resta visibile —
+    quanti lavori e a che punto — senza occupare. La scelta dura finche' i
+    lavori non finiscono: al prossimo si riapre, perche' il senso del pannello
+    e' che non ti sfugga.
 
     Le righe le disegna `Scia.svelte`, che le disegna anche nella scheda del
     titolo: sono lo stesso dato guardato da due posti.
@@ -25,8 +32,17 @@
     const CONCLUSO = "concluso";
 
     let errore = $state(null);
+    let ridotto = $state(false);
 
     $effect(() => lavori.guarda());
+
+    // Quando arriva un lavoro nuovo il pannello torna aperto: ridurlo vale per
+    // quello che stavi guardando, non per sempre.
+    let quantiPrima = 0;
+    $effect(() => {
+        if (lavori.visibili.length > quantiPrima) ridotto = false;
+        quantiPrima = lavori.visibili.length;
+    });
 
     /** Quanto e' avanzato, in percentuale. `null` quando i passi non si sanno. */
     function avanzamento(lavoro) {
@@ -45,7 +61,24 @@
 </script>
 
 {#if lavori.visibili.length > 0}
-    <aside class="pannello-lavori" aria-label="Lavori in corso">
+    <aside class="pannello-lavori" aria-label="Lavori in corso" class:ridotto>
+        <!-- La testata c'e' sempre: ridotto, e' tutto cio' che resta, e deve
+             bastare a sapere che qualcosa sta ancora girando. -->
+        <div class="d-flex justify-content-between align-items-center gap-2"
+             class:mb-2={!ridotto}>
+            <span class="small fw-semibold">
+                {lavori.quanti > 0 ? `${lavori.quanti} in corso` : "finito"}
+            </span>
+            <button class="btn btn-sm btn-outline-secondary py-0"
+                    title={ridotto ? "Espandi" : "Riduci a una riga"}
+                    aria-label={ridotto ? "Espandi" : "Riduci"}
+                    onclick={() => (ridotto = !ridotto)}>
+                <i class="bi {ridotto ? 'bi-chevron-down' : 'bi-dash-lg'}"
+                   aria-hidden="true"></i>
+            </button>
+        </div>
+
+        {#if !ridotto}
         {#each lavori.visibili as lavoro (lavoro.run_id)}
             {@const percentuale = avanzamento(lavoro)}
             <div class="lavoro">
@@ -90,6 +123,7 @@
         {#if errore}
             <p class="small text-danger mb-0">{errore}</p>
         {/if}
+        {/if}
     </aside>
 {/if}
 
@@ -101,6 +135,11 @@
         top: 4rem;
         right: 1rem;
         z-index: 1030;
+    }
+
+    /* Ridotto: resta la sola testata, che dice quanti ne stanno girando. */
+    .pannello-lavori.ridotto {
+        padding-bottom: 0.5rem;
         width: min(24rem, calc(100vw - 2rem));
         max-height: 70vh;
         overflow-y: auto;

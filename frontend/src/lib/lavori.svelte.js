@@ -70,6 +70,22 @@ class Lavori {
         this.#giro();
     }
 
+    /**
+     * Chiede SUBITO, senza aspettare il prossimo battito.
+     *
+     * Serve a chi fa partire un lavoro da un posto che non porta altrove. Col
+     * ritmo lento — trenta secondi quando non gira niente — un lavoro da mezzo
+     * minuto puo' nascere e morire fra due letture, e chi ha premuto il
+     * pulsante non vede mai niente. E' successo coi pulsanti del pannello
+     * della freschezza.
+     */
+    aggiornaSubito() {
+        if (!this.#vivo) return;
+        clearTimeout(this.#prossimo);
+        this.#prossimo = null;
+        this.#giro();
+    }
+
     #ferma() {
         this.#vivo = false;
         clearTimeout(this.#prossimo);

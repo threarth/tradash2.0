@@ -13,6 +13,7 @@
  * modulo mostra un numero, non preme niente.
  */
 import { api } from "./api.js";
+import { lavori } from "./lavori.svelte.js";
 
 class Freschezza {
     /** Quante cose sono vecchie adesso. Zero e' un'informazione anche lui. */
@@ -62,8 +63,11 @@ class Freschezza {
         this.errore = null;
         try {
             await api.avviaAggiornamento(riga.endpoint);
-            // Il lavoro gira nel registro: la pastiglia dei lavori lo mostra, e
-            // la freschezza si rilegge da sola quando finisce (vedi Layout).
+            // Si sveglia subito il battito dei lavori: col ritmo lento, un
+            // lavoro da mezzo minuto nascerebbe e morirebbe fra due letture, e
+            // chi ha premuto non vedrebbe mai niente. Da li' in poi il battito
+            // passa da solo al ritmo svelto, perche' un lavoro c'e'.
+            lavori.aggiornaSubito();
         } catch (problema) {
             this.errore = `${riga.etichetta}: ${problema.message}`;
         } finally {
