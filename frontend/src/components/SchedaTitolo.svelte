@@ -18,6 +18,7 @@
 
     import Nota from "./Nota.svelte";
     import Pillola from "./Pillola.svelte";
+    import Ticker from "./Ticker.svelte";
     import Valore from "./Valore.svelte";
 
     let { titolo, tag, profili, maturity, notaMax, onSalva, onRimuovi,
@@ -125,8 +126,11 @@
                     }}>
                 <i class="bi {titolo.favorite ? 'bi-star-fill text-warning' : 'bi-star'}"></i>
             </button>
-            <a class="simbolo text-decoration-none" href="/titolo/{titolo.symbol}"
-               onclick={(e) => e.stopPropagation()}>{titolo.symbol}</a>
+            <!-- `stopPropagation` perche' la scheda intera e' cliccabile: senza,
+                 aprire il titolo aprirebbe anche il pannello della scheda. -->
+            <span onclick={(e) => e.stopPropagation()} role="presentation">
+                <Ticker simbolo={titolo.symbol} classe="simbolo text-decoration-none" />
+            </span>
             <span class="text-truncate">
                 <span class="small">
                     {#if titolo.name}<Valore valore={titolo.name} /> · {/if}

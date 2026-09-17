@@ -164,13 +164,34 @@
                                         : "su " + riga.limite_giorni}
                                 </td>
                                 <td class="text-end">
-                                    {#if riga.vecchio}<strong>{riga.azione}</strong>
-                                    {:else}<span class="text-secondary">aggiornato</span>{/if}
+                                    {#if !riga.vecchio}
+                                        <span class="text-secondary">aggiornato</span>
+                                    {:else if riga.endpoint}
+                                        <!-- Il pulsante non aggiorna da solo: lo
+                                             premi tu. E' la scelta dichiarata —
+                                             il sistema dice cosa e' vecchio, la
+                                             decisione resta tua. -->
+                                        <button class="btn btn-sm btn-warning"
+                                                disabled={freschezza.inCorso.has(riga.categoria)}
+                                                onclick={() => freschezza.avvia(riga)}>
+                                            {freschezza.inCorso.has(riga.categoria)
+                                                ? "avvio…" : riga.azione}
+                                        </button>
+                                    {:else}
+                                        <!-- Niente rotta: si rifa' da terminale, e
+                                             si mostra il comando invece di un
+                                             pulsante che non potrebbe esistere. -->
+                                        <code class="small">{riga.azione}</code>
+                                    {/if}
                                 </td>
                             </tr>
                         {/each}
                     </tbody>
                 </table>
+
+                {#if freschezza.errore}
+                    <div class="alert alert-danger small py-2">{freschezza.errore}</div>
+                {/if}
 
                 <p class="small text-secondary mb-0">
                     <i class="bi bi-hand-index" aria-hidden="true"></i>

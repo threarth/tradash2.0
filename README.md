@@ -7,12 +7,19 @@ niente servizi che partono da soli.
 
 ### Backend
 
+**Il venv sta in `backend/`, non nella radice**, e i comandi qui sotto lo
+invocano per percorso invece di attivarlo. Non e' pignoleria: `cd tradash2.0 &&
+source .venv/bin/activate` e' il gesto naturale e per un po' ha attivato un venv
+vuoto rimasto li' per sbaglio, con un `ModuleNotFoundError: flask` che sembrava
+un'installazione rotta. Quel venv e' stato cancellato il 17/09/2026; invocare
+`.venv/bin/python` per percorso toglie il problema alla radice.
+
 ```bash
 cd backend
 uv venv --python 3.13
 uv pip install --python .venv/bin/python -r requirements-dev.txt
 
-.venv/bin/python -m pytest -q       # la suite (108 test, rete spenta)
+.venv/bin/python -m pytest -q       # la suite (488 test, rete spenta)
 .venv/bin/python -m pytest -q -m network   # i test che escono davvero
 .venv/bin/ruff check .              # il linter
 .venv/bin/python app.py             # server su :5001, serve anche la SPA
@@ -38,6 +45,22 @@ senza dire niente. `npm run <script>` invece esegue e basta, e funziona.
 
 In uso reale gira **solo Flask**: niente SvelteKit, quindi niente processo Node
 accanto. In sviluppo si tengono aperti tutti e due perche' Vite ricarica a caldo.
+
+### Serve l'accesso, anche in locale
+
+Dal Blocco 10 ogni rotta sotto `/api/` e' chiusa: aprire la pagina senza essere
+entrati mostra la schermata di accesso, e basta. L'utente sta in
+`backend/data/utente.json`, che **non e' in git** — quindi su una macchina nuova
+va creato:
+
+```bash
+cd backend
+.venv/bin/python manage.py utente    # chiede la password a voce
+```
+
+Se il login dal browser non riesce in locale, e' il cookie: e' `Secure`, quindi
+vuole HTTPS. I browser fanno un'eccezione per `localhost`, ma `curl` e gli
+script no — per quelli si parte con `TRADASH2_COOKIE_SICURO=0`.
 
 **Due modi di guardare l'applicazione, e non sono lo stesso indirizzo:**
 

@@ -37,17 +37,24 @@ from data import defeatbeta, preset
 
 logger = logging.getLogger(__name__)
 
-# Cosa si sorveglia, e cosa si fa quando e' vecchio. L'azione e' scritta come la
-# leggerebbe una persona: il nome del pulsante, non il nome dell'endpoint.
+# Cosa si sorveglia, cosa si fa quando e' vecchio, e DOVE si preme.
+#
+# L'azione e' scritta come la leggerebbe una persona — il nome del pulsante, non
+# quello dell'endpoint. L'endpoint sta accanto perche' il pannello ci mette un
+# pulsante sopra: se la pagina se lo ricavasse da sola dal nome della categoria,
+# quella mappa invecchierebbe in silenzio il giorno in cui una rotta cambia.
+#
+# `endpoint` vale `None` per cio' che si rifa' solo da terminale, e li' il
+# pannello mostra il comando invece di un pulsante che non potrebbe esistere.
 SORVEGLIATI = (
     (defeatbeta.CATEGORY_ANAGRAFICA, "Anagrafica dell'universo",
-     "Universo → Anagrafica"),
+     "Universo → Anagrafica", "/api/universe/anagrafica"),
     (defeatbeta.CATEGORY_MERCATO, "Prezzi dell'universo",
-     "Universo → Prezzi"),
+     "Universo → Prezzi", "/api/universe/mercato"),
     (defeatbeta.CATEGORY_FONDAMENTALI, "Bilanci dell'universo",
-     "Universo → Deriva i bilanci"),
+     "Universo → Deriva i bilanci", "/api/universe/fondamentali"),
     (defeatbeta.CATEGORY_PREZZI_MENSILI, "Storico mensile",
-     "Universo → Deriva lo storico"),
+     "Universo → Deriva lo storico", "/api/universe/storico"),
 )
 
 SECONDI_PER_GIORNO = config.SECONDS_PER_DAY
@@ -58,7 +65,7 @@ def _giorni(eta_s: float | None) -> float | None:
     return None if eta_s is None else round(eta_s / SECONDI_PER_GIORNO, 1)
 
 
-def _riga(categoria: str, etichetta: str, azione: str) -> dict:
+def _riga(categoria: str, etichetta: str, azione: str, endpoint: str | None) -> dict:
     """Lo stato di una categoria sorvegliata, con motivo e azione sempre pieni."""
     serve, motivo = freshness.should_fetch_global(categoria)
     eta_s = freshness.age_seconds(GLOBAL_SCOPE, categoria)
@@ -70,6 +77,7 @@ def _riga(categoria: str, etichetta: str, azione: str) -> dict:
         "limite_giorni": _giorni(freshness.ttl_for(categoria)),
         "reason": motivo,
         "azione": azione,
+        "endpoint": endpoint,
     }
 
 
@@ -84,6 +92,10 @@ def _riga_preset() -> dict:
         "limite_giorni": None,
         "reason": "; ".join(stato["perche"]) or "misurati con le soglie di adesso",
         "azione": stato["azione"],
+        # Niente endpoint: rigiocare i preset e' un comando da terminale, e
+        # produce un file che va in git. Un pulsante che lo lanciasse dal
+        # browser scriverebbe nel repo senza che nessuno veda il diff.
+        "endpoint": None,
     }
 
 
@@ -93,8 +105,8 @@ def stato() -> dict:
     `quanti` e' il numero che la barra in alto mostra come pastiglia. Zero
     significa che non c'e' niente da fare, ed e' un'informazione anche quella.
     """
-    righe = [_riga(categoria, etichetta, azione)
-             for categoria, etichetta, azione in SORVEGLIATI]
+    righe = [_riga(categoria, etichetta, azione, endpoint)
+             for categoria, etichetta, azione, endpoint in SORVEGLIATI]
     righe.append(_riga_preset())
 
     vecchi = [r for r in righe if r["vecchio"]]

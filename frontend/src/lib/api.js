@@ -199,6 +199,11 @@ export const api = {
         chiama("/impostazioni/llm", corpoJson("PUT", { modello })),
 
     freschezza: () => chiama("/ops/freschezza"),
+    // Avvia cio' che il pannello della freschezza dichiara come da rifare.
+    // L'indirizzo arriva dal backend insieme alla riga: una mappa
+    // categoria -> rotta scritta qui invecchierebbe in silenzio.
+    avviaAggiornamento: (endpoint) =>
+        chiama(endpoint.replace("/api", "") + "?force=1", { method: "POST" }),
     lavoriAttivi: () => chiama("/ops/active"),
     processo: () => chiama("/ops/processo"),
     lavoriStorici: () => chiama("/ops/history"),

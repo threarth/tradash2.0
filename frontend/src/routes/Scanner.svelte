@@ -61,6 +61,13 @@
     // I preset arrivano dal backend col loro verdetto misurato. Scriverli qui
     // vorrebbe dire un verdetto che invecchia da solo il giorno in cui il
     // rigioco viene rifatto.
+    // Chi sta gia' in watchlist, letto una volta quando arrivano i risultati.
+    // Senza, aggiungeresti due volte lo stesso titolo e il backend risponderebbe
+    // «gia' presente» — corretto, e inutile da leggere venti volte.
+    let inWatchlist = $state(new Set());
+    let aggiungendo = $state(new Set());
+    let esitoAggiunta = $state(null);
+
     let preset = $state([]);
     let presetScelto = $state(null);
     let presetMisura = $state(null);
@@ -133,8 +140,50 @@
             risultato = await api.scannerEsito(runId);
             inCorso = false;
             clearInterval(battito);
+            leggiWatchlist();
         } catch {
             // Ancora in corso: il backend risponde 404 finche' non ha finito.
+        }
+    }
+
+    /** Quali dei titoli trovati sono gia' osservati. Una lettura, non venti. */
+    async function leggiWatchlist() {
+        try {
+            const dati = await api.watchlist({});
+            inWatchlist = new Set(dati.titoli.map((t) => t.symbol));
+        } catch {
+            // Se non si riesce a leggerla, i pulsanti restano tutti «aggiungi»:
+            // premerne uno gia' presente non fa danni, il backend lo dice.
+            inWatchlist = new Set();
+        }
+    }
+
+    /** Aggiunge un titolo alla watchlist, senza tema.
+     *
+     *  Senza tema di proposito: chiedere quale al momento del click bloccherebbe
+     *  con una tendina proprio mentre scorri venti risultati. La classificazione
+     *  si fa dopo, dalla watchlist, anche col giro esporta -> LLM -> importa.
+     */
+    async function aggiungi(simbolo) {
+        if (inWatchlist.has(simbolo) || aggiungendo.has(simbolo)) return;
+
+        aggiungendo = new Set([...aggiungendo, simbolo]);
+        esitoAggiunta = null;
+        try {
+            const esito = await api.watchlistAggiungi(simbolo, null);
+            if (esito.aggiunti?.length) {
+                inWatchlist = new Set([...inWatchlist, simbolo]);
+            } else if (esito.sconosciuti?.length) {
+                esitoAggiunta = `${simbolo} non e' nell'universo: ricostruisci l'anagrafica`;
+            } else if (esito.gia_presenti?.length) {
+                inWatchlist = new Set([...inWatchlist, simbolo]);
+            }
+        } catch (problema) {
+            esitoAggiunta = problema.message;
+        } finally {
+            const restanti = new Set(aggiungendo);
+            restanti.delete(simbolo);
+            aggiungendo = restanti;
         }
     }
 
@@ -470,6 +519,10 @@
                  motivo={`esaminati ${risultato.esaminati} titoli`}
                  azione="allarga le soglie, o cerca in un settore diverso" />
     {:else}
+        {#if esitoAggiunta}
+            <div class="alert alert-warning small py-2">{esitoAggiunta}</div>
+        {/if}
+
         {#each risultato.trovati as trovato (trovato.symbol)}
             <div class="card mb-2">
                 <div class="card-body py-2">
@@ -478,7 +531,22 @@
                              fatto trovare, non chi e': l'anteprima al passaggio
                              del mouse risponde a «ma questo chi e'?» senza
                              aprire e richiudere una pagina. -->
-                        <Ticker simbolo={trovato.symbol} classe="simbolo text-decoration-none" />
+                        <span class="d-flex align-items-center gap-2">
+                            <Ticker simbolo={trovato.symbol}
+                                    classe="simbolo text-decoration-none" />
+                            {#if inWatchlist.has(trovato.symbol)}
+                                <span class="badge text-bg-success" title="gia' in watchlist">
+                                    <i class="bi bi-bookmark-check" aria-hidden="true"></i>
+                                </span>
+                            {:else}
+                                <button class="btn btn-sm btn-outline-primary py-0"
+                                        disabled={aggiungendo.has(trovato.symbol)}
+                                        title="aggiungi alla watchlist"
+                                        onclick={() => aggiungi(trovato.symbol)}>
+                                    <i class="bi bi-bookmark-plus" aria-hidden="true"></i>
+                                </button>
+                            {/if}
+                        </span>
                         <span class="small text-secondary numerico">
                             <Valore valore={trovato.misure.ultimo_prezzo} />
                             {#if trovato.misure.drawdown}

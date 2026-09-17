@@ -123,7 +123,7 @@ def test_una_categoria_fresca_non_suona():
 
 def test_il_conteggio_e_quello_che_la_pastiglia_mostra():
     """Zero e' un'informazione anche lui: vuol dire che non c'e' niente da fare."""
-    for categoria, _, _ in allarmi.SORVEGLIATI:
+    for categoria, *_ in allarmi.SORVEGLIATI:
         freshness.mark_fetched_global(categoria)
     _storico_finto()
     preset.rigioca_tutti()
@@ -134,6 +134,25 @@ def test_il_conteggio_e_quello_che_la_pastiglia_mostra():
     _invecchia(defeatbeta.CATEGORY_FONDAMENTALI, giorni=3)
 
     assert allarmi.stato()["quanti"] == 2
+
+
+def test_ogni_riga_dice_DOVE_si_preme_o_che_non_si_puo():
+    """Il pannello ci mette un pulsante sopra: l'endpoint lo dichiara il backend.
+
+    Se la pagina se lo ricavasse dal nome della categoria, quella mappa
+    invecchierebbe in silenzio il giorno in cui una rotta cambia — e un pulsante
+    che chiama una rotta che non c'e' piu' non lo dice, semplicemente fallisce.
+    """
+    righe = {r["categoria"]: r for r in allarmi.stato()["tutti"]}
+
+    for categoria, _, _, endpoint in allarmi.SORVEGLIATI:
+        assert righe[categoria]["endpoint"] == endpoint
+        assert endpoint.startswith("/api/"), f"{categoria} non punta a una rotta"
+
+    # I preset si rigiocano solo da terminale: un pulsante che lo facesse dal
+    # browser scriverebbe un file che va in git senza che nessuno veda il diff.
+    assert righe["preset"]["endpoint"] is None
+    assert righe["preset"]["azione"].startswith("python manage.py")
 
 
 def test_la_nota_dice_che_non_parte_niente():

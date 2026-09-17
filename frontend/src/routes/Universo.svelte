@@ -11,6 +11,7 @@
 
     import Assente from "../components/Assente.svelte";
     import Riquadro from "../components/Riquadro.svelte";
+    import Ticker from "../components/Ticker.svelte";
     import Testo from "../components/Testo.svelte";
     import Valore from "../components/Valore.svelte";
     import { api } from "../lib/api.js";
@@ -302,8 +303,11 @@
                         {#each dati.titoli as titolo (titolo.symbol)}
                             <tr>
                                 <td class="fw-semibold">
-                                    <a href="/titolo/{titolo.symbol}"
-                                       class="text-decoration-none">{titolo.symbol}</a>
+                                    <!-- Lo stesso componente dello scanner: il
+                                         click porta alla scheda, e fermandocisi
+                                         sopra si legge chi e' senza aprirla. -->
+                                    <Ticker simbolo={titolo.symbol}
+                                            classe="text-decoration-none" />
                                 </td>
                                 <td class="text-truncate" style="max-width:16rem">
                                     <Valore valore={titolo.name} mancante="nome non noto" />

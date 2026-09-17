@@ -22,6 +22,9 @@ class Freschezza {
     nota = $state("");
     aperto = $state(false);
     letta = $state(false);
+    /** Quali aggiornamenti sono stati appena chiesti, per non chiederli due volte. */
+    inCorso = $state(new Set());
+    errore = $state(null);
 
     /** Chiede al backend cosa e' vecchio. Legge SQLite e un file: non costa. */
     async carica() {
@@ -41,6 +44,32 @@ class Freschezza {
 
     alterna() {
         this.aperto = !this.aperto;
+    }
+
+    /**
+     * Fa partire l'aggiornamento di una riga. Non decide da sola quale: prende
+     * l'indirizzo che il backend ha dichiarato accanto a quella riga.
+     *
+     * `force=1` perche' premere un pulsante E' la decisione: senza, il guard di
+     * freschezza potrebbe rispondere «gia' fresco, salto» proprio mentre tu hai
+     * chiesto di rifarlo.
+     */
+    async avvia(riga) {
+        if (!riga.endpoint || this.inCorso.has(riga.categoria)) return;
+
+        this.inCorso.add(riga.categoria);
+        this.inCorso = new Set(this.inCorso);
+        this.errore = null;
+        try {
+            await api.avviaAggiornamento(riga.endpoint);
+            // Il lavoro gira nel registro: la pastiglia dei lavori lo mostra, e
+            // la freschezza si rilegge da sola quando finisce (vedi Layout).
+        } catch (problema) {
+            this.errore = `${riga.etichetta}: ${problema.message}`;
+        } finally {
+            this.inCorso.delete(riga.categoria);
+            this.inCorso = new Set(this.inCorso);
+        }
     }
 }
 
