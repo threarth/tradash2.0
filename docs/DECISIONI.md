@@ -2376,8 +2376,8 @@ conclusione a cui si era arrivati separando l'universo in due meta'.
 
 *17/09/2026. Trovato cercando l'errore dietro un risultato troppo bello.*
 
-Il primo dei quattro indicatori nuovi — le azioni in circolazione che calano,
-cioe' un buyback — ha dato **97% dei mesi vinti a dodici mesi**. Un numero cosi'
+Il primo dei quattro indicatori nuovi — il numero di azioni in circolazione che
+cala — ha dato **97% dei mesi vinti a dodici mesi**. Un numero cosi'
 non si crede: si cerca l'errore. L'errore c'era, e ne stavano due nello stesso
 posto.
 
@@ -2442,7 +2442,7 @@ e quando si confrontano le due famiglie bisogna saperlo.
 
 ### Il risultato che e' sopravvissuto
 
-`azioni_variazione_massima: -0.02`, cioe' almeno il 2% di riacquisto in un anno:
+`azioni_variazione_massima: -0.02`, cioe' azioni calate di almeno il 2% in un anno:
 83% / 89% / **96%** dei mesi vinti, +1,8% / +3,3% / **+7,1%**, su 69-78 mesi
 giudicabili. E' il risultato piu' forte e meglio campionato che abbiamo.
 
@@ -2450,3 +2450,79 @@ giudicabili. E' il risultato piu' forte e meglio campionato che abbiamo.
 filtro di qualita'. Dice di evitare chi emette azioni, e chi emette azioni sono
 le societa' che bruciano cassa. Il merito e' piu' di cio' che esclude che di
 cio' che trova.
+
+---
+
+## Due nomi sbagliati, e uno dei due nascondeva un'inferenza
+
+*17/09/2026, su correzione dell'utente: «buyback non e' aumento di capitale, fai
+riferimento al numero di azioni».*
+
+Aveva ragione, e la correzione e' sostanziale e non lessicale. **Noi misuriamo
+un conteggio, non una causa.** Il numero di azioni in circolazione puo' calare
+per un riacquisto o per un annullamento; puo' salire per un aumento di capitale,
+per compensi in azioni, per azioni emesse a pagare un'acquisizione, per la
+conversione di un'obbligazione. Chiamare la misura «buyback» le attribuiva una
+causa che il dato non contiene.
+
+Chi la causa la vuole deve guardare il **rendiconto finanziario**, dove il
+denaro uscito per riacquistare azioni e' una voce sua — ed e' un'altra cosa da
+questa.
+
+**Lo stesso errore stava anche in `f5_diluizione`**, che al calo del conteggio
+rispondeva «riacquisti». Corretto anche li': adesso dice «azioni ridotte del X%
+in un anno», che e' quello che sa.
+
+### La domanda che la correzione ha aperto: e gli split?
+
+Uno split 10:1 moltiplica per dieci il numero di azioni senza che nulla sia
+cambiato; un raggruppamento fa il contrario, ed e' tipico delle societa' in
+difficolta'. Se il conteggio non fosse rettificato, il criterio prenderebbe i
+raggruppamenti per riduzioni virtuose e scarterebbe gli split come diluizioni.
+
+**Verificato su NVDA**, che ha fatto uno split 10:1 nel giugno 2024: nello
+storico mensile risultano ~24,6 miliardi di azioni **sia prima sia dopo**.
+Defeatbeta rettifica il conteggio all'indietro, come fa coi prezzi. Il difetto
+non c'e' — ma lo si sapeva per fortuna, non per verifica, finche' la domanda non
+e' stata fatta.
+
+### E la scomposizione del meccanismo
+
+Avevo scritto «conta piu' cio' che esclude che cio' che trova» come ipotesi.
+Misurata:
+
+| soglia sul numero di azioni | trovati/mese | 12 mesi |
+|---|---|---|
+| non aumentano (≤ 0%) | 1.187 | **+8,1%** |
+| calano almeno del 2% | 588 | +7,1% |
+| calano almeno del 5% | 248 | +5,4% |
+
+**Il merito e' tutto sulla soglia dello zero**, e stringere peggiora. Non e'
+«chi riduce le azioni va bene»: e' «chi le aumenta va male».
+
+---
+
+## Perche' l'accelerazione dei ricavi non funziona: e' aritmetica
+
+*17/09/2026, rispondendo a «perche' non funziona?».*
+
+Il rigioco diceva soltanto **che** non funziona — 39% / 40% / 58% dei mesi
+vinti. Il perche' e' misurabile a parte, e lo e' stato:
+
+**La correlazione fra l'accelerazione di un trimestre e quella del successivo e'
+−0,499**, su 42.456 coppie e 6.923 titoli.
+
+Quel numero non e' casuale. L'accelerazione e' `YoY(t) − YoY(t−1)` e quella dopo
+e' `YoY(t+1) − YoY(t)`: **condividono `YoY(t)` con segno opposto**. Se i valori
+anno su anno fossero rumore indipendente, la correlazione verrebbe esattamente
+−0,5. Abbiamo misurato −0,499, cioe' praticamente non c'e' struttura oltre
+l'artefatto della differenza.
+
+In forma leggibile: chi accelera di piu' di 5 punti, il trimestre dopo accelera
+ancora nel **44%** dei casi — *meno* del 52% di chiunque altro. Selezionare
+sull'accelerazione vuol dire prendere i titoli al picco locale della loro curva
+di crescita, subito prima che rientri.
+
+**La lezione generale**: una misura costruita come differenza di due misure
+consecutive eredita una correlazione negativa di −0,5 anche quando sotto non c'e'
+niente. Prima di credere a una derivata seconda, va confrontata con quel numero.

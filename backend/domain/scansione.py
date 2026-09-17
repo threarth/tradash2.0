@@ -218,12 +218,12 @@ CRITERI = {
         "crescita dei ricavi in accelerazione di almeno {soglia:.0%} rispetto al "
         "trimestre prima (adesso {valore:+.1%})",
     ),
-    # Le azioni che CALANO: un buyback in corso. La soglia e' un MASSIMO, quindi
-    # `azioni_variazione_massima: -0.02` chiede almeno il 2% di riacquisto in un
-    # anno; a zero chiede soltanto che non stiano diluendo.
+    # La variazione del NUMERO DI AZIONI, non la causa che l'ha prodotta. La
+    # soglia e' un MASSIMO: a -0,02 chiede che le azioni siano calate almeno del
+    # 2% in un anno, a zero soltanto che non siano aumentate.
     "azioni_variazione_massima": (
         lambda m: m["azioni"]["variazione_1a"] if m.get("azioni") else None, False,
-        "azioni in circolazione variate non piu' di {soglia:+.1%} in un anno "
+        "numero di azioni variato non piu' di {soglia:+.1%} in un anno "
         "(adesso {valore:+.1%})",
     ),
     "margine_crescita_minima": (
@@ -305,19 +305,35 @@ def preset_validi() -> list[str]:
             if all(c in CRITERI for c in dati["criteri"])]
 
 
-# Quanti mesi indietro si guarda per la variazione delle azioni. Dodici, cioe'
-# lo stesso trimestre dell'anno prima: le azioni in circolazione si muovono a
-# scatti — un'emissione, un buyback annunciato — e su tre mesi il rumore delle
-# assegnazioni ai dipendenti coprirebbe il segnale.
+# Quanti mesi indietro si guarda per la variazione del numero di azioni. Dodici,
+# cioe' lo stesso trimestre dell'anno prima: il numero di azioni si muove a
+# scatti, e su tre mesi il rumore delle assegnazioni ai dipendenti coprirebbe
+# tutto il resto.
 MESI_PER_AZIONI = 12
 
 
 def azioni(serie: dict, mese: str) -> dict:
-    """Come sono cambiate le azioni in circolazione nell'ultimo anno.
+    """Di quanto e' cambiato il NUMERO di azioni in circolazione in un anno.
 
-    Negativa vuol dire **buyback**: la societa' sta ricomprando, e ogni azione
-    rimasta vale una fetta piu' grande della stessa impresa. Positiva vuol dire
-    diluizione, che per chi gia' possiede e' il contrario.
+    ## Cosa misura, e cosa non misura
+
+    Misura un conteggio, non una causa. Negativa vuol dire che le azioni sono
+    **diminuite** — puo' venire da un riacquisto, da un annullamento, da altro —
+    e positiva che sono **aumentate**, il che puo' venire da un aumento di
+    capitale, da compensi in azioni, da azioni emesse per pagare
+    un'acquisizione o dalla conversione di un'obbligazione.
+
+    Chiamarla «buyback» le attribuirebbe una causa che il dato non contiene. Chi
+    vuole la causa deve guardare il rendiconto finanziario, dove il denaro
+    uscito per riacquistare azioni e' una voce sua — ed e' quella che usa `f5`.
+
+    ## Gli split non la sporcano, ed e' stato verificato
+
+    Uno split 10:1 moltiplicherebbe per dieci il numero di azioni senza che
+    nulla sia cambiato, e un raggruppamento farebbe il contrario. Misurato su
+    NVDA, che ha fatto uno split 10:1 nel giugno 2024: nello storico risultano
+    ~24,6 miliardi di azioni **sia prima sia dopo**. Defeatbeta rettifica il
+    conteggio all'indietro, come fa coi prezzi.
 
     `serie` e' `{mese: {azioni: ...}}` e arriva dallo storico mensile, dove il
     numero di azioni e' quello **gia' pubblico** a quella data: e' la stessa

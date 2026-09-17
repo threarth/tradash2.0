@@ -1062,11 +1062,16 @@ def test_il_criterio_dell_accelerazione_e_selezionabile():
     assert scansione.valuta(misurato, {"ricavi_accelerazione_minima": 0.20})[0] is False
 
 
-# --- le azioni in circolazione: diluizione o riacquisto ---------------------
+# --- il NUMERO di azioni in circolazione, non la causa che lo muove --------
 
-def test_il_buyback_si_vede_come_variazione_negativa():
-    """Negativa vuol dire che stanno ricomprando: ogni azione rimasta vale una
-    fetta piu' grande della stessa impresa."""
+def test_le_azioni_che_calano_danno_variazione_negativa():
+    """La misura e' un conteggio, non una causa.
+
+    Un calo puo' venire da un riacquisto o da un annullamento; un aumento da un
+    aumento di capitale, da compensi in azioni, da azioni emesse per pagare
+    un'acquisizione. Chiamarla «buyback» le attribuirebbe una causa che il dato
+    non contiene.
+    """
     serie = {"2025-06": {"azioni": 1_000_000.0}, "2026-06": {"azioni": 950_000.0}}
 
     misura = scansione.azioni(serie, "2026-06")
@@ -1092,7 +1097,7 @@ def test_senza_il_dato_di_un_anno_fa_la_variazione_non_esiste():
 
 
 def test_il_criterio_sulle_azioni_e_un_massimo_non_un_minimo():
-    """`azioni_variazione_massima: -0.02` chiede ALMENO il 2% di riacquisto.
+    """`azioni_variazione_massima: -0.02` chiede che le azioni siano CALATE del 2%.
 
     E' l'unico criterio in cui il numero piu' basso e' il migliore, quindi vale
     la pena che un test lo dica: una soglia trattata come minimo selezionerebbe

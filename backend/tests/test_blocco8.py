@@ -188,12 +188,17 @@ def test_f5_confronta_a_un_anno_di_distanza():
     assert esito["misure"]["crescita_azioni_annua"] == 0.18
 
 
-def test_f5_riconosce_i_riacquisti():
+def test_f5_riconosce_le_azioni_in_calo_senza_chiamarlo_riacquisto():
     conto = _prospetto(diluted_average_shares=[100] * 4 + [95] * 4)
     esito = segnali.f5_diluizione(conto)
 
     assert esito["stato"] == segnali.SPENTO
-    assert "riacquisti" in esito["perche"]
+    assert "ridotte" in esito["perche"], (
+        "il segnale conta le AZIONI: chiamarlo riacquisto attribuirebbe una "
+        "causa che il conteggio non contiene — le azioni possono calare anche "
+        "per un annullamento, e il denaro speso a riacquistarle e' una voce sua "
+        "del rendiconto finanziario"
+    )
 
 
 # --- tutti insieme ----------------------------------------------------------

@@ -90,20 +90,55 @@ misura, le soglie e la finestra di dati** usate; se una delle tre non combacia
 piu' con quelle di adesso, la pagina lo dice e ti chiede di rigiocare. Non lo fa
 da sola: vedi «Niente si aggiorna da solo» qui sotto.
 
-### Il criterio piu' solido non e' un preset, ed e' sulle azioni
+### Il criterio piu' solido non e' un preset: e' il NUMERO DI AZIONI
 
-`azioni_variazione_massima: -0.02` — almeno il 2% di riacquisto in un anno:
+`azioni_variazione_massima` misura di quanto e' cambiato il **conteggio** delle
+azioni in circolazione in un anno. Non la causa: un calo puo' venire da un
+riacquisto o da un annullamento, un aumento da un aumento di capitale, da
+compensi in azioni o da azioni emesse per pagare un'acquisizione.
 
-| | 3 mesi | 6 mesi | 12 mesi |
-|---|---|---|---|
-| mesi vinti | 83% | 89% | **96%** |
-| vantaggio mediano | +1,8% | +3,3% | **+7,1%** |
-| mesi giudicabili | 78 | 75 | 69 |
+Gli split non la sporcano, ed e' verificato: NVDA ha fatto uno split 10:1 nel
+giugno 2024 e nello storico risultano ~24,6 miliardi di azioni sia prima sia
+dopo. Defeatbeta rettifica il conteggio all'indietro, come i prezzi.
 
-E' il risultato piu' forte e meglio campionato che abbiamo, e cresce con
-l'orizzonte. **Ma non e' un avviso di crescita**: e' un filtro di qualita'. Dice
-di evitare chi emette azioni — e chi emette azioni sono le societa' che bruciano
-cassa. Il merito e' piu' di cio' che esclude che di cio' che trova.
+| soglia | trovati/mese | 3 mesi | 6 mesi | 12 mesi |
+|---|---|---|---|---|
+| **azioni che non aumentano** (≤ 0%) | 1.187 | +2,1% | +3,4% | **+8,1%** |
+| calate almeno del 2% | 588 | +1,8% | +3,3% | +7,1% |
+| calate almeno del 5% | 248 | +1,5% | +3,2% | +5,4% |
+
+Su 69-78 mesi giudicabili, con l'88-96% dei mesi vinti: il risultato piu' forte
+e meglio campionato che abbiamo, e cresce con l'orizzonte.
+
+**Il merito e' tutto sulla soglia dello zero.** Stringere verso chi riduce di
+piu' PEGGIORA il risultato. Quindi non e' «chi riduce le azioni va bene»: e'
+**«chi le aumenta va male»**, e il resto e' indifferente.
+
+E non e' un avviso di crescita: e' un filtro di qualita'. Dice di evitare chi
+emette azioni — che sono, in larga parte, le societa' che bruciano cassa. Vale
+piu' per cio' che esclude che per cio' che trova.
+
+### L'accelerazione dei ricavi non funziona, e la ragione e' aritmetica
+
+`ricavi_accelerazione_minima` — la crescita anno su anno di adesso meno quella
+del trimestre prima — da' 39% / 40% / 58% dei mesi vinti e −0,7% / −1,0% /
++0,5%. Non e' sfortuna, e il perche' e' misurabile:
+
+**La correlazione fra l'accelerazione di un trimestre e quella del successivo e'
+−0,499**, su 42.456 coppie e 6.923 titoli. Negativa, e quel numero non e'
+casuale: l'accelerazione e' `YoY(t) − YoY(t−1)` e quella dopo e'
+`YoY(t+1) − YoY(t)`, che condividono `YoY(t)` **con segno opposto**. Se i valori
+anno su anno fossero rumore indipendente, la correlazione verrebbe esattamente
+−0,5.
+
+In pratica: chi accelera di piu' di 5 punti, il trimestre dopo accelera ancora
+nel **44%** dei casi — meno del 52% di chiunque altro. Selezionare
+sull'accelerazione vuol dire prendere i titoli al picco locale della loro curva
+di crescita, subito prima che rientri.
+
+**La lezione generale**: una misura costruita come differenza di due misure
+consecutive eredita una correlazione di −0,5 anche quando sotto non c'e' niente.
+Prima di credere a una derivata seconda, va confrontata con quel numero.
 
 Tre cose che questi numeri dicono, e che vale la pena leggere due volte:
 

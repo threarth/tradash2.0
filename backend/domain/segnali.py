@@ -329,7 +329,11 @@ def f5_diluizione(conto: dict, conto_cassa: dict | None = None) -> dict:
         return _segnale(ATTENZIONE, f"azioni cresciute del {crescita:.1%} in un anno, "
                                     f"{perche_tolleranza}", **misure)
     if crescita < 0:
-        return _segnale(SPENTO, f"azioni ridotte del {abs(crescita):.1%}: riacquisti", **misure)
+        # «Ridotte», non «riacquistate»: qui si conta il numero di azioni, e un
+        # conteggio non dice la causa. Il denaro uscito per riacquistarle e' una
+        # voce sua del rendiconto finanziario, e non e' questa.
+        return _segnale(SPENTO, f"azioni ridotte del {abs(crescita):.1%} in un anno",
+                        **misure)
     return _segnale(SPENTO, f"diluizione contenuta ({crescita:.1%}), "
                             f"{perche_tolleranza}", **misure)
 
