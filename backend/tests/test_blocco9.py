@@ -767,9 +767,14 @@ def test_il_rigioco_confronta_col_resto_degli_investibili():
 
     assert gennaio["investibili"] == 3, "MICRO non supera le soglie"
     assert sei_mesi["trovati"] == 1, "solo BRAVO accelera"
-    assert sei_mesi["resto"] == 2, "il paragone e' col RESTO, non con tutti compreso lui"
+    assert sei_mesi["resto"] == 1, (
+        "il paragone e' col resto dei GIUDICABILI: FERMO non ha bilanci, quindi "
+        "non e' un titolo che cresce poco — e' un titolo su cui il criterio non "
+        "ha niente da dire"
+    )
+    assert gennaio["non_giudicabili"] == 1, "e quanti siano si dichiara"
     assert sei_mesi["mediana_trovati"] == pytest.approx(1.0), "BRAVO ha raddoppiato"
-    assert sei_mesi["mediana_resto"] == pytest.approx(0.025), "fra PIGRO (0%) e FERMO (+5%)"
+    assert sei_mesi["mediana_resto"] == pytest.approx(0.0), "PIGRO, l'unico giudicabile"
 
 
 def test_il_paragone_esclude_chi_non_si_potrebbe_comprare():
@@ -786,8 +791,33 @@ def test_il_paragone_esclude_chi_non_si_potrebbe_comprare():
     gennaio = next(m for m in esito["mesi"] if m["mese"] == "2026-01")
 
     assert gennaio["investibili"] == 3
-    assert gennaio["orizzonti"]["6"]["mediana_resto"] == pytest.approx(0.025), (
-        "col +300% di MICRO dentro, la mediana del resto sarebbe stata 0,05"
+    assert gennaio["orizzonti"]["6"]["mediana_resto"] == pytest.approx(0.0), (
+        "col +300% di MICRO dentro, la mediana del resto sarebbe stata ben altra"
+    )
+
+
+def test_chi_non_e_giudicabile_non_finisce_fra_i_perdenti():
+    """Il difetto piu' grave trovato sul metro, e costava piu' del criterio.
+
+    Il rigioco confrontava chi passa con TUTTO il resto degli investibili — e
+    fra il resto finivano anche i titoli di cui il dato manca. Ma avere il dato
+    non e' neutro: chi ha cinque trimestri depositati e le azioni di un anno fa
+    e' una societa' piu' vecchia, meglio coperta e ancora viva.
+
+    Misurato il 17/09/2026 con una soglia che faceva passare CHIUNQUE avesse la
+    misura, cioe' senza nessun filtro vero: +2,0% a sei mesi sui ricavi anno su
+    anno, +15,2% a dodici sulle azioni in circolazione. Piu' del criterio. Il
+    metro stava misurando se stesso.
+    """
+    _storico_finto()
+
+    esito = rigioco.rigioca({"ricavi_qoq_minimo": 0.15}, orizzonti=(6,))
+    gennaio = next(m for m in esito["mesi"] if m["mese"] == "2026-01")
+
+    giudicati = gennaio["orizzonti"]["6"]["trovati"] + gennaio["orizzonti"]["6"]["resto"]
+    assert giudicati + gennaio["non_giudicabili"] == gennaio["investibili"], (
+        "ogni investibile o e' giudicato, o e' dichiarato non giudicabile: "
+        "nessuno sparisce senza che il conto torni"
     )
 
 
@@ -955,3 +985,123 @@ def test_senza_storico_mensile_il_rigioco_lo_dice():
 
     with pytest.raises(ValueError, match="storico mensile"):
         rigioco.rigioca({"ricavi_qoq_minimo": 0.15})
+
+
+# --- l'accelerazione dei ricavi --------------------------------------------
+
+def _voci_ricavi(valori: list[float]) -> tuple[dict, list[str]]:
+    """Ricavi su N trimestri consecutivi, dal piu' vecchio al piu' recente."""
+    periodi = [f"202{4 + i // 4}-{(i % 4) * 3 + 3:02d}-30" for i in range(len(valori))]
+    return {"total_revenue": dict(zip(periodi, valori, strict=True))}, periodi
+
+
+def test_l_accelerazione_distingue_chi_sale_da_chi_rallenta():
+    """Due titoli con la stessa crescita alta, e due storie opposte.
+
+    Guardando solo l'ultimo numero anno su anno si vedrebbe +25% contro +30% e
+    si sceglierebbe il secondo. La derivata seconda dice il contrario.
+    """
+    # Accelera: da +10% a +25% anno su anno.
+    voci, periodi = _voci_ricavi([100, 100, 100, 100, 110, 125])
+    accelera = scansione.fondamentali(voci, periodi)
+
+    # Decelera: da +40% a +30%, pur restando in crescita forte.
+    voci, periodi = _voci_ricavi([100, 100, 100, 100, 140, 130])
+    decelera = scansione.fondamentali(voci, periodi)
+
+    assert accelera["ricavi_accelerazione"] == pytest.approx(0.15)
+    assert decelera["ricavi_accelerazione"] == pytest.approx(-0.10)
+    assert decelera["ricavi_yoy"] > accelera["ricavi_yoy"], (
+        "il titolo che decelera ha la crescita PIU' ALTA: e' il caso che rende "
+        "utile la derivata seconda"
+    )
+
+
+def test_senza_sei_trimestri_l_accelerazione_non_esiste():
+    """Non vale zero: non c'e'. Cinque trimestri bastano all'anno su anno, non a
+    confrontarlo con quello di prima."""
+    voci, periodi = _voci_ricavi([100, 100, 100, 100, 130])
+
+    misurate = scansione.fondamentali(voci, periodi)
+
+    assert misurate["ricavi_yoy"] == pytest.approx(0.30), "l'anno su anno c'e'"
+    assert misurate["ricavi_accelerazione"] is None, "l'accelerazione no"
+
+
+def test_l_accelerazione_confronta_trimestri_omologhi():
+    """Entrambi i lati sono anno su anno: farne uno trimestre su trimestre
+    mescolerebbe l'accelerazione con la stagionalita'.
+
+    Qui i ricavi hanno una stagionalita' forte — il quarto trimestre vale il
+    doppio — e una crescita costante del 20% su ogni trimestre omologo. Un
+    titolo che cresce del 20% tutti gli anni non sta accelerando.
+    """
+    base = [100, 100, 100, 200]
+    valori = base + [v * 1.2 for v in base]
+    voci, periodi = _voci_ricavi(valori)
+
+    misurate = scansione.fondamentali(voci, periodi)
+
+    assert misurate["ricavi_yoy"] == pytest.approx(0.20)
+    assert misurate["ricavi_accelerazione"] == pytest.approx(0.0, abs=1e-9), (
+        "crescita costante non e' accelerazione, nemmeno con la stagionalita'"
+    )
+
+
+def test_il_criterio_dell_accelerazione_e_selezionabile():
+    """Esiste fra i criteri dello scanner, quindi si puo' anche rigiocare."""
+    assert "ricavi_accelerazione_minima" in scansione.CRITERI
+
+    voci, periodi = _voci_ricavi([100, 100, 100, 100, 110, 125])
+    misurato = {"fondamentali": scansione.fondamentali(voci, periodi)}
+
+    passa, perche = scansione.valuta(misurato, {"ricavi_accelerazione_minima": 0.10})
+    assert passa is True
+    assert "accelerazione" in perche[0]
+
+    assert scansione.valuta(misurato, {"ricavi_accelerazione_minima": 0.20})[0] is False
+
+
+# --- le azioni in circolazione: diluizione o riacquisto ---------------------
+
+def test_il_buyback_si_vede_come_variazione_negativa():
+    """Negativa vuol dire che stanno ricomprando: ogni azione rimasta vale una
+    fetta piu' grande della stessa impresa."""
+    serie = {"2025-06": {"azioni": 1_000_000.0}, "2026-06": {"azioni": 950_000.0}}
+
+    misura = scansione.azioni(serie, "2026-06")
+
+    assert misura["variazione_1a"] == pytest.approx(-0.05)
+    assert misura["adesso"] == 950_000.0 and misura["un_anno_fa"] == 1_000_000.0
+
+
+def test_la_diluizione_si_vede_come_variazione_positiva():
+    serie = {"2025-06": {"azioni": 1_000_000.0}, "2026-06": {"azioni": 1_200_000.0}}
+
+    assert scansione.azioni(serie, "2026-06")["variazione_1a"] == pytest.approx(0.20)
+
+
+def test_senza_il_dato_di_un_anno_fa_la_variazione_non_esiste():
+    """Non vale zero: il 21% delle righe non ha le azioni, e per quelle societa'
+    Defeatbeta non le pubblica affatto."""
+    solo_adesso = {"2026-06": {"azioni": 1_000_000.0}}
+    senza_niente = {"2025-06": {"azioni": None}, "2026-06": {"azioni": None}}
+
+    assert scansione.azioni(solo_adesso, "2026-06")["variazione_1a"] is None
+    assert scansione.azioni(senza_niente, "2026-06")["variazione_1a"] is None
+
+
+def test_il_criterio_sulle_azioni_e_un_massimo_non_un_minimo():
+    """`azioni_variazione_massima: -0.02` chiede ALMENO il 2% di riacquisto.
+
+    E' l'unico criterio in cui il numero piu' basso e' il migliore, quindi vale
+    la pena che un test lo dica: una soglia trattata come minimo selezionerebbe
+    esattamente i titoli che diluiscono di piu'.
+    """
+    assert "azioni_variazione_massima" in scansione.CRITERI
+
+    ricompra = {"azioni": {"variazione_1a": -0.05}}
+    diluisce = {"azioni": {"variazione_1a": 0.08}}
+
+    assert scansione.valuta(ricompra, {"azioni_variazione_massima": -0.02})[0] is True
+    assert scansione.valuta(diluisce, {"azioni_variazione_massima": -0.02})[0] is False

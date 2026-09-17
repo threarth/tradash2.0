@@ -315,6 +315,7 @@ def mercato_mensile() -> dict[str, dict[str, dict]]:
         per_simbolo.setdefault(riga["symbol"], {})[riga["mese"]] = {
             "chiusura": riga["chiusura"],
             "volume_medio": riga["volume_medio"],
+            "azioni": azioni,
             "capitalizzazione": riga["chiusura"] * azioni if azioni else None,
         }
     return per_simbolo

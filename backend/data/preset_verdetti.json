@@ -1,6 +1,6 @@
 {
   "versione": 1,
-  "misurato_il": "2026-09-15T06:25:22+00:00",
+  "misurato_il": "2026-09-17T09:15:01+00:00",
   "soglie": {
     "capitalizzazione_minima": 300000000,
     "scambiato_minimo_al_giorno": 1000000,
@@ -23,24 +23,24 @@
       "orizzonti": {
         "3": {
           "mesi_utili": 78,
-          "vinti": 43,
-          "quota_vinti": 0.551,
-          "vantaggio": 0.0122,
-          "trovati_per_mese": 842.4
+          "vinti": 44,
+          "quota_vinti": 0.564,
+          "vantaggio": 0.0065,
+          "trovati_per_mese": 842.6
         },
         "6": {
           "mesi_utili": 75,
-          "vinti": 55,
-          "quota_vinti": 0.733,
-          "vantaggio": 0.0287,
-          "trovati_per_mese": 821.2
+          "vinti": 52,
+          "quota_vinti": 0.693,
+          "vantaggio": 0.0257,
+          "trovati_per_mese": 821.5
         },
         "12": {
           "mesi_utili": 69,
-          "vinti": 45,
-          "quota_vinti": 0.652,
-          "vantaggio": 0.0215,
-          "trovati_per_mese": 801.4
+          "vinti": 41,
+          "quota_vinti": 0.594,
+          "vantaggio": 0.0188,
+          "trovati_per_mese": 801.7
         }
       },
       "forma": "vince a tutti gli orizzonti",
@@ -51,30 +51,30 @@
       "nome": "crescita_con_utili",
       "orizzonti": {
         "3": {
-          "mesi_utili": 17,
-          "vinti": 11,
-          "quota_vinti": 0.647,
-          "vantaggio": 0.0121,
-          "trovati_per_mese": 326.1
+          "mesi_utili": 37,
+          "vinti": 27,
+          "quota_vinti": 0.73,
+          "vantaggio": 0.0141,
+          "trovati_per_mese": 432.4
         },
         "6": {
-          "mesi_utili": 14,
-          "vinti": 10,
-          "quota_vinti": 0.714,
-          "vantaggio": 0.0591,
-          "trovati_per_mese": 240.9
+          "mesi_utili": 34,
+          "vinti": 26,
+          "quota_vinti": 0.765,
+          "vantaggio": 0.0267,
+          "trovati_per_mese": 406.6
         },
         "12": {
-          "mesi_utili": 2,
-          "vinti": 1,
-          "quota_vinti": 0.5,
-          "vantaggio": 0.047,
-          "trovati_per_mese": 16.0
+          "mesi_utili": 28,
+          "vinti": 23,
+          "quota_vinti": 0.821,
+          "vantaggio": 0.0413,
+          "trovati_per_mese": 357.5
         }
       },
       "forma": "vince a tutti gli orizzonti",
       "vince": true,
-      "mesi_giudicabili": 14
+      "mesi_giudicabili": 34
     },
     "buon_drawdown": {
       "nome": "buon_drawdown",
@@ -83,21 +83,21 @@
           "mesi_utili": 85,
           "vinti": 34,
           "quota_vinti": 0.4,
-          "vantaggio": -0.0071,
-          "trovati_per_mese": 464.1
+          "vantaggio": -0.0078,
+          "trovati_per_mese": 464.2
         },
         "6": {
           "mesi_utili": 82,
-          "vinti": 33,
-          "quota_vinti": 0.402,
-          "vantaggio": -0.0087,
+          "vinti": 30,
+          "quota_vinti": 0.366,
+          "vantaggio": -0.009,
           "trovati_per_mese": 455.5
         },
         "12": {
           "mesi_utili": 76,
-          "vinti": 32,
-          "quota_vinti": 0.421,
-          "vantaggio": -0.0048,
+          "vinti": 31,
+          "quota_vinti": 0.408,
+          "vantaggio": -0.0057,
           "trovati_per_mese": 438.5
         }
       },
@@ -113,20 +113,20 @@
           "vinti": 28,
           "quota_vinti": 0.354,
           "vantaggio": -0.0231,
-          "trovati_per_mese": 111.1
+          "trovati_per_mese": 111.2
         },
         "6": {
           "mesi_utili": 76,
-          "vinti": 24,
-          "quota_vinti": 0.316,
-          "vantaggio": -0.0298,
+          "vinti": 23,
+          "quota_vinti": 0.303,
+          "vantaggio": -0.0315,
           "trovati_per_mese": 107.0
         },
         "12": {
           "mesi_utili": 70,
-          "vinti": 26,
-          "quota_vinti": 0.371,
-          "vantaggio": -0.0305,
+          "vinti": 25,
+          "quota_vinti": 0.357,
+          "vantaggio": -0.0311,
           "trovati_per_mese": 99.4
         }
       },
@@ -138,30 +138,30 @@
       "nome": "numeri_che_girano",
       "orizzonti": {
         "3": {
-          "mesi_utili": 14,
-          "vinti": 6,
+          "mesi_utili": 35,
+          "vinti": 15,
           "quota_vinti": 0.429,
-          "vantaggio": -0.0387,
-          "trovati_per_mese": 109.1
+          "vantaggio": -0.0088,
+          "trovati_per_mese": 118.1
         },
         "6": {
-          "mesi_utili": 11,
-          "vinti": 5,
-          "quota_vinti": 0.455,
-          "vantaggio": -0.0181,
-          "trovati_per_mese": 79.5
+          "mesi_utili": 32,
+          "vinti": 21,
+          "quota_vinti": 0.656,
+          "vantaggio": 0.0088,
+          "trovati_per_mese": 108.6
         },
         "12": {
-          "mesi_utili": 1,
-          "vinti": 0,
-          "quota_vinti": 0.0,
-          "vantaggio": -0.4363,
-          "trovati_per_mese": 6.0
+          "mesi_utili": 26,
+          "vinti": 24,
+          "quota_vinti": 0.923,
+          "vantaggio": 0.066,
+          "trovati_per_mese": 95.3
         }
       },
-      "forma": "perde a tutti gli orizzonti",
-      "vince": false,
-      "mesi_giudicabili": 11
+      "forma": "lento: perde a breve e vince a lungo",
+      "vince": true,
+      "mesi_giudicabili": 32
     }
   }
 }

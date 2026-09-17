@@ -69,14 +69,18 @@ Premerne una riempie il modulo; la ricerca la lanci tu.
 
 | preset | criteri | verdetto (3 / 6 / 12 mesi) | mesi giudicabili |
 |---|---|---|---|
-| **Forza confermata** | sopra la media 200 +5%, un anno +20% | **+1,2% / +2,9% / +2,1%** | 75 |
-| **Cresce e guadagna** | ricavi anno +15%, EPS ≥ 0 | **+1,2% / +5,9% / +4,7%** | 14 |
-| **Buon drawdown** | sceso 30%, recuperato 15% | −0,7% / −0,9% / −0,5% | 82 |
-| **Crollo e ripresa** | sceso 50%, recuperato 20% | −2,3% / −3,0% / −3,0% | 76 |
-| **Numeri che girano** | ricavi anno +20%, margine +2 punti | −3,9% / −1,8% / non giudicabile | 11 |
+| **Forza confermata** | sopra la media 200 +5%, un anno +20% | **+0,7% / +2,6% / +1,9%** | 75 |
+| **Cresce e guadagna** | ricavi anno +15%, EPS ≥ 0 | **+1,4% / +2,7% / +4,1%** | 34 |
+| **Numeri che girano** | ricavi anno +20%, margine +2 punti | −0,9% / +0,9% / **+6,6%** | 32 |
+| **Buon drawdown** | sceso 30%, recuperato 15% | −0,8% / −0,9% / −0,6% | 82 |
+| **Crollo e ripresa** | sceso 50%, recuperato 20% | −2,3% / −3,1% / −3,1% | 76 |
 
-**Tre su cinque perdono, e restano in elenco per questo.** Un'idea scartata che
+**Due su cinque perdono, e restano in elenco per questo.** Un'idea scartata che
 non sta scritta da nessuna parte torna da sola fra sei mesi.
+
+E uno ha **cambiato verdetto** dopo la correzione del metro: «Numeri che girano»
+risultava perdente e adesso e' **lento** — perde a breve e vince a lungo. Non e'
+cambiato il criterio: era il paragone a essere storto.
 
 **Questi numeri non sono scritti a mano.** Li produce `python manage.py preset`,
 che rigioca tutti i preset e scrive `backend/data/preset_verdetti.json` — un file
@@ -85,6 +89,21 @@ sostituirsi in silenzio a quello di prima. Il file porta con se' **la data della
 misura, le soglie e la finestra di dati** usate; se una delle tre non combacia
 piu' con quelle di adesso, la pagina lo dice e ti chiede di rigiocare. Non lo fa
 da sola: vedi «Niente si aggiorna da solo» qui sotto.
+
+### Il criterio piu' solido non e' un preset, ed e' sulle azioni
+
+`azioni_variazione_massima: -0.02` — almeno il 2% di riacquisto in un anno:
+
+| | 3 mesi | 6 mesi | 12 mesi |
+|---|---|---|---|
+| mesi vinti | 83% | 89% | **96%** |
+| vantaggio mediano | +1,8% | +3,3% | **+7,1%** |
+| mesi giudicabili | 78 | 75 | 69 |
+
+E' il risultato piu' forte e meglio campionato che abbiamo, e cresce con
+l'orizzonte. **Ma non e' un avviso di crescita**: e' un filtro di qualita'. Dice
+di evitare chi emette azioni — e chi emette azioni sono le societa' che bruciano
+cassa. Il merito e' piu' di cio' che esclude che di cio' che trova.
 
 Tre cose che questi numeri dicono, e che vale la pena leggere due volte:
 
@@ -116,9 +135,31 @@ regole per leggerlo senza ingannarsi.
 
 ### 1. Guarda i mesi giudicabili prima del vantaggio
 
-Un mese entra nel conto solo se il criterio vi ha trovato almeno cinque titoli:
-la mediana di due titoli e' un aneddoto con l'aria di una misura. **Un vantaggio
-del +5,9% su quattordici mesi vale meno di uno del +2,9% su settantacinque.**
+Un mese entra nel conto solo se ci sono almeno cinque titoli **da una parte e
+dall'altra**: la mediana di due titoli e' un aneddoto con l'aria di una misura.
+**Un vantaggio grande su quattordici mesi vale meno di uno piccolo su
+settantacinque.**
+
+La soglia vale su entrambi i lati dal 17/09/2026, e la ragione e' misurata: con
+la soglia sui soli trovati, un criterio larghissimo si confrontava con un resto
+di due o tre titoli e vinceva di oltre il 50%. Non perche' fosse buono: perche'
+l'avversario non esisteva.
+
+### 1bis. Il paragone e' fra GIUDICABILI, e cambia i numeri piu' di quanto sembri
+
+Chi non ha il dato non finisce fra i perdenti: esce da entrambe le popolazioni,
+e quanti siano si dichiara (`non_giudicabili`).
+
+Sembra un dettaglio e non lo e'. **Misurato il 17/09/2026**: un criterio che
+faceva passare chiunque avesse la misura, senza nessuna soglia vera, dava gia'
++2,0% a sei mesi sui ricavi anno su anno e +15,2% a dodici sulle azioni in
+circolazione. Piu' del criterio stesso.
+
+Il motivo e' che **avere il dato non e' neutro**: chi ha cinque trimestri
+depositati e le azioni di un anno fa e' una societa' piu' vecchia, meglio
+coperta e ancora viva. Il metro stava misurando se stesso.
+
+Tutti i numeri di questo documento sono stati rifatti dopo quella correzione.
 
 ### 2. Confronta i tre orizzonti fra loro
 

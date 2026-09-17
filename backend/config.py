@@ -254,9 +254,19 @@ REGISTRY_EVENTI_MAX = 40
 UNIVERSE_FONDAMENTALI_VOCI = ("total_revenue", "gross_profit", "diluted_eps")
 
 # Quanti trimestri si conservano per titolo. Due basterebbero per la fotografia
-# di adesso; otto servono per rigiocare il punteggio due anni all'indietro, che
-# e' l'unico modo di sapere se un criterio ha mai funzionato.
-UNIVERSE_FONDAMENTALI_TRIMESTRI = 8
+# di adesso; servono per rigiocare all'indietro, che e' l'unico modo di sapere
+# se un criterio ha mai funzionato.
+#
+# **Erano otto, e otto erano troppo pochi.** Misurato il 17/09/2026: col taglio
+# point-in-time, un criterio che vuole sei trimestri gia' depositati trovava
+# abbastanza titoli solo in quattordici mesi su ottantacinque — tutti recenti,
+# un regime solo. I criteri di PREZZO ne avevano ottanta. La differenza non era
+# nei criteri: era che i bilanci in tabella cominciavano nel 2022.
+#
+# Ventiquattro coprono sei anni e raggiungono la finestra dei prezzi mensili
+# (dal 2019). Costano: la tabella passa da ~182.000 righe a ~550.000, che per
+# SQLite non e' niente, e la derivazione legge lo stesso parquet di prima.
+UNIVERSE_FONDAMENTALI_TRIMESTRI = 24
 
 # Le forme dei depositi periodici, da cui si prende la data in cui un trimestre
 # e' diventato PUBBLICO. Senza, il taglio point-in-time ricadrebbe sul ritardo

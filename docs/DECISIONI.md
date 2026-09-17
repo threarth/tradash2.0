@@ -2369,3 +2369,84 @@ tempo e' attesa di rete, quindi un numero solo non descrive niente: nel
 `DEPLOY.md` adesso ci sono entrambi. La memoria invece e' rimasta 3,0-3,2 GB in
 tutte le misure — **il tempo e' la rete, la RAM e' la query**, ed e' la stessa
 conclusione a cui si era arrivati separando l'universo in due meta'.
+
+---
+
+## Il metro misurava se stesso: chi non ha il dato non e' un perdente
+
+*17/09/2026. Trovato cercando l'errore dietro un risultato troppo bello.*
+
+Il primo dei quattro indicatori nuovi — le azioni in circolazione che calano,
+cioe' un buyback — ha dato **97% dei mesi vinti a dodici mesi**. Un numero cosi'
+non si crede: si cerca l'errore. L'errore c'era, e ne stavano due nello stesso
+posto.
+
+### Primo difetto: avere il dato valeva piu' del criterio
+
+Il rigioco confrontava chi passa il criterio con **tutto il resto** degli
+investibili. Fra il resto finivano anche i titoli di cui il dato **manca**.
+
+Ma avere il dato non e' neutro. Chi ha cinque trimestri gia' depositati e le
+azioni in circolazione di un anno fa e' una societa' piu' vecchia, meglio
+coperta e ancora viva. Misurato con una soglia che faceva passare **chiunque
+avesse la misura** — cioe' senza nessun filtro vero:
+
+| controllo, nessuna soglia | 6 mesi | 12 mesi |
+|---|---|---|
+| ha i ricavi anno su anno | +2,0% | +3,4% |
+| ha le azioni di un anno fa | +6,9% | +15,2% |
+
+Piu' del criterio stesso. **Il metro stava misurando se stesso.**
+
+La correzione: chi non e' giudicabile esce da **entrambe** le popolazioni, e
+quanti siano si dichiara. Un titolo senza cinque trimestri non e' un titolo che
+cresce poco: e' un titolo su cui il criterio non ha niente da dire.
+
+### Secondo difetto: la soglia minima valeva su un lato solo
+
+Corretto il primo, il controllo peggiorava invece di sparire. Perche' la soglia
+dei cinque titoli minimi si applicava **ai soli trovati**: un criterio larghissimo
+si confrontava con un resto di due o tre titoli e vinceva del 54%. Non perche'
+fosse buono — perche' l'avversario non esisteva.
+
+E' la voce 1 del backlog vista dall'altro lato, e non l'avevamo vista.
+
+Adesso la soglia vale su entrambi, e un controllo nullo risponde correttamente
+«non giudicabile» invece di un vantaggio inventato.
+
+### Cosa e' cambiato quando il metro e' diventato onesto
+
+| criterio | prima | dopo |
+|---|---|---|
+| `ricavi_yoy_minimo 0.20`, 6 mesi | +5,2% | **+1,1%** |
+| `ricavi_accelerazione_minima 0.05`, 6 mesi | +8,0% | **−1,0%** |
+| preset «Numeri che girano», 12 mesi | non giudicabile | **+6,6%** |
+
+Il primo era gonfiato di quattro quinti. Il secondo era **interamente**
+l'artefatto: l'accelerazione dei ricavi non funziona, e in pagina ci sarebbe
+finita. Il terzo e' andato nella direzione opposta — risultava perdente ed e'
+lento, cioe' perde a breve e vince a lungo.
+
+### E una terza cosa, sui bilanci
+
+Nel cercare l'origine del difetto e' venuto fuori che
+`UNIVERSE_FONDAMENTALI_TRIMESTRI` era **8**. Col taglio point-in-time, un
+criterio che vuole sei trimestri depositati trovava abbastanza titoli solo in
+quattordici mesi su ottantacinque; quelli di prezzo ne avevano ottanta. Portato
+a 24, i mesi giudicabili sui bilanci sono passati da 14 a 30-34.
+
+Resta un limite della fonte, non nostro: **i bilanci di Defeatbeta cominciano
+nell'aprile 2022**. La mediana di trimestri per titolo e' salita da 8 a 13, non
+a 24. Le misure sui bilanci non arriveranno mai al 2019 come quelle di prezzo,
+e quando si confrontano le due famiglie bisogna saperlo.
+
+### Il risultato che e' sopravvissuto
+
+`azioni_variazione_massima: -0.02`, cioe' almeno il 2% di riacquisto in un anno:
+83% / 89% / **96%** dei mesi vinti, +1,8% / +3,3% / **+7,1%**, su 69-78 mesi
+giudicabili. E' il risultato piu' forte e meglio campionato che abbiamo.
+
+**Ma non e' un avviso di crescita, ed e' importante non chiamarlo cosi'**: e' un
+filtro di qualita'. Dice di evitare chi emette azioni, e chi emette azioni sono
+le societa' che bruciano cassa. Il merito e' piu' di cio' che esclude che di
+cio' che trova.

@@ -92,8 +92,9 @@ def fondamentali(voci: dict, utili: list[str]) -> dict:
     valgono `None` — che non e' zero: un titolo che ha pubblicato un trimestre
     solo non ha una crescita pari a zero, non ce l'ha affatto.
     """
-    vuote = {"ricavi_qoq": None, "ricavi_yoy": None, "margine": None,
-             "margine_variazione": None, "eps": None, "trimestri": len(utili)}
+    vuote = {"ricavi_qoq": None, "ricavi_yoy": None, "ricavi_accelerazione": None,
+             "margine": None, "margine_variazione": None, "eps": None,
+             "trimestri": len(utili)}
     if len(utili) < 2:
         return vuote
 
@@ -120,7 +121,41 @@ def fondamentali(voci: dict, utili: list[str]) -> dict:
         if ricavi.get(anno_fa) and ora in ricavi:
             misurate["ricavi_yoy"] = ricavi[ora] / ricavi[anno_fa] - 1
 
+    misurate["ricavi_accelerazione"] = _accelerazione(ricavi, utili)
     return misurate
+
+
+def _accelerazione(ricavi: dict, utili: list[str]) -> float | None:
+    """La crescita anno su anno di ADESSO meno quella del trimestre prima.
+
+    E' la derivata seconda: non «quanto cresce» ma «sta crescendo di piu' o di
+    meno di prima». Un titolo che passa dal +10% al +25% accelera; uno che passa
+    dal +40% al +30% cresce tanto e sta decelerando, e i due si assomigliano
+    guardando solo l'ultimo numero.
+
+    Servono SEI trimestri pubblici: l'anno su anno di adesso ne vuole cinque, e
+    quello del trimestre prima ne vuole uno in piu' indietro. E' molto — sotto
+    quella soglia la misura vale `None`, che non e' zero.
+
+    Entrambi i confronti sono anno su anno, cioe' fra trimestri omologhi: farne
+    uno trimestre su trimestre mescolerebbe l'accelerazione con la stagionalita',
+    che e' l'errore gia' misurato sul segnale dei ricavi.
+    """
+    if len(utili) < TRIMESTRI_PER_ANNO + 2:
+        return None
+
+    ora, prima = utili[-1], utili[-2]
+    anno_fa_ora = utili[-(TRIMESTRI_PER_ANNO + 1)]
+    anno_fa_prima = utili[-(TRIMESTRI_PER_ANNO + 2)]
+
+    if not (ricavi.get(anno_fa_ora) and ricavi.get(anno_fa_prima)):
+        return None
+    if ora not in ricavi or prima not in ricavi:
+        return None
+
+    adesso = ricavi[ora] / ricavi[anno_fa_ora] - 1
+    allora = ricavi[prima] / ricavi[anno_fa_prima] - 1
+    return adesso - allora
 
 
 def _confronta(valore, soglia, minimo: bool) -> bool:
@@ -174,6 +209,22 @@ CRITERI = {
         lambda m: m["fondamentali"]["ricavi_yoy"], True,
         "ricavi in crescita di almeno il {soglia:.0%} sullo stesso trimestre "
         "dell'anno prima (adesso {valore:+.1%})",
+    ),
+    # La derivata seconda dei ricavi: sta accelerando o decelerando? Un titolo
+    # che passa dal +10% al +25% e uno che passa dal +40% al +30% hanno
+    # entrambi una crescita alta, e sono due storie opposte.
+    "ricavi_accelerazione_minima": (
+        lambda m: m["fondamentali"]["ricavi_accelerazione"], True,
+        "crescita dei ricavi in accelerazione di almeno {soglia:.0%} rispetto al "
+        "trimestre prima (adesso {valore:+.1%})",
+    ),
+    # Le azioni che CALANO: un buyback in corso. La soglia e' un MASSIMO, quindi
+    # `azioni_variazione_massima: -0.02` chiede almeno il 2% di riacquisto in un
+    # anno; a zero chiede soltanto che non stiano diluendo.
+    "azioni_variazione_massima": (
+        lambda m: m["azioni"]["variazione_1a"] if m.get("azioni") else None, False,
+        "azioni in circolazione variate non piu' di {soglia:+.1%} in un anno "
+        "(adesso {valore:+.1%})",
     ),
     "margine_crescita_minima": (
         lambda m: m["fondamentali"]["margine_variazione"], True,
@@ -252,6 +303,69 @@ def preset_validi() -> list[str]:
     """I preset i cui criteri esistono tutti. Serve al test che li sorveglia."""
     return [nome for nome, dati in PRESET.items()
             if all(c in CRITERI for c in dati["criteri"])]
+
+
+# Quanti mesi indietro si guarda per la variazione delle azioni. Dodici, cioe'
+# lo stesso trimestre dell'anno prima: le azioni in circolazione si muovono a
+# scatti — un'emissione, un buyback annunciato — e su tre mesi il rumore delle
+# assegnazioni ai dipendenti coprirebbe il segnale.
+MESI_PER_AZIONI = 12
+
+
+def azioni(serie: dict, mese: str) -> dict:
+    """Come sono cambiate le azioni in circolazione nell'ultimo anno.
+
+    Negativa vuol dire **buyback**: la societa' sta ricomprando, e ogni azione
+    rimasta vale una fetta piu' grande della stessa impresa. Positiva vuol dire
+    diluizione, che per chi gia' possiede e' il contrario.
+
+    `serie` e' `{mese: {azioni: ...}}` e arriva dallo storico mensile, dove il
+    numero di azioni e' quello **gia' pubblico** a quella data: e' la stessa
+    prudenza dei bilanci, e senza la misura guarderebbe un deposito futuro.
+
+    Vale `None` dove il dato manca — 21% delle righe — e li' non e' zero: di
+    quelle societa' Defeatbeta non pubblica le azioni affatto.
+    """
+    vuota = {"variazione_1a": None, "adesso": None, "un_anno_fa": None}
+    adesso = (serie.get(mese) or {}).get("azioni")
+    if not adesso:
+        return vuota
+
+    anno, numero = int(mese[:4]), int(mese[5:7])
+    totale = anno * 12 + numero - 1 - MESI_PER_AZIONI
+    prima_mese = f"{totale // 12:04d}-{totale % 12 + 1:02d}"
+    prima = (serie.get(prima_mese) or {}).get("azioni")
+    if not prima:
+        return vuota
+
+    return {"variazione_1a": adesso / prima - 1, "adesso": adesso, "un_anno_fa": prima}
+
+
+def misurabile(misurato: dict, criteri: dict) -> bool:
+    """Di questo titolo si puo' DIRE qualcosa, con questi criteri?
+
+    Serve a distinguere «non passa» da «non si sa», che nel confronto sono due
+    cose opposte. Un titolo senza cinque trimestri depositati non e' un titolo
+    che cresce poco: e' un titolo su cui il criterio non ha niente da dire.
+
+    Il difetto che questa funzione chiude, misurato il 17/09/2026: il rigioco
+    confrontava chi PASSA con tutto il resto, e fra il resto finivano anche
+    quelli di cui mancava il dato. Ma avere il dato non e' neutro — chi ha
+    cinque trimestri di storia e le azioni in circolazione di un anno fa e' una
+    societa' piu' vecchia, meglio coperta e ancora viva.
+
+    Quanto pesava: far passare **chiunque avesse la misura**, senza nessuna
+    soglia, dava gia' +2,0% a sei mesi sui ricavi anno su anno e +15,2% a dodici
+    sulle azioni. Piu' del criterio vero. Il metro misurava se stesso.
+    """
+    for nome in criteri:
+        definizione = CRITERI.get(nome)
+        if definizione is None:
+            continue
+        misura, _, _ = definizione
+        if misura(misurato) is None:
+            return False
+    return True
 
 
 def valuta(misurato: dict, criteri: dict) -> tuple[bool, list[str]]:

@@ -72,9 +72,16 @@ logger = logging.getLogger(__name__)
 ORIZZONTI_MESI = config.RIGIOCO_ORIZZONTI_MESI
 ORIZZONTE_MESI = 6
 
-# Quanti titoli deve trovare un mese perche' la sua mediana significhi qualcosa.
-# Sotto questa soglia il mese si conta ma non entra nel riepilogo: la mediana di
-# due titoli e' un aneddoto con l'aria di una misura.
+# Quanti titoli servono, **in CIASCUNA delle due popolazioni**, perche' la
+# mediana di quel mese significhi qualcosa. Sotto questa soglia il mese si conta
+# ma non entra nel riepilogo: la mediana di due titoli e' un aneddoto con l'aria
+# di una misura.
+#
+# «Ciascuna» e' stato aggiunto il 17/09/2026, e la ragione e' misurata: la
+# soglia valeva solo per i TROVATI, quindi un criterio larghissimo — che
+# lasciava passare quasi tutti — si confrontava con un resto di due o tre titoli
+# e vinceva di oltre il 50%. Non perche' fosse buono: perche' l'avversario non
+# esisteva. E' lo stesso difetto della voce 1 del backlog, dall'altro lato.
 TROVATI_MINIMI = 5
 
 
@@ -211,6 +218,7 @@ def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
     trovati = {o: [] for o in orizzonti}
     resto = {o: [] for o in orizzonti}
     investibili = 0
+    non_giudicabili = 0
 
     for simbolo, mesi in mercato.items():
         if not _investibile(mesi.get(mese)):
@@ -224,6 +232,9 @@ def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
         # prezzo faceva saltare tutto il rigioco con un KeyError.
         chiusure, volumi = _storia_fino_a(mesi, mese)
         misurato = scansione.misure(chiusure, volumi, scansione.FINESTRE_MENSILI)
+        # Le azioni in circolazione di ALLORA: stanno nello stesso storico
+        # mensile, gia' filtrate su cio' che era pubblico a quella data.
+        misurato["azioni"] = scansione.azioni(mesi, mese)
 
         voci, depositi = bilanci.get(simbolo, ({}, {}))
         if voci:
@@ -231,6 +242,14 @@ def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
             pubblici = [p for p in periodi
                         if publication_dates.was_public(depositi, p, quando)]
             misurato["fondamentali"] = scansione.fondamentali(voci, pubblici)
+
+        # **Chi non e' giudicabile non entra in nessuna delle due popolazioni.**
+        # Metterlo fra "il resto" farebbe vincere il criterio per il solo fatto
+        # che chi ha il dato e' una societa' piu' vecchia e meglio coperta —
+        # misurato, e pesava piu' del criterio stesso.
+        if not scansione.misurabile(misurato, criteri):
+            non_giudicabili += 1
+            continue
 
         dove = trovati if scansione.valuta(misurato, criteri)[0] else resto
 
@@ -241,6 +260,11 @@ def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
     return {
         "mese": mese,
         "investibili": investibili,
+        # Quanti investibili sono stati esclusi perche' il criterio su di loro
+        # non si puo' calcolare. Si dichiara: e' la misura di quanto il paragone
+        # e' ristretto, e un numero alto vuol dire che si sta guardando una
+        # fetta piccola e particolare dell'universo.
+        "non_giudicabili": non_giudicabili,
         "trovati": max((len(v) for v in trovati.values()), default=0),
         "orizzonti": {
             str(o): {
@@ -299,14 +323,15 @@ def riepiloga(per_mese: list[dict], orizzonte: int) -> dict:
     validi = [m["orizzonti"][chiave] for m in per_mese
               if m["orizzonti"].get(chiave)
               and m["orizzonti"][chiave]["trovati"] >= TROVATI_MINIMI
+              and m["orizzonti"][chiave]["resto"] >= TROVATI_MINIMI
               and m["orizzonti"][chiave]["mediana_trovati"] is not None
               and m["orizzonti"][chiave]["mediana_resto"] is not None]
     if not validi:
         return {"mesi_utili": 0, "vinti": 0, "quota_vinti": None,
                 "vantaggio_mediano": None,
-                "reason": f"nessun mese con almeno {TROVATI_MINIMI} titoli trovati "
-                          f"fra gli investibili: a {orizzonte} mesi il criterio e' "
-                          f"troppo stretto per essere giudicato"}
+                "reason": f"nessun mese con almeno {TROVATI_MINIMI} titoli da una "
+                          f"parte E dall'altra: a {orizzonte} mesi il criterio e' "
+                          f"troppo stretto, o troppo largo, per essere giudicato"}
 
     differenze = [m["mediana_trovati"] - m["mediana_resto"] for m in validi]
     vinti = sum(1 for d in differenze if d > 0)
