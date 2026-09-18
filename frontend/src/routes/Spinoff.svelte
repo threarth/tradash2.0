@@ -3,10 +3,17 @@
     feat: l'unico elenco che non viene da Defeatbeta.
 
     Serve a una domanda che i nostri dati non sanno rispondere: **quali titoli
-    sono nati da uno spin-off recente**. Defeatbeta non lo sa — l'indice dei
-    filing e' recente-only, verificato su SNDK: 182 depositi, il piu' vecchio di
-    otto mesi fa, nessun modulo 10-12B — e senza sapere chi si e' separato non
-    c'e' niente da cercare.
+    sono nati da uno spin-off recente**. Defeatbeta non lo sa: nell'indice dei
+    filing non compare il modulo 10-12B, che e' quello con cui una separazione
+    si dichiara, e senza sapere chi si e' separato non c'e' niente da cercare.
+
+    **Correzione del 18/09/2026.** Qui c'era scritto che l'indice dei filing e'
+    «recente-only, verificato su SNDK: 182 depositi, il piu' vecchio di otto
+    mesi fa». La verifica era vera e la conclusione no: SNDK e' nata da uno
+    spin-off nel 2025, quindi otto mesi di depositi sono tutta la sua vita. Sul
+    totale l'indice ha **7.837.403 depositi di 10.629 titoli dal 1993**, e NVDA
+    da sola ne ha 2.287 dal 1999. Generalizzare da un titolo solo, e per giunta
+    dal piu' giovane che avevamo in mano, era il modo piu' rapido di sbagliare.
 
     **Si scarica solo premendo.** Nessun aggiornamento all'avvio, a scadenza o
     «se il file e' vecchio»: la pagina si prende quando lo chiedi tu, e l'elenco
@@ -35,9 +42,9 @@
 <script>
     import { onMount } from "svelte";
 
-    import Assente from "./Assente.svelte";
-    import Testo from "./Testo.svelte";
-    import Ticker from "./Ticker.svelte";
+    import Assente from "../components/Assente.svelte";
+    import Testo from "../components/Testo.svelte";
+    import Ticker from "../components/Ticker.svelte";
     import { api } from "../lib/api.js";
 
     const GIORNI_PER_MESE = 30.44;
@@ -165,13 +172,18 @@
     });
 </script>
 
+<h1 class="h4 mb-1">Spin-off</h1>
+<p class="small text-secondary mb-3">
+    <Testo testo="L'unico elenco che non viene da Defeatbeta, che non sa dire chi e' nato da una separazione. Si scarica da stockanalysis.com solo quando premi, e resta com'e' finche' non lo richiedi." />
+</p>
+
 <div class="card mb-3">
     <div class="card-body">
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
             <div>
-                <h2 class="h6 mb-1">Spin-off recenti</h2>
+                <h2 class="h6 mb-1">L'elenco delle separazioni</h2>
                 <p class="small text-secondary mb-0">
-                    <Testo testo="L'unico elenco che non viene da Defeatbeta, che non sa dire chi e' nato da una separazione. Si scarica da stockanalysis.com solo quando premi." />
+                    <Testo testo="Chi si e' separato da chi, e quando l'abbiamo saputo. I segnali sono il secondo pulsante: sono minuti di letture, e partono solo se li premi." />
                 </p>
             </div>
             <div class="d-flex gap-2">

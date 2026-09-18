@@ -13,7 +13,6 @@
 
     import Assente from "../components/Assente.svelte";
     import Errore from "../components/Errore.svelte";
-    import Spinoff from "../components/Spinoff.svelte";
     import Ticker from "../components/Ticker.svelte";
     import Testo from "../components/Testo.svelte";
     import Valore from "../components/Valore.svelte";
@@ -242,10 +241,6 @@
 </script>
 
 <h1 class="h4 mb-3">Scanner</h1>
-
-<!-- Sta qui e non in una pagina sua: e' un elenco da cui si parte per cercare,
-     ed e' questa la pagina in cui si cerca. -->
-<Spinoff />
 
 <!-- I preset: combinazioni a cui e' GIA' stata fatta la domanda «ha mai
      funzionato?». Ognuno porta il proprio verdetto, compresi i due che

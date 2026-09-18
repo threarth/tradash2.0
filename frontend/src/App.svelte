@@ -17,6 +17,7 @@
     import Operazioni from "./routes/Operazioni.svelte";
     import Privacy from "./routes/Privacy.svelte";
     import Scanner from "./routes/Scanner.svelte";
+    import Spinoff from "./routes/Spinoff.svelte";
     import Titolo from "./routes/Titolo.svelte";
     import Universo from "./routes/Universo.svelte";
     import Watchlist from "./routes/Watchlist.svelte";
@@ -26,6 +27,7 @@
         "/watchlist": Watchlist,
         "/operazioni": Operazioni,
         "/scanner": Scanner,
+        "/spinoff": Spinoff,
         "/glossario": Glossario,
         "/privacy": Privacy
     };
