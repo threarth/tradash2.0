@@ -2696,5 +2696,276 @@
       "spinoff",
       "troppo_presto"
     ]
+  },
+  {
+    "id": "patrimonio-netto",
+    "label": "Patrimonio netto",
+    "short": "Quello che resta ai soci se si vendesse tutto e si pagassero tutti i debiti.",
+    "full": "Attivo meno passivo: il valore contabile di cio' che appartiene agli azionisti. Non e' il valore di mercato — una societa' puo' valere in borsa dieci volte il suo patrimonio netto, o meno di zero. Serve soprattutto come DENOMINATORE: il debito ha senso misurarlo contro di lui, perche' dice quanto del capitale e' preso a prestito e quanto e' dei soci. Un patrimonio netto negativo significa che i debiti superano gli attivi: puo' derivare da perdite accumulate o da riacquisti di azioni molto aggressivi, e sono due storie opposte.",
+    "formula": "Patrimonio netto = Attivo totale − Passivo totale",
+    "example": "Attivo 20 miliardi, passivo 15: il patrimonio netto e' 5.",
+    "context": "Dai bilanci trimestrali Defeatbeta. Alimenta il rapporto debito su patrimonio.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "debito-su-patrimonio",
+      "attivo-totale"
+    ]
+  },
+  {
+    "id": "debito-totale",
+    "label": "Debito totale",
+    "short": "Tutto il denaro preso a prestito, a breve e a lungo termine.",
+    "full": "La somma dei debiti finanziari: obbligazioni, prestiti bancari, leasing. Non comprende i debiti verso fornitori, che sono passivo ma non debito finanziario. Da solo dice poco — un miliardo di debito e' enorme per una societa' piccola e trascurabile per una grande — e va sempre letto contro qualcosa: il patrimonio netto, l'EBITDA, o la cassa che la societa' ha in mano.",
+    "formula": "",
+    "example": "Debito 10 miliardi con EBITDA annuo di 5: due anni di margine per ripagarlo.",
+    "context": "Dai bilanci trimestrali Defeatbeta.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "debito-netto",
+      "debito-netto-su-ebitda"
+    ]
+  },
+  {
+    "id": "cassa-e-titoli-a-breve",
+    "label": "Cassa e titoli a breve",
+    "short": "Il denaro disponibile subito, piu' gli investimenti che si liquidano in poco.",
+    "full": "Contante, conti bancari e titoli facilmente vendibili. E' la riserva con cui una societa' attraversa un trimestre brutto senza chiedere prestiti ne' emettere azioni. Va letta insieme a quanto brucia: la stessa cassa e' abbondante per chi genera utili e sufficiente a pochi mesi per chi perde. Dove la voce piu' ampia non c'e', si ripiega su quella stretta — e cambiare fonte a meta' serie farebbe un gradino che sembra un fatto aziendale e non lo e'.",
+    "formula": "",
+    "example": "Cassa 2 miliardi contro 500 milioni di perdita annua: quattro anni di autonomia.",
+    "context": "Dai bilanci trimestrali Defeatbeta.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "debito-netto",
+      "cassa-libera"
+    ]
+  },
+  {
+    "id": "debito-netto",
+    "label": "Debito netto",
+    "short": "Il debito che resterebbe dopo aver usato tutta la cassa per ripagarlo.",
+    "full": "Debito totale meno cassa. E' la misura che conta davvero quando si valuta quanto una societa' e' indebitata, perche' chi ha dieci miliardi di debito e nove di cassa non e' nella condizione di chi ne ha dieci e zero. Puo' essere NEGATIVO — cassa netta — e in quel caso la societa' potrebbe estinguere tutti i debiti e avanzare denaro. Ha una direzione sua: se il debito cala mentre la cassa sale, il debito netto scende piu' in fretta di entrambi.",
+    "formula": "Debito netto = Debito totale − Cassa e titoli a breve",
+    "example": "Debito 10, cassa 2: debito netto 8. Con cassa 12, debito netto −2, cioe' cassa netta.",
+    "context": "Dai bilanci trimestrali Defeatbeta. Alimenta il rapporto debito netto su EBITDA.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "debito-totale",
+      "debito-netto-su-ebitda"
+    ]
+  },
+  {
+    "id": "attivo-totale",
+    "label": "Attivo totale",
+    "short": "Tutto cio' che la societa' possiede, a valore di libro.",
+    "full": "Impianti, magazzino, crediti, cassa, marchi e avviamento. E' una misura di dimensione contabile, non di qualita': due societa' con lo stesso attivo possono averne una fatta di fabbriche e l'altra di avviamento iscritto dopo un'acquisizione, e valgono cose diverse. Si usa qui come termine di paragone del passivo.",
+    "formula": "",
+    "example": "",
+    "context": "Dai bilanci trimestrali Defeatbeta.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "passivo-totale",
+      "copertura-attivi"
+    ]
+  },
+  {
+    "id": "passivo-totale",
+    "label": "Passivo totale",
+    "short": "Tutto cio' che la societa' deve: debiti finanziari, fornitori, imposte, altro.",
+    "full": "Ogni obbligazione verso terzi, non solo i prestiti. Comprende quindi anche i debiti verso i fornitori, che non sono debito finanziario ma sono comunque denaro che uscira'. Confrontato con l'attivo dice quanta parte di cio' che la societa' possiede e' in realta' di qualcun altro.",
+    "formula": "",
+    "example": "",
+    "context": "Dai bilanci trimestrali Defeatbeta.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "attivo-totale",
+      "patrimonio-netto"
+    ]
+  },
+  {
+    "id": "oneri-finanziari",
+    "label": "Oneri finanziari",
+    "short": "Il costo del debito: interessi pagati nei dodici mesi.",
+    "full": "Quanto costa tenere in piedi il debito. Si guarda su dodici mesi e non su un trimestre, perche' le cedole si pagano a scadenze irregolari e un trimestre solo li farebbe sembrare stagionali. Il numero assoluto dice poco: conta quante volte il reddito operativo li copre. E quando i tassi salgono, questa voce cresce prima e piu' in fretta del debito stesso, perche' il debito che scade va rifinanziato al tasso nuovo.",
+    "formula": "",
+    "example": "",
+    "context": "Somma mobile degli ultimi quattro trimestri, dai bilanci Defeatbeta.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "copertura-interessi",
+      "debito-totale"
+    ]
+  },
+  {
+    "id": "copertura-interessi",
+    "label": "Copertura degli interessi",
+    "short": "Quante volte il reddito operativo copre gli interessi da pagare.",
+    "full": "Il rapporto fra EBIT e oneri finanziari: quante volte il reddito operativo di un anno basta a pagare gli interessi di un anno. E' il primo indicatore che si guarda per capire se un debito e' sostenibile, perche' un debito grande e' un problema solo se non si riescono a pagare gli interessi. Sotto 1,5 la situazione e' tesa: basta un trimestre debole per non farcela. Sopra 5 il debito, qualunque sia il suo importo, non e' il problema di quella societa'. Un denominatore a zero non produce un numero enorme: produce un rapporto che non esiste, ed e' diverso.",
+    "formula": "Copertura degli interessi = EBIT (12 mesi) ÷ Oneri finanziari (12 mesi)",
+    "example": "EBIT 1.000, oneri 100: copertura 10x, cioe' il debito e' ampiamente sostenibile.",
+    "context": "Calcolato per trimestre; il grafico ne mostra la storia.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "oneri-finanziari",
+      "debito-netto-su-ebitda"
+    ]
+  },
+  {
+    "id": "debito-su-patrimonio",
+    "label": "Debito su patrimonio",
+    "short": "Quanto del capitale e' preso a prestito invece che dei soci.",
+    "full": "Debito totale diviso patrimonio netto. Misura la leva: quanto la societa' si finanzia con denaro altrui. Non esiste una soglia buona in assoluto — una utility regolata regge tranquillamente 2x, una societa' di software che lo raggiungesse avrebbe fatto qualcosa di strano — quindi si legge per SETTORE e, soprattutto, nella sua direzione. E il rapporto puo' scendere perche' il debito cala o perche' il patrimonio sale: sono due storie diverse, ed e' il motivo per cui questa sezione mostra anche i due pezzi separati.",
+    "formula": "Debito su patrimonio = Debito totale ÷ Patrimonio netto",
+    "example": "Debito 10, patrimonio 5: 2x, cioe' due euro presi a prestito per ogni euro dei soci.",
+    "context": "Calcolato per trimestre; il grafico ne mostra la storia.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "patrimonio-netto",
+      "debito-totale"
+    ]
+  },
+  {
+    "id": "copertura-attivi",
+    "label": "Copertura degli attivi",
+    "short": "Quante volte cio' che la societa' possiede copre cio' che deve.",
+    "full": "Attivo totale diviso passivo totale. Sopra 1 significa patrimonio netto positivo; sotto 1, che i debiti superano gli attivi contabili. E' la lettura piu' grossolana delle quattro e serve da rete: non distingue un attivo fatto di fabbriche da uno fatto di avviamento, che in una liquidazione valgono cose molto diverse. Un valore che scende verso 1 va guardato subito, qualunque sia il settore.",
+    "formula": "Copertura degli attivi = Attivo totale ÷ Passivo totale",
+    "example": "Attivo 20, passivo 15: 1,33x.",
+    "context": "Calcolato per trimestre; il grafico ne mostra la storia.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "attivo-totale",
+      "passivo-totale"
+    ]
+  },
+  {
+    "id": "debito-netto-su-ebitda",
+    "label": "Debito netto su EBITDA",
+    "short": "Quanti anni di margine operativo servirebbero a estinguere il debito netto.",
+    "full": "Il rapporto che le banche guardano per primo, perche' risponde in una cifra a «in quanto tempo lo ripaga». Sotto 1 il debito e' trascurabile; fra 1 e 3 e' normale per la maggior parte dei settori; sopra 4 diventa il fattore che domina tutto il resto, perche' basta un anno di margine in calo per far saltare i patti con i creditori. Negativo significa cassa netta: la societa' potrebbe estinguere tutto e avanzare denaro. Attenzione all'EBITDA come denominatore — ignora ammortamenti, interessi e imposte, quindi per un'azienda a forte intensita' di capitale racconta una storia piu' bella di quella vera.",
+    "formula": "Debito netto su EBITDA = Debito netto ÷ EBITDA (12 mesi)",
+    "example": "Debito netto 8, EBITDA 4: 2x, cioe' due anni di margine.",
+    "context": "Calcolato per trimestre; il grafico ne mostra la storia.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "debito-netto",
+      "ebitda"
+    ]
+  },
+  {
+    "id": "utile-netto",
+    "label": "Utile netto",
+    "short": "Quello che resta dopo tutto: costi, interessi, imposte.",
+    "full": "L'ultima riga del conto economico. E' un numero CONTABILE, non denaro in banca: comprende costi che non sono uscite — gli ammortamenti — ed esclude uscite che non sono costi, come gli investimenti. Per questo esiste il ponte verso la cassa: due societa' con lo stesso utile netto possono generare cassa molto diversa, e la differenza e' spesso piu' informativa dell'utile stesso.",
+    "formula": "",
+    "example": "",
+    "context": "Punto di partenza del ponte «dall'utile alla cassa».",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "cassa-libera",
+      "conversione-in-cassa"
+    ]
+  },
+  {
+    "id": "ammortamenti",
+    "label": "Ammortamenti",
+    "short": "Un costo che non e' un'uscita: si riaggiunge per passare all'utile alla cassa.",
+    "full": "La quota annuale con cui si spalma il costo di un impianto o di un marchio sulla sua vita utile. Riduce l'utile ma non fa uscire un euro dal conto corrente nel periodo, perche' il denaro era uscito quando l'investimento e' stato fatto. Per questo nel ponte verso la cassa si RIAGGIUNGE. Un ammortamento molto grande rispetto all'utile segnala un'azienda a forte intensita' di capitale: genera piu' cassa di quanta ne dica l'utile, ma dovra' continuare a investire per restare in piedi.",
+    "formula": "",
+    "example": "",
+    "context": "Voce del rendiconto finanziario, nel ponte «dall'utile alla cassa».",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "utile-netto",
+      "cassa-libera"
+    ]
+  },
+  {
+    "id": "azioni-ai-dipendenti",
+    "label": "Azioni ai dipendenti",
+    "short": "Compensi pagati in azioni: non escono soldi, ma la tua quota si assottiglia.",
+    "full": "Retribuzione erogata in azioni invece che in denaro. Nel rendiconto si riaggiunge all'utile perche' non e' un'uscita di cassa — ed e' corretto contabilmente — ma il costo per chi gia' possiede azioni c'e' eccome: ogni azione nuova rende la sua un po' piu' piccola. E' la voce che rende il free cash flow piu' generoso di quanto l'azionista percepisca, e per questo va guardata insieme alla variazione del numero di azioni: se la societa' ricompra almeno quanto emette, la diluizione e' neutralizzata.",
+    "formula": "",
+    "example": "",
+    "context": "Voce del rendiconto finanziario, nel ponte «dall'utile alla cassa».",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "cassa-libera",
+      "utile-netto"
+    ]
+  },
+  {
+    "id": "capitale-circolante",
+    "label": "Capitale circolante",
+    "short": "Soldi bloccati in magazzino e crediti, o liberati: sposta la cassa senza toccare l'utile.",
+    "full": "La variazione di magazzino, crediti verso clienti e debiti verso fornitori. Non cambia l'utile ma sposta la cassa: vendere a credito produce ricavi e utile senza incassare, riempire il magazzino consuma denaro senza produrre costo. Nel ponte compare col suo segno — POSITIVO significa che ha liberato cassa, cioe' che i clienti pagano prima dei fornitori, che e' un segno di forza contrattuale. Negativo per piu' trimestri di fila, mentre i ricavi crescono, e' il modo tipico in cui una societa' in crescita finisce a corto di denaro pur essendo in utile.",
+    "formula": "",
+    "example": "",
+    "context": "Voce del rendiconto finanziario, nel ponte «dall'utile alla cassa».",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "cassa-libera",
+      "conversione-in-cassa"
+    ]
+  },
+  {
+    "id": "cassa-libera",
+    "label": "Cassa libera",
+    "short": "Il denaro che resta davvero dopo aver pagato tutto e investito.",
+    "full": "E' il free cash flow: quanto entra in cassa al netto degli investimenti necessari a restare in piedi. E' il numero piu' difficile da abbellire, perche' il denaro sul conto o c'e' o non c'e'. Serve a pagare dividendi, riacquistare azioni, ridurre il debito o fare acquisizioni senza chiedere nulla a nessuno. Una societa' che genera cassa libera si finanzia da sola: emettere azioni diventa una scelta, non un fabbisogno.",
+    "formula": "Cassa libera = Utile netto + Ammortamenti + Azioni ai dipendenti ± Capitale circolante + Altro",
+    "example": "Utile 100, ammortamenti 40, circolante −20, altro −30: cassa libera 90.",
+    "context": "Arrivo del ponte «dall'utile alla cassa».",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "free_cash_flow",
+      "conversione-in-cassa"
+    ]
+  },
+  {
+    "id": "conversione-in-cassa",
+    "label": "Conversione in cassa",
+    "short": "Quanta parte dell'utile dichiarato diventa denaro vero.",
+    "full": "Cassa libera diviso utile netto. Risponde alla domanda che l'utile da solo non risolve: di quello che dichiarano, quanto arriva davvero in banca? Sopra il 120% e' eccellente — tipico di chi ha molti ammortamenti e poco capitale circolante da finanziare. Fra 80% e 120% e' normale. Fra 50% e 80% va guardato. Sotto il 50%, per piu' trimestri di fila, e' il segnale classico di utili di bassa qualita': ricavi contabilizzati che non si incassano, o magazzino che cresce. Non si calcola quando l'utile e' negativo o nullo: li' il rapporto non significa niente.",
+    "formula": "Conversione in cassa = Cassa libera ÷ Utile netto",
+    "example": "Utile 100, cassa libera 150: conversione 150%, ogni euro dichiarato ne diventa uno e mezzo.",
+    "context": "Calcolata per trimestre nel ponte «dall'utile alla cassa».",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "cassa-libera",
+      "fcf-vs-earnings"
+    ]
+  },
+  {
+    "id": "ebitda",
+    "label": "EBITDA",
+    "short": "Il margine operativo prima di ammortamenti, interessi e imposte.",
+    "full": "Reddito operativo a cui si riaggiungono gli ammortamenti. Nasce come misura approssimata della cassa che l'attivita' genera, ed e' comodo perche' non risente di come una societa' e' finanziata ne' di come ammortizza — quindi permette di confrontare aziende diverse. Ma proprio per questo **racconta una storia piu' bella di quella vera** per chi ha molto capitale fisso: ignorare gli ammortamenti significa ignorare che quegli impianti andranno rifatti. Si usa qui come denominatore del debito netto, dove e' lo standard che guardano anche le banche.",
+    "formula": "EBITDA = EBIT + Ammortamenti",
+    "example": "EBIT 1.000 e ammortamenti 500: EBITDA 1.500.",
+    "context": "Somma mobile degli ultimi quattro trimestri, dai bilanci Defeatbeta.",
+    "source_label": "Tradash — sezione Salute finanziaria",
+    "source_url": "",
+    "related": [
+      "ebit",
+      "debito-netto-su-ebitda",
+      "ammortamenti"
+    ]
   }
 ]

@@ -13,6 +13,7 @@
 -->
 <script>
     import Assente from "./Assente.svelte";
+    import Cascata from "./Cascata.svelte";
     import MetricheSalute from "./MetricheSalute.svelte";
     import Riquadro from "./Riquadro.svelte";
     import Testo from "./Testo.svelte";
@@ -96,7 +97,10 @@
                     <tbody>
                         {#each Object.entries(NOMI_FIGURE) as [chiave, nome] (chiave)}
                             <tr>
-                                <td class="text-secondary">{nome}</td>
+                                <!-- Dal glossario: i nomi delle voci di bilancio
+                                     sono termini, e chi non li conosce deve
+                                     poterli aprire dove li incontra. -->
+                                <td class="text-secondary"><Testo testo={nome} /></td>
                                 <td class="text-end numerico">
                                     <Valore valore={importo(d.figure[chiave])} />
                                 </td>
@@ -112,7 +116,7 @@
                     {@const r = d.rapporti[chiave]}
                     <div class="mb-2 small">
                         <div class="d-flex justify-content-between">
-                            <span>{meta.nome}</span>
+                            <span><Testo testo={meta.nome} /></span>
                             <!-- Un rapporto che non si puo' fare porta il motivo:
                                  un denominatore a zero non da' un numero enorme,
                                  da' un rapporto che non esiste. -->
@@ -173,6 +177,13 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        {/if}
+
+        {#if d.dall_utile_alla_cassa.length}
+            <div class="mb-4">
+                <div class="fw-semibold small mb-2">Dall'utile alla cassa</div>
+                <Cascata ponte={d.dall_utile_alla_cassa} />
             </div>
         {/if}
 

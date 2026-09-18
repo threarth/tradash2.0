@@ -129,7 +129,13 @@ def test_le_porte_della_prosa_usano_il_glossario():
 # il glossario e' DATO, non qualcosa che generiamo, e se un giorno ne sparissero
 # venti nessun altro test se ne accorgerebbe. Si aggiorna quando se ne
 # aggiungono, ed e' l'unico momento in cui qualcuno le conta.
-VOCI_CURATE = 183
+#
+# 183 -> 201 il 18/09/2026: diciotto voci per la sezione Salute finanziaria, che
+# ne aveva quasi nessuna. Mancavano patrimonio netto, debito netto, cassa,
+# attivo, passivo, oneri finanziari, i quattro rapporti di solidita', le voci
+# del ponte verso la cassa — e persino EBITDA, che c'era solo dentro EV/EBITDA
+# e quindi il rilevatore non agganciava.
+VOCI_CURATE = 201
 
 
 def test_il_glossario_ha_i_termini_attesi():
