@@ -1429,98 +1429,7 @@
     "source_url": "",
     "related": [
       "free_cash_flow",
-      "fcf-vs-earnings"
-    ]
-  },
-  {
-    "id": "debt-to-equity-history",
-    "label": "Debt to Equity — Storia e Analisi",
-    "short": "Evoluzione trimestrale del rapporto Debt/Equity con il cash.",
-    "full": "Come e' cambiata la struttura finanziaria nel tempo: rapporto tra quanto l'azienda deve ai creditori (Debt) e quanto appartiene agli azionisti (Equity), trimestre per trimestre, con il Cash sovrapposto. Lo snapshot non basta: conta il trend. Un D/E del 68% che arriva da equity negativa e' molto piu' rassicurante di un 68% in deterioramento; il crossing point (quando l'Equity supera il Debt) e' un evento strutturale importante. Soglie D/E: Eccellente < 50%, Sano 50-100%, Attenzione 100-200%, Rischioso > 200%. Componente DE = 25% dello Health Score.",
-    "formula": "D/E = Debito Totale ÷ Equity (per ogni trimestre)",
-    "example": "Equity da negativa a > Debt: la struttura finanziaria si ribalta, D/E scende sotto 100%.",
-    "context": "Sottocapitolo Health 4.2. Serie trimestrale Defeatbeta; eventi 'Momenti chiave' derivati dalla serie.",
-    "source_label": "Tradash — sezione Health",
-    "source_url": "",
-    "related": [
-      "net-debt-position",
-      "health-score"
-    ]
-  },
-  {
-    "id": "interest-coverage-ratio",
-    "label": "Interest Coverage Ratio",
-    "short": "Quante volte l'azienda paga gli interessi sul debito con i profitti operativi.",
-    "full": "La capacita' di far fronte ai pagamenti degli interessi sul debito usando i profitti dell'operativita'. E' il termometro piu' diretto del rischio di insolvenza nel breve termine: un'azienda con coverage basso puo' finire in default anche con un bilancio apparentemente solido. Sotto 2x e' zona pericolo; sopra 10x l'azienda puo' permettersi molto piu' debito o usare la cassa per crescere. Soglie: Eccellente > 10x, Sano 5-10x, Attenzione 2-5x, Pericolo < 2x. Peso 35% dello Health Score (il maggiore: piu' predittivo del rischio default).",
-    "formula": "Interest Coverage = EBIT ÷ Interessi Passivi (TTM)",
-    "example": "Coverage 36x: gli interessi sono un costo irrilevante rispetto ai profitti operativi.",
-    "context": "Metrica del sottocapitolo Health 4.3 (Solidita' & Rischio Fallimento).",
-    "source_label": "Tradash — sezione Health",
-    "source_url": "",
-    "related": [
-      "health-score",
-      "ebit"
-    ]
-  },
-  {
-    "id": "asset-coverage-ratio",
-    "label": "Asset Coverage Ratio",
-    "short": "Quante volte gli asset totali coprono le passivita' totali.",
-    "full": "Se l'azienda venisse liquidata oggi, indica quanto rimarrebbe dopo aver pagato tutti i creditori. Un ratio > 1 significa che gli asset valgono piu' dei debiti (valore netto positivo); < 1 indica insolvenza tecnica. Complementare al D/E: mentre il D/E confronta debito vs equity, l'asset coverage confronta tutto il patrimonio con tutte le passivita', utile per stimare il recovery value in scenari di stress. Soglie: Eccellente > 1.5x, Sano 1.2-1.5x, Attenzione 1.0-1.2x, Pericolo < 1.0x. Peso 25% dello Health Score.",
-    "formula": "Asset Coverage = Total Assets ÷ Total Liabilities",
-    "example": "1.46x: gli asset coprono 1.46 volte le passivita' totali.",
-    "context": "Metrica del sottocapitolo Health 4.3 (Solidita' & Rischio Fallimento).",
-    "source_label": "Tradash — sezione Health",
-    "source_url": "",
-    "related": [
-      "health-score"
-    ]
-  },
-  {
-    "id": "net-debt-position",
-    "label": "Net Debt Position",
-    "short": "Debito residuo dopo aver sottratto tutta la liquidita' disponibile.",
-    "full": "Il debito 'reale' al netto della liquidita' immediatamente disponibile. Se il net debt e' negativo (net cash) l'azienda potrebbe estinguere tutto il debito domani e avere ancora cassa in eccesso: e' la misura piu' conservativa della posizione debitoria. Il debito lordo da solo e' fuorviante: $3B di debito con $2.5B di cash (net debt $500M) e' molto diverso da $3B con $100M di cash. Soglie: Net Cash (< 0) Eccellente, 0-50% equity Sano, 50-100% equity Attenzione, > 100% equity Rischioso. Peso 15% dello Health Score.",
-    "formula": "Net Debt = Debito Totale − Cash & Equivalenti",
-    "example": "Net debt negativo = net cash: il segnale piu' rassicurante sulla posizione debitoria.",
-    "context": "Metrica del sottocapitolo Health 4.3 e barra nel sottocapitolo 4.2.",
-    "source_label": "Tradash — sezione Health",
-    "source_url": "",
-    "related": [
-      "debt-to-equity-history",
-      "health-score"
-    ]
-  },
-  {
-    "id": "fcf-vs-earnings",
-    "label": "Free Cash Flow vs Earnings (Waterfall)",
-    "short": "Bridge che mostra come gli utili contabili si trasformano in cassa reale.",
-    "full": "La qualita' degli utili dichiarati: verifica se i profitti contabili si traducono in cassa reale o sono gonfiati da accrual accounting. Il waterfall decompone passo per passo, per il trimestre fiscale selezionato, il percorso da Earnings a FCF: Earnings (partenza), + Depreciation & Amortization (non-cash), + Stock Based Compensation (non-cash), ± Net Working Capital, + Others (capex/tasse/voci varie, plug residuo), = Free Cash Flow. FCF > Earnings = utili di alta qualita'; FCF < Earnings = possibile accounting aggressivo. Il Net Working Capital positivo indica clienti che pagano prima dei fornitori (pricing power). Soglie FCF Conversion: Eccellente > 120%, Buono 80-120%, Attenzione 50-80%, Critico < 50%. Metrica qualitativa: non entra nello score.",
-    "formula": "FCF = Earnings + D&A + SBC ± Net Working Capital + Others",
-    "example": "Conversione 150%: ogni $1 di earnings diventa $1.50 di cassa reale.",
-    "context": "Sottocapitolo Health 4.4. Decomposizione per trimestre fiscale dalla fonte Defeatbeta (ultimi 8 trimestri, ~2 anni).",
-    "source_label": "Tradash — sezione Health",
-    "source_url": "",
-    "related": [
-      "free_cash_flow",
-      "earnings-revenue-history"
-    ]
-  },
-  {
-    "id": "health-score",
-    "label": "Solidita' Finanziaria",
-    "short": "I quattro rapporti di bilancio che descrivono la solidita' finanziaria.",
-    "full": "Quattro rapporti strutturali letti direttamente dai bilanci: Interest Coverage (EBIT TTM sugli oneri finanziari TTM), Debt/Equity (debito totale sul patrimonio netto), Asset Coverage (totale attivo sul totale passivo) e Net Debt/EBITDA (debito netto sull'EBITDA TTM). Sono dati, non un giudizio: descrivono quanto margine ha l'azienda rispetto ai propri impegni, ma non producono un voto complessivo. Fino alla ristrutturazione del framework analitico questo blocco esponeva anche un Health Score 0-100 con etichetta OTTIMA/BUONA/MODERATA/DEBOLE/CRITICA: era un secondo verdetto sulla stessa azienda, parallelo e non riconciliato con quello della sezione Fondamentale, ed e' stato rimosso. Il giudizio sulla qualita' fondamentale sta ora in un posto solo.",
-    "formula": "Interest Coverage = EBIT TTM / Oneri finanziari TTM; Debt/Equity = Debito totale / Patrimonio netto; Asset Coverage = Attivo / Passivo; Net Debt/EBITDA = Debito netto / EBITDA TTM",
-    "example": "Interest Coverage 10.0x: l'EBITt di un anno copre dieci volte gli interessi passivi dello stesso periodo.",
-    "context": "Sottocapitolo Health 4.3. Calcolato dal backend (health_service, formule canoniche di fundamentals_service) dai bilanci Defeatbeta.",
-    "source_label": "Tradash — sezione Health",
-    "source_url": "",
-    "related": [
-      "interest-coverage-ratio",
-      "asset-coverage-ratio",
-      "net-debt-position",
-      "debt-to-equity-history"
+      "conversione-in-cassa"
     ]
   },
   {
@@ -2517,9 +2426,8 @@
     "related": [
       "consensus-eps",
       "earnings-revenue-history",
-      "debt-to-equity-history",
-      "fcf-vs-earnings",
-      "health-score"
+      "debito-su-patrimonio",
+      "conversione-in-cassa"
     ]
   },
   {
@@ -2701,9 +2609,9 @@
     "id": "patrimonio-netto",
     "label": "Patrimonio netto",
     "short": "Quello che resta ai soci se si vendesse tutto e si pagassero tutti i debiti.",
-    "full": "Attivo meno passivo: il valore contabile di cio' che appartiene agli azionisti. Non e' il valore di mercato — una societa' puo' valere in borsa dieci volte il suo patrimonio netto, o meno di zero. Serve soprattutto come DENOMINATORE: il debito ha senso misurarlo contro di lui, perche' dice quanto del capitale e' preso a prestito e quanto e' dei soci. Un patrimonio netto negativo significa che i debiti superano gli attivi: puo' derivare da perdite accumulate o da riacquisti di azioni molto aggressivi, e sono due storie opposte.",
-    "formula": "Patrimonio netto = Attivo totale − Passivo totale",
-    "example": "Attivo 20 miliardi, passivo 15: il patrimonio netto e' 5.",
+    "full": "Il valore contabile di cio' che appartiene agli azionisti. Non e' il valore di mercato — una societa' puo' valere in borsa dieci volte il suo patrimonio netto, o meno di zero. Serve soprattutto come DENOMINATORE: il debito ha senso misurarlo contro di lui, perche' dice quanto del capitale e' preso a prestito e quanto e' dei soci. Un patrimonio netto negativo significa che i debiti superano gli attivi: puo' derivare da perdite accumulate o da riacquisti di azioni molto aggressivi, e sono due storie opposte.",
+    "formula": "Letto dallo stato patrimoniale (stockholders_equity), non calcolato. Attivo totale − Passivo totale da' il patrimonio TOTALE, che comprende anche la quota dei soci di minoranza delle controllate: dove ci sono, i due numeri non coincidono.",
+    "example": "Attivo 20 miliardi, passivo 15: restano 5 di patrimonio totale — e se una controllata ha soci di minoranza, la quota degli azionisti della capogruppo e' un po' meno di 5.",
     "context": "Dai bilanci trimestrali Defeatbeta. Alimenta il rapporto debito su patrimonio.",
     "source_label": "Tradash — sezione Salute finanziaria",
     "source_url": "",
@@ -2836,7 +2744,7 @@
     "id": "copertura-attivi",
     "label": "Copertura degli attivi",
     "short": "Quante volte cio' che la societa' possiede copre cio' che deve.",
-    "full": "Attivo totale diviso passivo totale. Sopra 1 significa patrimonio netto positivo; sotto 1, che i debiti superano gli attivi contabili. E' la lettura piu' grossolana delle quattro e serve da rete: non distingue un attivo fatto di fabbriche da uno fatto di avviamento, che in una liquidazione valgono cose molto diverse. Un valore che scende verso 1 va guardato subito, qualunque sia il settore.",
+    "full": "Attivo totale diviso passivo totale. Sopra 1 il patrimonio e' positivo; sotto 1, i debiti superano gli attivi contabili. E' la lettura piu' grossolana delle quattro e serve da rete: non distingue un attivo fatto di fabbriche da uno fatto di avviamento, che in una liquidazione valgono cose molto diverse. Un valore che scende verso 1 va guardato subito, qualunque sia il settore.",
     "formula": "Copertura degli attivi = Attivo totale ÷ Passivo totale",
     "example": "Attivo 20, passivo 15: 1,33x.",
     "context": "Calcolato per trimestre; il grafico ne mostra la storia.",
@@ -2927,7 +2835,7 @@
     "label": "Cassa libera",
     "short": "Il denaro che resta davvero dopo aver pagato tutto e investito.",
     "full": "E' il free cash flow: quanto entra in cassa al netto degli investimenti necessari a restare in piedi. E' il numero piu' difficile da abbellire, perche' il denaro sul conto o c'e' o non c'e'. Serve a pagare dividendi, riacquistare azioni, ridurre il debito o fare acquisizioni senza chiedere nulla a nessuno. Una societa' che genera cassa libera si finanzia da sola: emettere azioni diventa una scelta, non un fabbisogno.",
-    "formula": "Cassa libera = Utile netto + Ammortamenti + Azioni ai dipendenti ± Capitale circolante + Altro",
+    "formula": "Letta dal rendiconto finanziario (free_cash_flow), non calcolata. Nel ponte, «Altro» e' cio' che RESTA: Altro = Cassa libera − Utile netto − Ammortamenti − Azioni ai dipendenti − Capitale circolante. Non e' un addendo, e' il resto che chiude la somma.",
     "example": "Utile 100, ammortamenti 40, circolante −20, altro −30: cassa libera 90.",
     "context": "Arrivo del ponte «dall'utile alla cassa».",
     "source_label": "Tradash — sezione Salute finanziaria",
@@ -2948,8 +2856,7 @@
     "source_label": "Tradash — sezione Salute finanziaria",
     "source_url": "",
     "related": [
-      "cassa-libera",
-      "fcf-vs-earnings"
+      "cassa-libera"
     ]
   },
   {

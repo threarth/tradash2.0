@@ -135,7 +135,13 @@ def test_le_porte_della_prosa_usano_il_glossario():
 # attivo, passivo, oneri finanziari, i quattro rapporti di solidita', le voci
 # del ponte verso la cassa — e persino EBITDA, che c'era solo dentro EV/EBITDA
 # e quindi il rilevatore non agganciava.
-VOCI_CURATE = 201
+#
+# 201 -> 195 il 18/09/2026: tolte le sei voci inglesi della vecchia sezione
+# Health, che dicevano le stesse cose delle italiane appena scritte e puntavano
+# tutte a `health-score` — cioe' spiegavano il punteggio 0-100 che questa
+# riscrittura ha eliminato apposta. Una voce di glossario che descrive una
+# funzione che non esiste piu' e' peggio di una voce mancante.
+VOCI_CURATE = 195
 
 
 def test_il_glossario_ha_i_termini_attesi():
