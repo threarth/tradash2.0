@@ -62,6 +62,21 @@ SQLITE_TIMEOUT_S = 30.0
 # Porta del server di sviluppo Flask.
 DEV_SERVER_PORT = 5001
 
+# A chi risponde il server di sviluppo. **Il default e' solo questa macchina**,
+# ed e' voluto: `app.py` e' il modo di lavorare in locale, non un modo di
+# pubblicare. In uso reale davanti c'e' gunicorn dietro nginx.
+#
+# Si apre alla rete di casa con TRADASH2_DEV_HOST=0.0.0.0 — per esempio per
+# guardare l'interfaccia dal telefono. Tre cose da sapere prima di farlo:
+#
+# 1. sotto WSL2 non basta: WSL sta dietro a un NAT suo, e serve un port proxy
+#    su Windows (`netsh interface portproxy`) piu' una regola del firewall;
+# 2. il cookie di sessione e' `Secure`, quindi su `http://` semplice il browser
+#    non lo tiene e l'accesso non regge: serve TRADASH2_COOKIE_SICURO=0, e a
+#    quel punto password e sessione viaggiano in chiaro sulla WiFi;
+# 3. mai insieme a TRADASH2_DEBUG=1, che apre un'esecuzione di codice da browser.
+DEV_SERVER_HOST = os.environ.get("TRADASH2_DEV_HOST", "127.0.0.1").strip()
+
 # Dove Vite mette il build della SPA. Flask lo serve come statici: e' l'unico
 # modo di avere un solo processo invece di due (niente SvelteKit, regola 1).
 FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"

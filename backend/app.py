@@ -85,4 +85,15 @@ if __name__ == "__main__":
             "[APP] debugger acceso: esegue codice arbitrario da browser. "
             "Mai su una macchina raggiungibile da internet."
         )
-    create_app().run(port=config.DEV_SERVER_PORT, debug=debug, use_reloader=False)
+    # L'indirizzo di ascolto e' configurabile ma resta `127.0.0.1` finche'
+    # qualcuno non lo cambia a voce alta: aprire alla rete e' una decisione,
+    # non un default.
+    if config.DEV_SERVER_HOST != "127.0.0.1":
+        logging.getLogger(__name__).warning(
+            "[APP] in ascolto su %s: raggiungibile dalla rete. Il cookie di "
+            "sessione e' Secure, quindi su http:// semplice l'accesso non "
+            "regge senza TRADASH2_COOKIE_SICURO=0 — e li' la password viaggia "
+            "in chiaro.", config.DEV_SERVER_HOST
+        )
+    create_app().run(host=config.DEV_SERVER_HOST, port=config.DEV_SERVER_PORT,
+                     debug=debug, use_reloader=False)

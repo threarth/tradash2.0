@@ -156,7 +156,14 @@ def test_ogni_percorso_dell_uso_reale_e_dirottato_nella_suite():
 
 
 # Le variabili che NON puntano a un percorso: dirottarle non avrebbe senso.
-VARIABILI_SENZA_PERCORSO = {"TRADASH2_MODELLO", "TRADASH2_SFORZO"}
+#
+# `TRADASH2_DEV_HOST` dice a chi risponde il server di sviluppo, che nella
+# suite non parte: non c'e' nessun file da proteggere. (`TRADASH2_COOKIE_SICURO`
+# non sta qui perche' il conftest la imposta gia': un'eccezione per una cosa
+# gia' gestita fa sembrare la regola piu' larga di quello che e'.)
+VARIABILI_SENZA_PERCORSO = {
+    "TRADASH2_MODELLO", "TRADASH2_SFORZO", "TRADASH2_DEV_HOST",
+}
 
 
 def test_i_percorsi_della_suite_stanno_tutti_nella_cartella_temporanea():
