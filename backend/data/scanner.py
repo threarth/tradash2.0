@@ -24,10 +24,8 @@ from datetime import date
 import config
 from core import registry
 from core.db import db_read
-from data import defeatbeta
+from data import defeatbeta, raffica, settori
 from data import fondamentali as fondamentali_universo
-from data import raffica
-from data import settori
 from domain import publication_dates, scansione
 
 logger = logging.getLogger(__name__)

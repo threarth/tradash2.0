@@ -57,13 +57,13 @@ deposito si racconta meglio di com'e' andato, di circa quaranta giorni.
 import logging
 import queue
 import threading
+from dataclasses import dataclass
 from datetime import date
 
 import config
 from core import registry
 from core.db import db_read
-from data import raffica
-from data import fondamentali
+from data import fondamentali, raffica
 from domain import publication_dates, scansione
 
 logger = logging.getLogger(__name__)
@@ -236,7 +236,24 @@ def _storia_fino_a(mesi: dict, mese: str) -> tuple[list[float], list[float]]:
     return chiusure, volumi
 
 
-def _candidati_del_mese(mese: str, mercato: dict, bilanci: dict, depositi_8k: dict,
+@dataclass(frozen=True)
+class Dati:
+    """Tutto cio' che il rigioco legge una volta e poi rilegge per 93 mesi.
+
+    Stavano sciolti come quattro parametri, e ogni indicatore nuovo ne
+    aggiungeva uno: `_misura_mese` era arrivata a sette argomenti, che e' il
+    punto in cui una firma smette di dire cosa fa la funzione e comincia a dire
+    quante cose le servono. Sono un oggetto solo perche' hanno un ciclo di vita
+    solo: si caricano tutti in `rigioca()`, non cambiano mai, e chi li riceve
+    non ne sceglie un sottoinsieme.
+    """
+    mercato: dict     # {simbolo: {mese: chiusura, volume, azioni}}
+    bilanci: dict     # {simbolo: (voci, date di deposito)}
+    settori: dict     # {simbolo: settore}
+    depositi_8k: dict # {simbolo: {mese: quanti 8-K}}
+
+
+def _candidati_del_mese(mese: str, dati: Dati,
                         orizzonti: tuple[int, ...]) -> list[dict]:
     """Ogni investibile di quel mese, gia' misurato. Prima passata.
 
@@ -249,7 +266,7 @@ def _candidati_del_mese(mese: str, mercato: dict, bilanci: dict, depositi_8k: di
     quando = _fine_mese(mese)
     candidati = []
 
-    for simbolo, mesi in mercato.items():
+    for simbolo, mesi in dati.mercato.items():
         if not _investibile(mesi.get(mese)):
             continue
 
@@ -266,15 +283,17 @@ def _candidati_del_mese(mese: str, mercato: dict, bilanci: dict, depositi_8k: di
         # tabella e' indicizzata sulla data di DEPOSITO, quindi contare i mesi
         # fino a questo e' esattamente cio' che si sapeva allora.
         #
-        # Si chiama `depositi_8k` e non `depositi` perche' dieci righe piu' in
-        # basso c'e' gia' un `depositi`, che e' un'altra cosa: le date in cui i
-        # BILANCI sono stati depositati. Con lo stesso nome il secondo
-        # sovrascriveva il primo dalla seconda iterazione in poi, e la raffica
+        # Il nome `dati.depositi_8k` tiene distinte due cose che si chiamavano
+        # entrambe «depositi»: qui sono i CONTEGGI degli 8-K, dieci righe piu'
+        # in basso sono le DATE in cui i bilanci sono stati depositati. Quando
+        # erano due variabili omonime nella stessa funzione, la seconda
+        # sovrascriveva la prima dalla seconda iterazione in poi e la raffica
         # risultava non calcolabile per quasi tutti — un rigioco che diceva
         # «nessun mese giudicabile» senza nessun errore.
-        misurato["depositi"] = scansione.depositi(depositi_8k.get(simbolo, {}), mese)
+        misurato["depositi"] = scansione.depositi(
+            dati.depositi_8k.get(simbolo, {}), mese)
 
-        voci, depositi = bilanci.get(simbolo, ({}, {}))
+        voci, depositi = dati.bilanci.get(simbolo, ({}, {}))
         if voci:
             periodi = sorted(voci.get("total_revenue", {}))
             pubblici = [p for p in periodi
@@ -290,15 +309,14 @@ def _candidati_del_mese(mese: str, mercato: dict, bilanci: dict, depositi_8k: di
     return candidati
 
 
-def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
-                 settori: dict, depositi_8k: dict,
+def _misura_mese(mese: str, criteri: dict, dati: Dati,
                  orizzonti: tuple[int, ...]) -> dict:
     """Un mese: chi era investibile, chi il criterio trovava, e come sono andati.
 
     I rendimenti si raccolgono per tutti gli orizzonti nella stessa passata: i
     titoli sono gli stessi e la scansione dei criteri e' la parte cara.
     """
-    candidati = _candidati_del_mese(mese, mercato, bilanci, depositi_8k, orizzonti)
+    candidati = _candidati_del_mese(mese, dati, orizzonti)
     trovati = {o: [] for o in orizzonti}
     resto = {o: [] for o in orizzonti}
     non_giudicabili = 0
@@ -308,11 +326,11 @@ def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
     # pescherebbe. Prenderla da tutto l'universo ci metterebbe dentro titoli
     # che quel mese non erano nemmeno comprabili.
     riferimenti = scansione.mediane_di_settore(
-        {c["symbol"]: c["misurato"]["variazione_1a"] for c in candidati}, settori)
+        {c["symbol"]: c["misurato"]["variazione_1a"] for c in candidati}, dati.settori)
 
     for candidato in candidati:
         misurato = candidato["misurato"]
-        settore = settori.get(candidato["symbol"])
+        settore = dati.settori.get(candidato["symbol"])
         misurato["settore"] = scansione.forza_settore(
             misurato["variazione_1a"], riferimenti.get(settore))
 
@@ -369,16 +387,16 @@ def rigioca(criteri: dict, orizzonti: tuple[int, ...] | None = None) -> dict:
         raise ValueError("lo storico mensile non e' stato derivato: "
                          "senza, non c'e' niente da rigiocare")
 
-    bilanci = _bilanci_di_tutti()
     mesi = _mesi_disponibili()
     # Un mese entra se almeno l'orizzonte piu' corto ha un futuro da misurare;
     # quelli lunghi lo escluderanno da soli nel riepilogo.
     misurabili = [m for m in mesi if _mese_piu(m, min(orizzonti)) <= mesi[-1]]
 
-    settori = _settori()
-    depositi_8k = raffica.per_mese()
-    per_mese = [_misura_mese(m, criteri, mercato, bilanci, settori, depositi_8k, orizzonti)
-                for m in misurabili]
+    # Tutte le letture in un punto solo: quattro query, e poi 93 mesi di
+    # aritmetica sopra gli stessi dizionari.
+    dati = Dati(mercato=mercato, bilanci=_bilanci_di_tutti(),
+                settori=_settori(), depositi_8k=raffica.per_mese())
+    per_mese = [_misura_mese(m, criteri, dati, orizzonti) for m in misurabili]
 
     return {
         "criteri": criteri,

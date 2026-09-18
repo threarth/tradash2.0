@@ -7,8 +7,11 @@ gli altri guardano il titolo e basta, e questo cambia due cose: la mediana va
 calcolata prima di giudicare chiunque, e dove il settore e' magro la misura non
 esiste invece di valere zero.
 """
+from pathlib import Path
+
 import pytest
 
+import config
 from domain import scansione
 
 
@@ -105,10 +108,6 @@ def test_ogni_criterio_del_backend_e_premibile_in_pagina():
     Il difetto non si vede da nessuna parte: il backend risponde, i test del
     dominio passano, e la sola conseguenza e' che nessuno puo' usarlo.
     """
-    from pathlib import Path
-
-    import config
-
     pagina = (Path(config.BASE_DIR).parent / "frontend" / "src"
               / "routes" / "Scanner.svelte").read_text(encoding="utf-8")
 
@@ -130,8 +129,6 @@ def test_la_finestra_a_un_anno_e_la_stessa_nei_due_posti():
     due numeri in due file diversi, e se divergono non succede niente di
     visibile: escono solo forze relative calcolate su periodi diversi.
     """
-    import config
-
     assert config.UNIVERSE_SESSIONS_IN_YEAR == scansione.FINESTRA_LUNGA
 
 
