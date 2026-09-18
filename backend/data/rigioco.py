@@ -62,6 +62,7 @@ from datetime import date
 import config
 from core import registry
 from core.db import db_read
+from data import raffica
 from data import fondamentali
 from domain import publication_dates, scansione
 
@@ -106,14 +107,25 @@ def _mese_piu(mese: str, quanti: int) -> str:
     return f"{totale // 12:04d}-{totale % 12 + 1:02d}"
 
 
-def _mediana(valori: list[float]) -> float | None:
-    if not valori:
-        return None
-    ordinati = sorted(valori)
-    meta = len(ordinati) // 2
-    if len(ordinati) % 2:
-        return ordinati[meta]
-    return (ordinati[meta - 1] + ordinati[meta]) / 2
+def _settori() -> dict[str, str]:
+    """Il settore di ogni titolo, letto una volta sola.
+
+    **Questo dato non ha storia, e va detto.** L'anagrafica tiene il settore di
+    ADESSO: non esiste una tabella che dica in che settore stava un titolo nel
+    2019. Il rigioco quindi applica al 2019 la classificazione di oggi, e dove
+    una societa' e' stata riclassificata la confronta con i pari sbagliati.
+
+    E' un look-ahead vero, ma piccolo e di un tipo suo: non anticipa un
+    RISULTATO — il settore non dice come e' andato il titolo — anticipa
+    un'etichetta. Il rimedio sarebbe uno storico delle riclassificazioni, che
+    Defeatbeta non pubblica. Sta scritto nel resoconto, accanto alle soglie.
+    """
+    with db_read() as conn:
+        righe = conn.execute(
+            "SELECT symbol, sector FROM universe_anagrafica "
+            "WHERE sector IS NOT NULL AND sector != ''"
+        ).fetchall()
+    return {r["symbol"]: r["sector"] for r in righe}
 
 
 def _bilanci_di_tutti() -> dict[str, tuple[dict, dict]]:
@@ -176,6 +188,23 @@ def soglie() -> dict:
     }
 
 
+def nota_settori() -> str:
+    """Il limite del criterio di settore. Si dichiara sempre, anche se non e' usato.
+
+    Regola 5: cio' che manca si dichiara col suo motivo. Qui non manca un dato,
+    manca la sua STORIA — ed e' un'assenza che non si vede guardando i numeri,
+    perche' il rigioco produce un settore per ogni titolo di ogni mese senza
+    battere ciglio.
+    """
+    return (
+        "il settore di un titolo e' quello di ADESSO: l'anagrafica non tiene lo "
+        "storico delle riclassificazioni, e Defeatbeta non lo pubblica. Un titolo "
+        "riclassificato nel 2023 viene quindi confrontato, anche nel 2019, coi "
+        "pari di oggi. E' un look-ahead su un'ETICHETTA, non su un risultato: il "
+        "settore non dice come e' andato quel titolo, dice con chi lo si paragona."
+    )
+
+
 def nota_prezzi() -> str:
     """Come sono calcolate, nel rigioco, le misure di prezzo. Va detto sempre.
 
@@ -207,24 +236,22 @@ def _storia_fino_a(mesi: dict, mese: str) -> tuple[list[float], list[float]]:
     return chiusure, volumi
 
 
-def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
-                 orizzonti: tuple[int, ...]) -> dict:
-    """Un mese: chi era investibile, chi il criterio trovava, e come sono andati.
+def _candidati_del_mese(mese: str, mercato: dict, bilanci: dict, depositi_8k: dict,
+                        orizzonti: tuple[int, ...]) -> list[dict]:
+    """Ogni investibile di quel mese, gia' misurato. Prima passata.
 
-    I rendimenti si raccolgono per tutti gli orizzonti nella stessa passata: i
-    titoli sono gli stessi e la scansione dei criteri e' la parte cara.
+    Si ferma PRIMA di giudicare, ed e' il cambiamento che ha reso necessarie
+    due passate: la forza relativa al settore non si puo' calcolare finche' non
+    si sa come e' andato tutto il settore, e per saperlo bisogna aver misurato
+    tutti. Le misure restano in memoria e la seconda passata non rilegge niente:
+    la parte cara — leggere i prezzi e i bilanci — si fa una volta sola.
     """
     quando = _fine_mese(mese)
-    trovati = {o: [] for o in orizzonti}
-    resto = {o: [] for o in orizzonti}
-    investibili = 0
-    non_giudicabili = 0
+    candidati = []
 
     for simbolo, mesi in mercato.items():
         if not _investibile(mesi.get(mese)):
             continue
-        investibili += 1
-        rese = {o: _rendimento(mesi, mese, o) for o in orizzonti}
 
         # Le misure di prezzo si calcolano sulla storia fino a QUEL mese, con la
         # stessa funzione dello scanner dal vivo e le finestre in mesi. Prima
@@ -235,6 +262,17 @@ def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
         # Le azioni in circolazione di ALLORA: stanno nello stesso storico
         # mensile, gia' filtrate su cio' che era pubblico a quella data.
         misurato["azioni"] = scansione.azioni(mesi, mese)
+        # I depositi 8-K di ALLORA. Qui il point-in-time viene gratis: la
+        # tabella e' indicizzata sulla data di DEPOSITO, quindi contare i mesi
+        # fino a questo e' esattamente cio' che si sapeva allora.
+        #
+        # Si chiama `depositi_8k` e non `depositi` perche' dieci righe piu' in
+        # basso c'e' gia' un `depositi`, che e' un'altra cosa: le date in cui i
+        # BILANCI sono stati depositati. Con lo stesso nome il secondo
+        # sovrascriveva il primo dalla seconda iterazione in poi, e la raffica
+        # risultava non calcolabile per quasi tutti — un rigioco che diceva
+        # «nessun mese giudicabile» senza nessun errore.
+        misurato["depositi"] = scansione.depositi(depositi_8k.get(simbolo, {}), mese)
 
         voci, depositi = bilanci.get(simbolo, ({}, {}))
         if voci:
@@ -242,6 +280,41 @@ def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
             pubblici = [p for p in periodi
                         if publication_dates.was_public(depositi, p, quando)]
             misurato["fondamentali"] = scansione.fondamentali(voci, pubblici)
+
+        candidati.append({
+            "symbol": simbolo,
+            "misurato": misurato,
+            "rese": {o: _rendimento(mesi, mese, o) for o in orizzonti},
+        })
+
+    return candidati
+
+
+def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
+                 settori: dict, depositi_8k: dict,
+                 orizzonti: tuple[int, ...]) -> dict:
+    """Un mese: chi era investibile, chi il criterio trovava, e come sono andati.
+
+    I rendimenti si raccolgono per tutti gli orizzonti nella stessa passata: i
+    titoli sono gli stessi e la scansione dei criteri e' la parte cara.
+    """
+    candidati = _candidati_del_mese(mese, mercato, bilanci, depositi_8k, orizzonti)
+    trovati = {o: [] for o in orizzonti}
+    resto = {o: [] for o in orizzonti}
+    non_giudicabili = 0
+
+    # Come e' andato ogni settore QUEL mese, dai soli investibili di quel mese:
+    # e' il paragone giusto, perche' e' la popolazione da cui il criterio
+    # pescherebbe. Prenderla da tutto l'universo ci metterebbe dentro titoli
+    # che quel mese non erano nemmeno comprabili.
+    riferimenti = scansione.mediane_di_settore(
+        {c["symbol"]: c["misurato"]["variazione_1a"] for c in candidati}, settori)
+
+    for candidato in candidati:
+        misurato = candidato["misurato"]
+        settore = settori.get(candidato["symbol"])
+        misurato["settore"] = scansione.forza_settore(
+            misurato["variazione_1a"], riferimenti.get(settore))
 
         # **Chi non e' giudicabile non entra in nessuna delle due popolazioni.**
         # Metterlo fra "il resto" farebbe vincere il criterio per il solo fatto
@@ -253,10 +326,11 @@ def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
 
         dove = trovati if scansione.valuta(misurato, criteri)[0] else resto
 
-        for orizzonte, resa in rese.items():
+        for orizzonte, resa in candidato["rese"].items():
             if resa is not None:
                 dove[orizzonte].append(resa)
 
+    investibili = len(candidati)
     return {
         "mese": mese,
         "investibili": investibili,
@@ -270,8 +344,8 @@ def _misura_mese(mese: str, criteri: dict, mercato: dict, bilanci: dict,
             str(o): {
                 "trovati": len(trovati[o]),
                 "resto": len(resto[o]),
-                "mediana_trovati": _mediana(trovati[o]),
-                "mediana_resto": _mediana(resto[o]),
+                "mediana_trovati": scansione.mediana(trovati[o]),
+                "mediana_resto": scansione.mediana(resto[o]),
             }
             for o in orizzonti
         },
@@ -301,13 +375,17 @@ def rigioca(criteri: dict, orizzonti: tuple[int, ...] | None = None) -> dict:
     # quelli lunghi lo escluderanno da soli nel riepilogo.
     misurabili = [m for m in mesi if _mese_piu(m, min(orizzonti)) <= mesi[-1]]
 
-    per_mese = [_misura_mese(m, criteri, mercato, bilanci, orizzonti) for m in misurabili]
+    settori = _settori()
+    depositi_8k = raffica.per_mese()
+    per_mese = [_misura_mese(m, criteri, mercato, bilanci, settori, depositi_8k, orizzonti)
+                for m in misurabili]
 
     return {
         "criteri": criteri,
         "orizzonti_mesi": list(orizzonti),
         "soglie": soglie(),
         "nota_prezzi": nota_prezzi(),
+        "nota_settori": nota_settori(),
         "mesi": per_mese,
         "riepilogo": {str(o): riepiloga(per_mese, o) for o in orizzonti},
     }
@@ -339,7 +417,7 @@ def riepiloga(per_mese: list[dict], orizzonte: int) -> dict:
         "mesi_utili": len(validi),
         "vinti": vinti,
         "quota_vinti": round(vinti / len(validi), 3),
-        "vantaggio_mediano": round(_mediana(differenze), 4),
+        "vantaggio_mediano": round(scansione.mediana(differenze), 4),
         "trovati_per_mese": round(sum(m["trovati"] for m in validi) / len(validi), 1),
         "reason": None,
     }

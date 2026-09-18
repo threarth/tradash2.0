@@ -98,6 +98,7 @@ CATEGORY_ANAGRAFICA = "universe_anagrafica"
 CATEGORY_MERCATO = "universe_mercato"
 CATEGORY_FONDAMENTALI = "universe_fondamentali"
 CATEGORY_PREZZI_MENSILI = "universe_prezzi_mensili"
+CATEGORY_DEPOSITI = "universe_depositi_mensili"
 CATEGORY_METRICHE = "metriche"
 
 # Il DCF: non e' una tabella del dataset ma un calcolo della libreria sopra i
@@ -107,6 +108,7 @@ ENDPOINT_ANAGRAFICA = "universo:anagrafica"
 ENDPOINT_MERCATO = "universo:mercato"
 ENDPOINT_FONDAMENTALI = "universo:fondamentali"
 ENDPOINT_PREZZI_MENSILI = "universo:prezzi_mensili"
+ENDPOINT_DEPOSITI = "universo:depositi_mensili"
 
 # Tutte le tabelle che questo modulo puo' nominare. L'elenco e' chiuso perche'
 # il nome finisce nella clausola FROM, dove un parametro legato non puo' andare.
@@ -831,13 +833,25 @@ def _prepara_mercato() -> str:
             SELECT symbol, AVG(volume) AS avg_volume_30d
             FROM prezzi WHERE posizione <= {config.UNIVERSE_AVG_VOLUME_SESSIONS}
             GROUP BY symbol
+        ),
+        -- La chiusura di un anno fa, nella STESSA passata. E' la riga numero
+        -- 253 contando all'indietro, cioe' 252 sedute prima dell'ultima: lo
+        -- stesso conteggio che `_variazione` fa su una serie in memoria.
+        -- Chi ha meno storia non ha questa riga, e li' il valore resta NULL —
+        -- che non e' zero: e' un titolo troppo giovane per avere un anno.
+        prezzo_un_anno_fa AS (
+            SELECT symbol, close AS close_1a_fa, giorno AS data_1a_fa
+            FROM prezzi WHERE posizione = {config.UNIVERSE_SESSIONS_IN_YEAR + 1}
         )
         SELECT u.symbol,
                u.last_close,
                CAST(u.last_close_date AS VARCHAR) AS last_close_date,
-               v.avg_volume_30d
+               v.avg_volume_30d,
+               a.close_1a_fa,
+               CAST(a.data_1a_fa AS VARCHAR) AS data_1a_fa
         FROM ultimo_prezzo u
         LEFT JOIN volume_medio v ON u.symbol = v.symbol
+        LEFT JOIN prezzo_un_anno_fa a ON u.symbol = a.symbol
     """
 
 
@@ -1031,6 +1045,48 @@ def _prepara_prezzi_mensili() -> str:
              ON a.symbol = c.symbol AND a.periodo <= c.gia_pubblico_al
         ORDER BY c.symbol, c.mese
     """
+
+
+def _prepara_depositi() -> str:
+    """Quanti 8-K ha depositato ogni titolo, mese per mese.
+
+    Misurato il 18/09/2026: l'indice ha 7.837.403 depositi di 10.629 titoli dal
+    1993, e questo aggregato costa **6,4 s e 250 MB di picco** — il parquet dei
+    depositi e' piccolo accanto a quello dei prezzi.
+
+    Si contano solo gli 8-K, e la scelta e' la sostanza dell'indicatore: i Form 4
+    — operazioni degli insider — sono il 45,9% dell'indice, e contare «i
+    depositi» vorrebbe dire contare quelli. L'8-K e' il modulo del fatto
+    rilevante, ed e' quello che dice «qui sta succedendo qualcosa».
+
+    **Il taglio e' point-in-time senza sforzo**: `filing_date` e' la data in cui
+    il documento e' stato depositato, quindi contarli per mese di deposito da'
+    esattamente cio' che si sapeva allora. E' l'unico dato del sistema che non
+    ha bisogno di `publication_dates`, perche' e' gia' una data di pubblicazione.
+    """
+    _ensure_client()
+    forme = ", ".join(f"'{f}'" for f in config.DEPOSITI_FORME)
+    return f"""
+        SELECT symbol,
+               strftime(CAST(filing_date AS DATE), '%Y-%m') AS mese,
+               COUNT(*) AS depositi
+        FROM '{_table_uri(TABLE_SEC_FILING)}'
+        WHERE form_type IN ({forme})
+          AND filing_date >= '{config.DEPOSITI_DAL}'
+        GROUP BY 1, 2
+    """
+
+
+def depositi_mensili_universo(run_id: str | None = None) -> Lettura:
+    """Quanti 8-K per titolo e per mese, in una lettura sola.
+
+    Misurato il 18/09/2026: 447.956 righe, 8.464 simboli, 6,4 s.
+    """
+    frame, provenienza = _leggi_tracciata(
+        ENDPOINT_DEPOSITI, CATEGORY_DEPOSITI, GLOBAL_SCOPE,
+        _prepara_depositi(), [], run_id
+    )
+    return _esito(frame, GLOBAL_SCOPE, CATEGORY_DEPOSITI, provenienza)
 
 
 def prezzi_mensili_universo(run_id: str | None = None) -> Lettura:

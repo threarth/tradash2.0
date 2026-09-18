@@ -140,12 +140,40 @@ CREATE TABLE IF NOT EXISTS universe_anagrafica (
 --
 -- Il numero da NON usare e' la differenza fra i due totali (938): sembra la
 -- risposta e non lo e', perche' i due insiemi non sono uno dentro l'altro.
+-- Quanti 8-K ha depositato ogni titolo, mese per mese. Derivata dall'indice
+-- dei depositi di Defeatbeta con un aggregato solo (6,4 s, 250 MB).
+--
+-- Si contano SOLO gli 8-K, ed e' la scelta che fa l'indicatore: i Form 4
+-- (operazioni degli insider) sono il 45,9% dell'indice, e contare «i depositi»
+-- vorrebbe dire contare quelli.
+--
+-- Non c'e' vincolo verso l'anagrafica: qui ci sono anche titoli che
+-- nell'universo non compaiono, e toglierli costerebbe una JOIN per non
+-- guadagnare niente — chi legge parte sempre da un simbolo che ha gia'.
+CREATE TABLE IF NOT EXISTS universe_depositi_mensili (
+    symbol      TEXT    NOT NULL,
+    mese        TEXT    NOT NULL,
+    depositi    INTEGER NOT NULL CHECK (depositi >= 0),
+    built_at    TEXT    NOT NULL,
+    PRIMARY KEY (symbol, mese)
+) STRICT;
+
 CREATE TABLE IF NOT EXISTS universe_mercato (
     symbol             TEXT NOT NULL PRIMARY KEY
                        REFERENCES universe_anagrafica (symbol) ON DELETE CASCADE,
     last_close         REAL     CHECK (last_close IS NULL OR last_close >= 0),
     last_close_date    TEXT,
     avg_volume_30d     REAL     CHECK (avg_volume_30d IS NULL OR avg_volume_30d >= 0),
+    -- La chiusura di 252 sedute fa e la sua data. Arrivano dalla stessa passata
+    -- sul parquet dei prezzi che porta l'ultima chiusura: il pezzo caro e'
+    -- attraversare 36,7 milioni di righe, e farlo due volte costerebbe il
+    -- doppio per un dato che sta nella stessa finestra.
+    --
+    -- Servono alla forza relativa al settore, che ha bisogno della variazione a
+    -- un anno di TUTTI i titoli insieme per farne la mediana per settore. Per
+    -- un titolo solo il giornaliero si legge a richiesta; per undicimila no.
+    close_1a_fa        REAL     CHECK (close_1a_fa IS NULL OR close_1a_fa >= 0),
+    data_1a_fa         TEXT,
     built_at           TEXT NOT NULL
 ) STRICT;
 

@@ -43,7 +43,34 @@
         { chiave: "margine_crescita_minima", etichetta: "Margine lordo in crescita almeno di",
           suffisso: " punti", scala: 100 },
         { chiave: "eps_minimo", etichetta: "EPS dell'ultimo trimestre almeno",
-          suffisso: "", scala: 1 }
+          suffisso: "", scala: 1 },
+        // Questi tre esistevano nel backend e non erano premibili: lo stesso
+        // difetto annotato qui sopra per i ricavi annuali, ripetuto. Adesso un
+        // test della suite legge questo elenco e lo confronta coi criteri del
+        // backend, cosi' il prossimo criterio nuovo non puo' restare invisibile.
+        { chiave: "ricavi_accelerazione_minima",
+          etichetta: "Ricavi in accelerazione almeno di",
+          suffisso: " punti", scala: 100 },
+        // La soglia e' un MASSIMO e vuole numeri negativi o zero: a 0 chiede
+        // soltanto che le azioni non siano aumentate, ed e' li' che il rigioco
+        // misura tutto il vantaggio.
+        { chiave: "azioni_variazione_massima",
+          etichetta: "Numero di azioni variato non piu' del",
+          suffisso: "%", scala: 100 },
+        // L'unico trasversale: guarda anche gli altri titoli del settore. A 0
+        // chiede di stare sopra la mediana dei pari — e alzarlo peggiora, il
+        // che e' scritto in docs/SCANNER.md col numero misurato.
+        { chiave: "forza_settore_minima",
+          etichetta: "Batte la mediana del suo settore di",
+          suffisso: " punti", scala: 100 },
+        // Anche questa e' una soglia MASSIMA, e non e' una percentuale: e' un
+        // moltiplicatore. A 2 chiede che il titolo non stia depositando 8-K
+        // piu' del doppio del suo solito. Nato per avvertire di una crescita e
+        // misurato al contrario — vedi docs/SCANNER.md — quindi si usa per
+        // ESCLUDERE, ed e' l'unico criterio che serve a togliere.
+        { chiave: "depositi_raffica_massima",
+          etichetta: "Depositi 8-K non oltre, rispetto al suo solito",
+          suffisso: "x", scala: 1 }
     ];
 
     let valori = $state({});

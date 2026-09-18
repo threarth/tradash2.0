@@ -9,6 +9,7 @@ che nel vecchio sistema non aveva risposta.
 
 Matematica pura: entrano prezzi e soglie, escono verdetti.
 """
+import config
 from domain import drawdown
 
 # Le finestre su cui si misurano le variazioni, in sedute.
@@ -33,6 +34,12 @@ def finestre_in_sedute() -> dict:
     return {"breve": FINESTRA_BREVE, "media": FINESTRA_MEDIA, "lunga": FINESTRA_LUNGA,
             "media_50": 50, "media_200": 200}
 
+# Le finestre della raffica di depositi: tre mesi contro due anni. Stanno in
+# `config` perche' le usa anche chi costruisce la tabella derivata, e qui si
+# rileggono da li' invece di riscriverle.
+FINESTRA_DEPOSITI = config.DEPOSITI_FINESTRA_MESI
+ABITUDINE_DEPOSITI = config.DEPOSITI_ABITUDINE_MESI
+
 # Quanti trimestri fanno un anno. Serve al confronto anno su anno, che e' l'unico
 # modo di guardare i ricavi senza guardare il calendario.
 TRIMESTRI_PER_ANNO = 4
@@ -40,6 +47,22 @@ TRIMESTRI_PER_ANNO = 4
 
 def _media(valori: list[float]) -> float | None:
     return sum(valori) / len(valori) if valori else None
+
+
+def mediana(valori: list[float]) -> float | None:
+    """La mediana, o `None` se non c'e' niente da mediare.
+
+    Sta qui e non nel rigioco perche' adesso la usano in due: il riepilogo dei
+    rendimenti e la forza relativa al settore. Due mediane scritte in due
+    moduli sono due posti dove sbagliare lo stesso arrotondamento.
+    """
+    if not valori:
+        return None
+    ordinati = sorted(valori)
+    meta = len(ordinati) // 2
+    if len(ordinati) % 2:
+        return ordinati[meta]
+    return (ordinati[meta - 1] + ordinati[meta]) / 2
 
 
 def _variazione(chiusure: list[float], sedute: int) -> float | None:
@@ -226,6 +249,24 @@ CRITERI = {
         "numero di azioni variato non piu' di {soglia:+.1%} in un anno "
         "(adesso {valore:+.1%})",
     ),
+    # La forza relativa al settore. E' l'unico criterio TRASVERSALE: tutti gli
+    # altri guardano il titolo e basta, questo ha bisogno di sapere come sono
+    # andati gli altri titoli del suo settore nello stesso periodo. Per questo
+    # la casella `settore` la riempie chi chiama, come per `azioni`.
+    "forza_settore_minima": (
+        lambda m: (m.get("settore") or {}).get("forza"), True,
+        "ha battuto la mediana del suo settore di almeno {soglia:.0%} in un anno "
+        "(adesso {valore:+.1%})",
+    ),
+    # La raffica di 8-K. **La soglia e' un MASSIMO**: passa chi NON sta
+    # depositando molto piu' del solito. E' l'unico criterio nato al contrario
+    # di come era stato chiesto — doveva avvertire di una crescita e avverte di
+    # un guaio — ed e' rimasto perche' misura, non perche' risponde.
+    "depositi_raffica_massima": (
+        lambda m: (m.get("depositi") or {}).get("raffica"), False,
+        "non sta depositando 8-K piu' di {soglia:.1f} volte il suo solito "
+        "(adesso {valore:.1f}x)",
+    ),
     "margine_crescita_minima": (
         lambda m: m["fondamentali"]["margine_variazione"], True,
         "margine lordo in crescita di almeno {soglia:.1%} in un trimestre "
@@ -288,6 +329,32 @@ PRESET = {
         "cautela": "un titolo che si dimezza puo' scendere sotto la soglia di "
                    "capitalizzazione e uscire dalla popolazione investibile proprio "
                    "nel mese in cui questo preset lo cercherebbe",
+    },
+    "batte_i_suoi_pari": {
+        "etichetta": "Batte i suoi pari",
+        "criteri": {"forza_settore_minima": 0.0},
+        "idea": "ha fatto meglio della MEDIANA del suo settore nell'ultimo anno",
+        "cautela": "non e' un avviso di crescita in arrivo: e' il contrario, "
+                   "dice chi sta gia' correndo. E il merito e' tutto alla soglia "
+                   "zero — alzandola il vantaggio si assottiglia e poi si "
+                   "rovescia, quindi non cercare i piu' forti, cerca chi sta "
+                   "sopra la meta'. Inoltre il settore di un titolo e' quello di "
+                   "ADESSO anche nei mesi del 2019: l'anagrafica non ne tiene lo storico",
+    },
+    "evita_i_guai": {
+        "etichetta": "Evita i guai",
+        "criteri": {"azioni_variazione_massima": 0.0, "depositi_raffica_massima": 3.0},
+        "idea": "non emette azioni e non sta depositando 8-K a raffica",
+        # E' il primo preset fatto di sole ESCLUSIONI, e nasce da un'ammissione:
+        # dei quattro indicatori chiesti per anticipare una crescita, i due che
+        # misurano meglio dicono entrambi chi EVITARE. Metterli insieme e'
+        # l'unico modo onesto di usarli.
+        "cautela": "non trova niente, toglie soltanto: e' un filtro da "
+                   "combinare con un criterio che cerca, non un preset da "
+                   "premere da solo. La soglia 3x sulla raffica e' la migliore "
+                   "di quattro provate, e quel «migliore di quattro» va tenuto "
+                   "presente: l'effetto e' solido a 1,5x, 2x e 3x, ma il fatto "
+                   "che il massimo cada proprio a 3 e' anche un po' fortuna",
     },
     "numeri_che_girano": {
         "etichetta": "Numeri che girano",
@@ -355,6 +422,121 @@ def azioni(serie: dict, mese: str) -> dict:
         return vuota
 
     return {"variazione_1a": adesso / prima - 1, "adesso": adesso, "un_anno_fa": prima}
+
+
+# Quanti titoli servono in un settore perche' la sua mediana significhi qualcosa.
+# Misurato sui dati veri il 18/09/2026: applicando i filtri del rigioco
+# (capitalizzazione e scambiato minimi), la coppia (mese, settore) piu' piccola
+# di tutto lo storico e' Utilities nell'agosto 2019 con **71** titoli, e nessuna
+# delle 1.023 coppie scende sotto 30. La soglia quindi non morde mai nel
+# rigioco: serve allo scanner dal vivo, dove il settore puo' essere magro, e
+# serve a dire che sotto quel numero la misura non esiste invece di valere zero.
+MEMBRI_MINIMI_SETTORE = 20
+
+
+def mediane_di_settore(variazioni: dict, settori: dict) -> dict:
+    """Per ogni settore, la mediana delle variazioni a un anno e quanti l'hanno fatta.
+
+    `variazioni` e' `{simbolo: variazione_1a}` e `settori` e' `{simbolo: settore}`.
+    Chi non ha settore, o non ha variazione, non entra: non e' uno zero, e'
+    qualcuno di cui non si sa in che gara corre.
+    """
+    per_settore: dict[str, list[float]] = {}
+    for simbolo, variazione in variazioni.items():
+        settore = settori.get(simbolo)
+        if settore and variazione is not None:
+            per_settore.setdefault(settore, []).append(variazione)
+
+    return {settore: {"mediana": mediana(valori), "membri": len(valori)}
+            for settore, valori in per_settore.items()}
+
+
+def forza_settore(variazione: float | None, riferimento: dict | None) -> dict:
+    """Di quanto un titolo ha battuto — o mancato — la MEDIANA del suo settore.
+
+    ## Perche' la mediana e non la media
+
+    In un settore con dentro un titolo che ha fatto +900% la media diventa quel
+    titolo. La mediana dice «il tipico membro di questo settore», che e' la
+    domanda vera: questo qui sta andando meglio dei suoi pari?
+
+    ## A cosa serve
+
+    Un +30% in un anno non vuol dire la stessa cosa dappertutto. Se l'energia
+    nel suo complesso ha fatto +45%, quel +30% e' un titolo che perde terreno
+    mentre sale; se il settore ha fatto -10%, e' un titolo che sta facendo
+    qualcosa di suo. Il prezzo da solo non distingue i due casi, ed e'
+    esattamente il genere di confusione che un criterio sul solo rendimento
+    porta dentro allo scanner.
+
+    ## Il titolo e' dentro alla propria mediana
+
+    Si toglierebbe volentieri, ma vorrebbe dire ricalcolare una mediana per
+    ogni titolo invece che una per settore: sul rigioco sono 93 mesi per 11
+    settori, e passerebbe da mille mediane a duecentomila. Col minimo di venti
+    membri il proprio contributo pesa al massimo un ventesimo, e sui numeri
+    veri — settore piu' magro 71 titoli — meno dell'1,5%.
+    """
+    membri = (riferimento or {}).get("membri", 0)
+    centro = (riferimento or {}).get("mediana")
+    vuota = {"forza": None, "mediana_settore": None, "membri": membri}
+    if variazione is None or centro is None or membri < MEMBRI_MINIMI_SETTORE:
+        return vuota
+    return {"forza": variazione - centro, "mediana_settore": centro, "membri": membri}
+
+
+def depositi(serie: dict, mese: str) -> dict:
+    """Il titolo sta depositando 8-K molto piu' del suo solito?
+
+    ## Cosa misura
+
+    `raffica` e' il rapporto fra quanti 8-K ha depositato negli ultimi tre mesi
+    e quanti ne deposita di solito in tre mesi, misurato sui due anni
+    precedenti. A 1 sta nel suo ritmo; a 3 ne sta depositando il triplo.
+
+    ## E' un criterio di ESCLUSIONE, ed e' misurato
+
+    Era stato costruito per avvertire di una crescita in arrivo. Fa il
+    contrario, e con costanza — rigiocato il 18/09/2026 su 81-90 mesi:
+
+        raffica >= 2x   -1,1% / -1,7% / -2,0%   vinti 38% / 39% / 32%
+        raffica >= 3x   -0,5% / -4,2% / -5,1%   vinti 44% / 31% / 30%
+
+    Peggiora con l'orizzonte e con l'intensita': non e' lento, e' rovesciato. La
+    lettura e' che le buone notizie arrivano nella trimestrale e le cattive
+    arrivano in pila — ristrutturazioni, cause, dirigenti che se ne vanno,
+    finanziamenti diluitivi. Quindi la soglia e' un MASSIMO: passa chi NON e'
+    in raffica.
+
+    ## Chi non ha un'abitudine non e' giudicabile
+
+    Senza nessun deposito nei due anni precedenti non c'e' un «solito» da cui
+    scostarsi: la raffica vale `None`, non zero, e il criterio non passa. E' il
+    caso dei titoli quotati da poco — che sono anche quelli su cui la misura
+    sarebbe piu' sbagliata.
+    """
+    vuota = {"raffica": None, "recenti": None, "abitudine": None}
+
+    def meno(quanti: int) -> str:
+        anno, numero = int(mese[:4]), int(mese[5:7])
+        totale = (anno * 12 + numero - 1) - quanti
+        return f"{totale // 12:04d}-{totale % 12 + 1:02d}"
+
+    finestra = [meno(i) for i in range(FINESTRA_DEPOSITI)]
+    base = [meno(i) for i in range(FINESTRA_DEPOSITI,
+                                   FINESTRA_DEPOSITI + ABITUDINE_DEPOSITI)]
+
+    # Nessuna riga in due anni vuol dire che il titolo li' non c'era: e' diverso
+    # da «c'era e non ha depositato niente», che pero' i nostri dati non
+    # distinguono. Si sceglie di non giudicare, che e' la scelta prudente.
+    if not any(m in serie for m in base):
+        return vuota
+
+    recenti = sum(serie.get(m, 0) for m in finestra)
+    abitudine = sum(serie.get(m, 0) for m in base) / ABITUDINE_DEPOSITI * FINESTRA_DEPOSITI
+    if abitudine <= 0:
+        return {"raffica": None, "recenti": recenti, "abitudine": abitudine}
+    return {"raffica": recenti / abitudine, "recenti": recenti, "abitudine": abitudine}
 
 
 def misurabile(misurato: dict, criteri: dict) -> bool:

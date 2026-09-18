@@ -107,6 +107,8 @@ export const api = {
     fondamentaliDeriva: () => chiama("/universe/fondamentali", { method: "POST" }),
     storicoStato: () => chiama("/universe/storico"),
     storicoDeriva: () => chiama("/universe/storico", { method: "POST" }),
+    depositiStato: () => chiama("/universe/depositi"),
+    depositiDeriva: () => chiama("/universe/depositi", { method: "POST" }),
     // Due meta', due chiamate: l'anagrafica non tocca il parquet dei prezzi e
     // costa 2,7 s, il mercato ne scarica 445 MB. Unirle in un pulsante solo
     // vorrebbe dire pagare sempre la seconda.

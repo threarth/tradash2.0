@@ -105,6 +105,9 @@ FRESHNESS_TTL_S: dict[str, int] = {
     # questa settimana.
     "universe_fondamentali": 1 * SECONDS_PER_DAY,
     "universe_prezzi_mensili": 1 * SECONDS_PER_DAY,
+    # I depositi 8-K per mese: nuovi ogni giorno, ma il criterio li guarda su
+    # finestre di mesi, quindi un giorno di ritardo non sposta niente.
+    "universe_depositi_mensili": 1 * SECONDS_PER_DAY,
     "metriche": 1 * SECONDS_PER_DAY,       # calcolate sui bilanci: cambiano a trimestre
     "dcf": 1 * SECONDS_PER_DAY,            # idem: e' un calcolo sopra i bilanci
 }
@@ -190,6 +193,38 @@ INTERVALLO_GRAFICO_PREDEFINITO = "1A"
 # titolo poco liquido puo' non scambiare per settimane, e "ultimi 30 giorni"
 # gli darebbe una media costruita su tre scambi.
 UNIVERSE_AVG_VOLUME_SESSIONS = 30
+
+# Quante sedute fanno un anno. Serve alla chiusura di dodici mesi fa, che il
+# lavoro giornaliero porta a casa nella stessa passata sul parquet dei prezzi:
+# e' il termine di paragone della forza relativa al settore, e senza quello
+# bisognerebbe leggere la storia giornaliera di undicimila titoli uno per uno.
+#
+# **Deve valere quanto `scansione.FINESTRA_LUNGA`**, che e' la finestra su cui
+# lo scanner calcola la variazione a un anno di un titolo. Se le due divergono,
+# il titolo e la mediana del suo settore misurerebbero periodi diversi — e un
+# test della suite lo impedisce, perche' e' un disallineamento che non si vede
+# guardando i numeri.
+UNIVERSE_SESSIONS_IN_YEAR = 252
+
+# --- I depositi 8-K, e la raffica -------------------------------------------
+#
+# Un 8-K e' il modulo con cui si dichiara un fatto rilevante: acquisizioni,
+# contratti, dirigenti che se ne vanno, ristrutturazioni, cause. E' il 16,3%
+# dell'indice dei depositi; il 45,9% sono Form 4, cioe' operazioni degli
+# insider, che contati insieme agli altri coprirebbero tutto il resto.
+DEPOSITI_FORME = ("8-K", "8-K/A")
+
+# Da quando si tiene lo storico. Il rigioco parte dal 2019 e per giudicare il
+# gennaio 2019 servono i 24 mesi di abitudine PIU' i 3 della finestra, cioe'
+# ottobre 2016: il 2015 lascia margine senza far crescere la tabella.
+DEPOSITI_DAL = "2015-01-01"
+
+# La finestra recente e quella su cui si misura l'abitudine del titolo. Tre mesi
+# contro due anni: la raffica e' «sta depositando molto piu' del suo solito»,
+# e il suo solito va misurato su abbastanza tempo da non essere a sua volta
+# una raffica.
+DEPOSITI_FINESTRA_MESI = 3
+DEPOSITI_ABITUDINE_MESI = 24
 
 # Quanti titoli restituisce al massimo l'elenco dell'universo. L'universo intero
 # e' 11.256 righe: mandarle tutte a una pagina e' un modo per renderla lenta.

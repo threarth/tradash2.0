@@ -26,6 +26,8 @@ from core import registry
 from core.db import db_read
 from data import defeatbeta
 from data import fondamentali as fondamentali_universo
+from data import raffica
+from data import settori
 from domain import publication_dates, scansione
 
 logger = logging.getLogger(__name__)
@@ -113,9 +115,37 @@ def _fondamentali(simbolo: str, fino_a: str | None) -> dict:
     return scansione.fondamentali(voci, pubblici)
 
 
+def _mese_del_taglio(fino_a: str | None) -> str | None:
+    """Il mese `AAAA-MM` a cui ancorare il paragone di settore.
+
+    Con un taglio nel passato il paragone dev'essere di ALLORA: confrontare un
+    prezzo del 2022 con la mediana di settore di oggi non misura la forza
+    relativa, misura il tempo passato in mezzo. Senza taglio vale `None`, e il
+    riferimento usa l'ultimo mese disponibile.
+    """
+    return fino_a[:7] if fino_a else None
+
+
 def _scandaglia(lavoro, simboli: list[str], criteri: dict, fino_a: str | None) -> dict:
-    """Il giro vero e proprio: un titolo alla volta, fermabile a ogni passo."""
+    """Il giro vero e proprio: un titolo alla volta, fermabile a ogni passo.
+
+    Il riferimento di settore si legge UNA volta prima del giro: e' una mediana
+    per settore su tutti gli investibili, e non dipende da quali titoli si sta
+    scandagliando. Calcolarla sui soli simboli scelti farebbe dire «ha battuto
+    il suo settore» a chi ha solo battuto gli altri nove titoli che hai scelto
+    tu, che e' un'altra frase.
+    """
     trovati, senza_dati = [], []
+    mese = _mese_del_taglio(fino_a)
+    settore = settori.riferimenti(mese)
+    # I depositi di tutti, in una lettura sola. L'ancora e' l'ultimo mese che la
+    # tabella copre, non la data di oggi: se la derivazione e' vecchia di un
+    # mese, contare fino a oggi metterebbe uno zero al posto di un mese che
+    # nessuno ha ancora letto. Il mese in corso e' parziale, quindi la raffica
+    # esce semmai SOTTOSTIMATA — e per un filtro di esclusione e' il verso
+    # prudente: esclude meno, non di piu'.
+    depositi = raffica.per_mese(simboli)
+    mese_depositi = mese or max((m for s in depositi.values() for m in s), default=None)
 
     for simbolo in simboli:
         chiusure, volumi = _chiusure(simbolo, fino_a, lavoro.run_id)
@@ -124,6 +154,15 @@ def _scandaglia(lavoro, simboli: list[str], criteri: dict, fino_a: str | None) -
         else:
             misurato = scansione.misure(chiusure, volumi)
             misurato["fondamentali"] = _fondamentali(simbolo, fino_a)
+            # La forza relativa ha i suoi due capi nella serie MENSILE, non
+            # nelle sedute: il perche' sta in `data/settori.py`, e in breve e'
+            # che il titolo e la mediana del settore devono avere le stesse date.
+            misurato["depositi"] = (
+                scansione.depositi(depositi.get(simbolo, {}), mese_depositi)
+                if mese_depositi else {"raffica": None})
+            misurato["settore"] = scansione.forza_settore(
+                settore["variazioni"].get(simbolo),
+                settore["riferimenti"].get(settore["settori"].get(simbolo)))
             soddisfa, perche = scansione.valuta(misurato, criteri)
             if soddisfa:
                 trovati.append({"symbol": simbolo, "perche": perche,
@@ -133,7 +172,15 @@ def _scandaglia(lavoro, simboli: list[str], criteri: dict, fino_a: str | None) -
         # perche' un lavoro che avanza senza guardare non si ferma mai.
         lavoro.advance(detail=f"{simbolo}: {len(trovati)} trovati")
 
-    return {"trovati": trovati, "senza_dati": senza_dati}
+    return {
+        "trovati": trovati,
+        "senza_dati": senza_dati,
+        "paragone_settore": {
+            "base": settore["base"],
+            "ancora": settore["ancora"],
+            "settori": len(settore["riferimenti"]),
+        },
+    }
 
 
 def _misure_leggibili(misurato: dict) -> dict:
@@ -155,6 +202,7 @@ def _esegui(criteri: dict, filtri: dict, fino_a: str | None = None,
 
     esito = {"run_id": None, "completata": False, "trovati": [], "senza_dati": [],
              "esaminati": 0, "totale": len(simboli), "fino_a": fino_a,
+             "paragone_settore": None,
              "motivo": "fermata prima di completare"}
 
     with registry.job(JOB_KIND, etichetta, total=len(simboli)) as lavoro:

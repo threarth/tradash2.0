@@ -17,7 +17,16 @@ cambiato. Misurato il 14/09/2026, un processo per meta', a cache calda:
     anagrafica   nome, settore, industria, paese,        95 MB    2,7 s    238 MB
                  dipendenti, azioni in circolazione
     mercato      ultima chiusura, sua data,             445 MB    6,6 s  3.076 MB
-                 volume medio a 30 sedute
+                 volume medio a 30 sedute,
+                 chiusura di 252 sedute fa
+
+La chiusura di un anno fa e' stata aggiunta il 18/09/2026 **dentro la stessa
+passata**, e non con una lettura sua: il costo di questa meta' e' attraversare
+36,7 milioni di righe, e una colonna in piu' presa dalla finestra gia' aperta
+non aggiunge niente, mentre una seconda query lo raddoppierebbe. Serve alla
+forza relativa al settore, che ha bisogno della variazione a un anno di TUTTI i
+titoli insieme per farne una mediana per settore — per un titolo solo il
+giornaliero si legge a richiesta, per undicimila no.
 
 La meta' mercato e' il 99% della memoria e l'82% dello scaricamento. Adesso
 sono due lavori con due freschezze: l'anagrafica ogni due settimane, il mercato
@@ -75,7 +84,8 @@ COLONNE_ANAGRAFICA = (
     "symbol", "name", "sector", "industry", "company_country", "employees",
     "shares_outstanding",
 )
-COLONNE_MERCATO = ("symbol", "last_close", "last_close_date", "avg_volume_30d")
+COLONNE_MERCATO = ("symbol", "last_close", "last_close_date", "avg_volume_30d",
+                   "close_1a_fa", "data_1a_fa")
 
 # Le colonne di cui si misura la copertura: quelle che possono mancare. Sono
 # della VISTA, non di una tabella, perche' e' la vista che si mostra.
@@ -112,7 +122,8 @@ def _riga_mercato(record: dict) -> tuple:
     """Una riga dei dati di mercato pronta per l'INSERT, coi tipi giusti."""
     pulito = {colonna: python_puro(record.get(colonna)) for colonna in COLONNE_MERCATO}
     return (str(pulito["symbol"]), pulito["last_close"],
-            pulito["last_close_date"], pulito["avg_volume_30d"])
+            pulito["last_close_date"], pulito["avg_volume_30d"],
+            pulito["close_1a_fa"], pulito["data_1a_fa"])
 
 
 def _insert(tabella: str, colonne: tuple[str, ...]) -> str:

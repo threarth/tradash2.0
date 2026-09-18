@@ -2526,3 +2526,146 @@ di crescita, subito prima che rientri.
 **La lezione generale**: una misura costruita come differenza di due misure
 consecutive eredita una correlazione negativa di −0,5 anche quando sotto non c'e'
 niente. Prima di credere a una derivata seconda, va confrontata con quel numero.
+
+---
+
+## La forza relativa al settore: il merito e' alla meta', non in cima
+
+*18/09/2026, terzo dei quattro indicatori chiesti per «avvertire di una
+imminente crescita».*
+
+Il difetto che lo ha causato: lo scanner sapeva dire «e' cresciuto del 30% in un
+anno» e non sapeva dire **rispetto a chi**. Un +30% in un settore che ha fatto
++45% e' un titolo che perde terreno mentre sale, e uno in un settore che ha
+fatto −10% e' un titolo che sta facendo qualcosa di suo. Il prezzo da solo non
+distingue i due casi.
+
+### Il verdetto, misurato
+
+| soglia | trovati/mese | 3 mesi | 6 mesi | 12 mesi |
+|---|---|---|---|---|
+| **sopra la mediana** (≥ 0) | 1.458 | +1,0% (59%) | **+1,7% (64%)** | +1,6% (61%) |
+| almeno +10 punti | 1.098 | +0,6% (58%) | +0,8% (57%) | +0,8% (56%) |
+| almeno +25 punti | 717 | +0,2% (51%) | +0,3% (51%) | −0,4% (48%) |
+| almeno +50 punti | 393 | −0,8% (45%) | −2,4% (35%) | **−4,4% (36%)** |
+
+**Stessa forma del criterio sul numero di azioni: il merito e' tutto alla soglia
+zero e stringere peggiora.** Ma qui e' piu' netto, perche' in cima il segno si
+ROVESCIA: a +50 punti il criterio perde nel 64% dei mesi e costa il 4,4% a
+dodici. Chi ha corso di piu' nell'ultimo anno tende a restituire.
+
+Quindi: **stai sopra la meta' del tuo settore, non in cima.**
+
+### E non e' quello che era stato chiesto
+
+Doveva avvertire di una crescita in arrivo. Dice chi sta GIA' correndo — e' il
+piu' retrospettivo dei quattro. Vale la pena tenerlo perche' misura bene, non
+perche' risponde alla domanda.
+
+### Il controllo nullo, rifatto apposta
+
+Il 17/09 si era scoperto che il metro misurava se stesso: ammettere chiunque
+*avesse* il dato dava gia' +15,2% a dodici mesi, piu' di qualunque criterio
+vero. Quindi qui e' stato rifatto: soglia a −10, cioe' «passa chiunque si possa
+misurare». Risposta: **nessun mese giudicabile**, perche' «il resto» resta vuoto
+e la guardia sui due minimi si rifiuta di emettere un verdetto. Il vantaggio
+alla soglia zero non e' l'artefatto di avere il dato.
+
+### Tre compromessi, tutti dichiarati
+
+1. **La serie e' mensile in entrambi i posti**, anche nello scanner dal vivo
+   dove tutto il resto si misura sulle sedute. La mediana di un settore su
+   sedute vorrebbe dire leggere i prezzi giornalieri di undicimila titoli a ogni
+   scansione. L'alternativa peggiore — mediana mensile contro numero giornaliero
+   — avrebbe messo i due capi su date diverse, e a meta' mese in un mercato che
+   tira la differenza diventa un vantaggio che non c'entra col settore.
+2. **Il settore non ha storia.** L'anagrafica tiene quello di adesso, e il
+   rigioco applica al 2019 la classificazione di oggi. E' un look-ahead su
+   un'ETICHETTA, non su un risultato. Sta in `rigioco.nota_settori()`, che viene
+   restituita nel resoconto anche quando il criterio non e' usato.
+3. **Il titolo entra nella propria mediana.** Toglierlo vorrebbe dire una
+   mediana per titolo invece che una per settore: da mille a duecentomila. Col
+   minimo di venti membri pesa al massimo un ventesimo, e sui numeri veri — il
+   settore piu' magro di tutto lo storico e' Utilities nell'agosto 2019 con 71
+   titoli investibili — meno dell'1,5%.
+
+### Il buco trovato per strada
+
+Aggiungendolo alla pagina si e' scoperto che **la pagina dello scanner aveva
+dieci criteri su tredici**: mancavano l'accelerazione dei ricavi e il numero di
+azioni, cioe' proprio il risultato piu' forte e meglio campionato del rigioco.
+Lo stesso difetto gia' annotato nel sorgente per i ricavi annuali, ripetuto due
+volte. Adesso un test legge `routes/Scanner.svelte` e lo confronta con
+`scansione.CRITERI`: un criterio che esiste e non si puo' premere e' un criterio
+che non c'e'.
+
+---
+
+## La raffica di 8-K: l'indicatore che va letto al contrario
+
+*18/09/2026, quarto e ultimo dei quattro indicatori chiesti per «avvertire di
+una imminente crescita».*
+
+### Prima si e' misurato, poi si e' costruito
+
+Questa volta l'ordine e' stato quello giusto. Prima di scrivere una tabella
+derivata, un lavoro di build e un criterio, e' stato scritto uno script
+usa-e-getta che leggeva i conteggi da DuckDB e li incrociava con lo storico
+mensile. Se la risposta fosse stata «non funziona», il costo sarebbe stato
+un'ora invece di un giorno.
+
+### La risposta e' stata «funziona, ma non come credi»
+
+Sul gruppo IN raffica — chi deposita molto piu' del suo solito:
+
+| chi e' in raffica | 3 mesi | 6 mesi | 12 mesi |
+|---|---|---|---|
+| almeno 2x | −1,1% (38%) | −1,7% (39%) | −2,0% (32%) |
+| almeno 3x | −0,5% (44%) | −4,2% (31%) | −5,1% (30%) |
+
+Peggiora con l'orizzonte e con l'intensita'. **Le buone notizie arrivano nella
+trimestrale, le cattive arrivano in pila**: ristrutturazioni, cause, dirigenti
+che se ne vanno, finanziamenti diluitivi, avvisi di delisting. Un'acquisizione
+felice e' un 8-K; una societa' che va a pezzi ne deposita otto.
+
+Acceso al contrario, come esclusione, a 3,0x da' **+4,3% a sei mesi e +6,1% a
+dodici, vincendo il 68% e il 72% dei mesi** su 81-87 giudicabili. Escludere di
+piu' non e' meglio: a 1,2x il vantaggio quasi sparisce, perche' quella soglia
+butta fuori anche chi ha depositato un 8-K in piu' del solito. Il danno sta
+nelle raffiche estreme.
+
+Controllo nullo fatto: soglia a un miliardo da' **nessun mese giudicabile**.
+
+### Cosa contare *e'* l'indicatore
+
+Nell'indice dei depositi i **Form 4** — operazioni degli insider — sono il
+45,9% del totale, contro il 16,3% degli 8-K. Contare «i depositi» avrebbe
+misurato l'attivita' degli insider e l'avrebbe chiamata altro. E' la decisione
+piu' importante di tutto l'indicatore, e sta in una tupla di due elementi.
+
+### E il point-in-time, per una volta, viene gratis
+
+`filing_date` e' la data in cui il documento e' stato depositato. Contare i
+depositi per mese di deposito da' esattamente cio' che si sapeva allora: niente
+`publication_dates`, nessun ritardo stimato, nessun look-ahead da chiudere. E'
+l'unico dato del sistema che ha questa proprieta', perche' e' gia' una data di
+pubblicazione invece che una data di periodo.
+
+### Due difetti trovati costruendolo
+
+1. **Un modulo sovrascritto.** Il nuovo codice e' stato scritto in
+   `data/depositi.py`, che **esisteva gia'** e faceva un'altra cosa: leggere le
+   date di deposito dei bilanci di un titolo. La suite l'ha preso subito, e il
+   file e' tornato da git. Adesso il nuovo sta in `data/raffica.py`: due
+   domande diverse sulla stessa tabella di Defeatbeta, due moduli.
+2. **Una collisione di nomi dentro una funzione.** In `_candidati_del_mese` il
+   parametro `depositi` (i conteggi 8-K) veniva **sovrascritto** dieci righe
+   dopo da `voci, depositi = bilanci.get(...)` (le date di deposito). Dalla
+   seconda iterazione in poi la raffica risultava non calcolabile per quasi
+   tutti, e il rigioco rispondeva «nessun mese giudicabile» — senza nessun
+   errore, senza nessun log. Sarebbe passato per un risultato negativo se lo
+   script usa-e-getta non avesse gia' detto che l'effetto c'era.
+
+Il secondo e' il piu' istruttivo: **avere gia' la risposta da un'altra strada
+e' cio' che ha reso visibile il difetto.** Un risultato «negativo» prodotto da
+codice nuovo, senza un termine di paragone, sarebbe stato creduto.

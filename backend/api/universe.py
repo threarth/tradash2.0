@@ -13,7 +13,7 @@ from flask import Blueprint, request
 
 import config
 from api import fail, ok
-from data import fondamentali, universe
+from data import fondamentali, raffica, universe
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +107,25 @@ def storico_deriva():
     questo torna subito il `run_id`.
     """
     run_id = fondamentali.costruisci_prezzi_in_background()
+    return ok({"run_id": run_id, "stop": f"/api/ops/stop/{run_id}"})
+
+
+@bp.get("/depositi")
+def depositi_stato():
+    """Quanti 8-K per mese conosciamo, e fino a quando."""
+    return ok(raffica.stato())
+
+
+@bp.post("/depositi")
+def depositi_deriva():
+    """Conta gli 8-K di tutto l'universo, mese per mese. Parte solo da qui.
+
+    E' la tabella su cui poggia il criterio della raffica. Una lettura sola —
+    misurata in 6,4 secondi, 447.956 righe — ma torna comunque subito il
+    `run_id`, perche' anche un lavoro corto dev'essere visibile e fermabile
+    (regola 1).
+    """
+    run_id = raffica.costruisci_in_background()
     return ok({"run_id": run_id, "stop": f"/api/ops/stop/{run_id}"})
 
 

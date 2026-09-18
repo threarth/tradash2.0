@@ -1,6 +1,6 @@
 {
   "versione": 1,
-  "misurato_il": "2026-09-17T09:15:01+00:00",
+  "misurato_il": "2026-09-18T13:19:54+00:00",
   "soglie": {
     "capitalizzazione_minima": 300000000,
     "scambiato_minimo_al_giorno": 1000000,
@@ -54,7 +54,7 @@
           "mesi_utili": 37,
           "vinti": 27,
           "quota_vinti": 0.73,
-          "vantaggio": 0.0141,
+          "vantaggio": 0.0131,
           "trovati_per_mese": 432.4
         },
         "6": {
@@ -126,13 +126,71 @@
           "mesi_utili": 70,
           "vinti": 25,
           "quota_vinti": 0.357,
-          "vantaggio": -0.0311,
+          "vantaggio": -0.0295,
           "trovati_per_mese": 99.4
         }
       },
       "forma": "perde a tutti gli orizzonti",
       "vince": false,
       "mesi_giudicabili": 76
+    },
+    "batte_i_suoi_pari": {
+      "nome": "batte_i_suoi_pari",
+      "orizzonti": {
+        "3": {
+          "mesi_utili": 78,
+          "vinti": 46,
+          "quota_vinti": 0.59,
+          "vantaggio": 0.0102,
+          "trovati_per_mese": 1457.8
+        },
+        "6": {
+          "mesi_utili": 75,
+          "vinti": 48,
+          "quota_vinti": 0.64,
+          "vantaggio": 0.0165,
+          "trovati_per_mese": 1447.5
+        },
+        "12": {
+          "mesi_utili": 69,
+          "vinti": 42,
+          "quota_vinti": 0.609,
+          "vantaggio": 0.0164,
+          "trovati_per_mese": 1431.3
+        }
+      },
+      "forma": "vince a tutti gli orizzonti",
+      "vince": true,
+      "mesi_giudicabili": 75
+    },
+    "evita_i_guai": {
+      "nome": "evita_i_guai",
+      "orizzonti": {
+        "3": {
+          "mesi_utili": 78,
+          "vinti": 61,
+          "quota_vinti": 0.782,
+          "vantaggio": 0.0174,
+          "trovati_per_mese": 931.7
+        },
+        "6": {
+          "mesi_utili": 75,
+          "vinti": 68,
+          "quota_vinti": 0.907,
+          "vantaggio": 0.031,
+          "trovati_per_mese": 921.0
+        },
+        "12": {
+          "mesi_utili": 69,
+          "vinti": 66,
+          "quota_vinti": 0.957,
+          "vantaggio": 0.0842,
+          "trovati_per_mese": 902.1
+        }
+      },
+      "forma": "vince a tutti gli orizzonti",
+      "vince": true,
+      "mesi_giudicabili": 75
     },
     "numeri_che_girano": {
       "nome": "numeri_che_girano",
@@ -146,8 +204,8 @@
         },
         "6": {
           "mesi_utili": 32,
-          "vinti": 21,
-          "quota_vinti": 0.656,
+          "vinti": 20,
+          "quota_vinti": 0.625,
           "vantaggio": 0.0088,
           "trovati_per_mese": 108.6
         },

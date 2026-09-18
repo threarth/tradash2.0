@@ -32,12 +32,14 @@
     const stato = richiedi(() => api.universoStato());
     const bilanci = richiedi(() => api.fondamentaliStato());
     const storico = richiedi(() => api.storicoStato());
+    const depositi = richiedi(() => api.depositiStato());
 
     onMount(() => {
         elenco.ricarica();
         stato.ricarica();
         bilanci.ricarica();
         storico.ricarica();
+        depositi.ricarica();
     });
 
     /** Nome, settore, industria, paese, dipendenti, azioni in circolazione.
@@ -88,6 +90,19 @@
         }
     }
 
+    /** Conta gli 8-K di tutti i titoli, mese per mese. E' la tabella su cui
+        poggia il criterio della raffica — che si usa per ESCLUDERE, perche'
+        rigiocato dice che chi deposita molto piu' del solito va peggio. */
+    async function derivaDepositi() {
+        avvio = null;
+        try {
+            avvio = await api.depositiDeriva();
+            naviga("/operazioni");
+        } catch (problema) {
+            avvio = { errore: problema.message };
+        }
+    }
+
     function applicaFiltri(evento) {
         evento.preventDefault();
         elenco.ricarica();
@@ -97,10 +112,10 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">Universo</h1>
     <div class="d-flex gap-2">
-        <!-- Quattro derivazioni, quattro pulsanti. Costano cose diverse e
+        <!-- Cinque derivazioni, cinque pulsanti. Costano cose diverse e
              invecchiano a ritmi diversi: l'anagrafica ogni due settimane e
-             quasi gratis, i prezzi ogni giorno e 445 MB. Unirle vorrebbe dire
-             pagarle sempre tutte. -->
+             quasi gratis, i prezzi ogni giorno e 445 MB, i depositi sei
+             secondi. Unirle vorrebbe dire pagarle sempre tutte. -->
         <button class="btn btn-sm btn-outline-primary" onclick={derivaFondamentali}>
             <i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i>
             Deriva i bilanci
@@ -108,6 +123,10 @@
         <button class="btn btn-sm btn-outline-primary" onclick={derivaStorico}>
             <i class="bi bi-clock-history" aria-hidden="true"></i>
             Deriva lo storico
+        </button>
+        <button class="btn btn-sm btn-outline-primary" onclick={derivaDepositi}>
+            <i class="bi bi-files" aria-hidden="true"></i>
+            Deriva i depositi
         </button>
         <button class="btn btn-sm btn-outline-primary" onclick={costruisciAnagrafica}>
             <i class="bi bi-card-list" aria-hidden="true"></i> Anagrafica
@@ -117,6 +136,27 @@
         </button>
     </div>
 </div>
+
+<!-- I depositi 8-K per mese: la tabella su cui poggia il criterio della
+     raffica. Senza, quel criterio non passa per nessuno — e lo dice invece di
+     lasciare uno scanner che non trova niente senza spiegare perche'. -->
+<Riquadro richiesta={depositi} testoCaricamento="conto i depositi…">
+    {#snippet children(dati)}
+        {#if !dati.available}
+            <Assente titolo="I depositi 8-K non ci sono ancora"
+                     motivo={dati.reason} azione={dati.action} />
+        {:else}
+            <p class="small text-secondary">
+                Depositi derivati il {dati.costruita_il} ·
+                <strong class="numerico">{dati.titoli.toLocaleString("it")}</strong> titoli ·
+                <span class="numerico">{dati.righe.toLocaleString("it")}</span> mesi
+                fino a {dati.ultimo_mese} ·
+                <Testo testo="si contano solo i moduli {dati.forme_contate.join(' e ')}: i Form 4, cioe' le operazioni degli insider, sono il 45,9% dell'indice e coprirebbero tutto il resto." />
+                {#if dati.da_riderivare}· <span class="text-warning">{dati.reason}</span>{/if}
+            </p>
+        {/if}
+    {/snippet}
+</Riquadro>
 
 <!-- Lo storico mensile: la tabella su cui poggia il rigioco di un criterio.
      Senza, il pulsante «Ha mai funzionato?» nello scanner non ha niente da
