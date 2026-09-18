@@ -28,9 +28,17 @@
  *   della pagina che ha un colore tutto suo: un ticker si cerca con l'occhio
  *   prima di leggerlo.
  *
- * I numeri, sulle card: titoli 17,49, testo 16,74, la riga che spiega 13,93,
- * simboli 12,13, verde 9,10, rosso 6,50. La palette precedente (Mocha) stava rispettivamente a
+ * I numeri, sulle card: titoli 14,52, testo 13,90, la riga che spiega 10,18,
+ * simboli 10,52, verde 7,89, rosso 5,64. La palette precedente (Mocha) stava rispettivamente a
  * 8,69, 7,10, 9,89, 8,46 e 5,43 — e questa e' calda.
+ *
+ * Sono piu' bassi di prima **apposta**, ed e' la quinta correzione: il testo
+ * stava a 16,74 e i titoli a 17,49, cioe' quasi-bianco su quasi-nero, ed e' il
+ * contrasto massimo che si possa scrivere. Il massimo non e' il migliore —
+ * oltre una certa soglia il chiaro sul nero sfarfalla e le lettere si sporcano
+ * ai bordi. Il rimedio noto e' togliere gli estremi da tutt'e due i lati:
+ * alzare la superficie e abbassare il testo. Nessun valore scende sotto 5,64,
+ * contro un minimo di 4,5.
  *
  * I nomi delle variabili restano `--monitor-*`: cambiare anche quelli
  * vorrebbe dire toccare ottanta punti del foglio per un rinominare, e il
@@ -46,34 +54,44 @@
 :root {
     /* I colori del monitor, con i loro nomi. Le mappature su Bootstrap
        vengono dopo, cosi' si vede quale valore sta andando dove. */
-    /* Due livelli e non tre, e il salto e' piccolo apposta: la pagina e cio' che
-       ci sta sopra. Le card erano `stone-800` e sono scese a `stone-900` —
-       schiarire un riquadro per farlo notare costa contrasto a tutto quello che
-       ci sta dentro, e li' dentro c'e' il testo. Adesso la card si distingue per
-       un gradino appena piu' chiaro **e per il suo bordo**, che infatti e' stato
-       schiarito di un gradino a sua volta. */
+    /* Tre gradini, e adesso sono davvero tre. Erano due, con la card sullo
+       stesso `stone-900` della sezione: si staccava dal fondo di **1,13**, cioe'
+       per niente, e a tenerla insieme restava solo il bordo. Il motivo per cui
+       era stata abbassata era il contrasto del testo che ci sta dentro — ma quel
+       testo adesso e' sceso di un gradino anche lui, e lo spazio c'e'.
+
+       Cosa sta dove, e va rispettato: il FONDO e' la pagina, la SEZIONE e' cio'
+       che e' incassato (i campi da compilare, i riquadri secondari), il PANNELLO
+       e' cio' che sta sopra (le card, la barra in alto). Un campo dentro una card
+       e' piu' scuro della card: si vede che e' un buco, non una sporgenza. */
     --monitor-fondo: #0c0a09;      /* tailwind stone-950 */
     --monitor-sezione: #1c1917;    /* tailwind stone-900 */
-    --monitor-pannello: #1c1917;   /* tailwind stone-900 */
+    --monitor-pannello: #292524;   /* tailwind stone-800 */
     --monitor-linea: #57534e;      /* tailwind stone-600 */
 
+    /* La riga sorvolata dal mouse: un gradino SOPRA la card, se no dentro una
+       card non si vedrebbe. */
+    --monitor-sorvolo: #44403c;    /* tailwind stone-700 */
+
     /* Il testo e' `stone-100`, non bianco: il bianco puro su fondo scuro vibra.
+       Il commento lo diceva gia', ma il valore scritto sotto era `stone-50` e
+       i titoli erano `#ffffff` pieno — cioe' proprio la cosa che la riga qui
+       sopra dichiarava di non voler fare.
 
-       La scala del testo ha tre gradini e sono tutti chiari, perche' la gerarchia
-       la fanno gia' il corpo e il carattere — i titoli sono in serif e piu'
-       grandi, e non hanno bisogno anche del colore per distinguersi:
+         titoli      stone-50    14,52 sulle card
+         testo       stone-100   13,90
+         secondario  stone-300   10,18
 
-         titoli      bianco pieno   17,49 sulle card
-         testo       stone-50       16,74
-         secondario  stone-200      13,93
+       I tre gradini adesso si distinguono anche a occhio. Prima stavano fra
+       13,93 e 17,49: tutti e tre quasi-bianchi, e in una pagina di tabelle
+       fitte la riga che spiega gridava quanto il numero che commentava.
 
-       L'ultimo e' la riga che spiega, la piu' difficile da leggere di tutta
-       l'interfaccia per quattro palette di fila: era a 5,86 quando e' stata
-       segnalata la prima volta. Adesso e' quasi bianca anche lei, un gradino
-       appena sotto al testo pieno — abbastanza da non confondersi, non tanto da
-       diventare grigia. */
-    --monitor-testo: #fafaf9;      /* tailwind stone-50 */
-    --monitor-attenuato: #e7e5e4;  /* tailwind stone-200 */
+       Il secondario era arrivato a `stone-200` per una ragione buona — era a
+       5,86 e non si leggeva — ma il rimedio era andato lungo. A `stone-300`
+       sta a 10,18, che e' il doppio abbondante del minimo, e finalmente *sembra*
+       secondario. */
+    --monitor-testo: #f5f5f4;      /* tailwind stone-100 */
+    --monitor-attenuato: #d6d3d1;  /* tailwind stone-300 */
 
     /* L'accento e' il giallo di Gruvbox: si nota senza gridare, e non e' il
        ciano elettrico che hanno tutti i cruscotti. Il nome della variabile dice
@@ -101,6 +119,19 @@
     --monitor-ambra: #fbbf24;      /* tailwind amber-400 */
     --monitor-rosa: #fb7185;       /* tailwind rose-400 */
     --monitor-blu: #7dd3fc;        /* tailwind sky-300 */
+
+    /* Il tema chiaro non aveva un fondo suo: ereditava il **bianco puro** di
+       Bootstrap, luminanza 1,000, il valore piu' alto che uno schermo sappia
+       fare. Il nero caldo dell'altro tema era stato scelto con cura e il suo
+       gemello era rimasto il bianco di sistema. Adesso e' un bianco caldo, della
+       stessa famiglia dei grigi `stone`: le card restano bianche vere e si
+       staccano perche' sono piu' chiare della pagina, come nell'altro tema si
+       staccano perche' sono piu' scure. */
+    --monitor-fondo-chiaro: #faf8f5;
+    --monitor-carta-chiara: #ffffff;
+    --monitor-linea-chiara: #e7e2db;
+    --monitor-testo-chiaro: #292524;    /* tailwind stone-800 */
+    --monitor-attenuato-chiaro: #57534e; /* tailwind stone-600 */
 
     /* Su fondo chiaro gli stessi toni servono piu' scuri, o spariscono. */
     --monitor-ciano-scuro: #8a6414;
@@ -180,12 +211,13 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     --bs-body-bg: var(--monitor-fondo);
     --bs-body-bg-rgb: 12, 10, 9;
     --bs-body-color: var(--monitor-testo);
-    --bs-body-color-rgb: 250, 250, 249;
-    --bs-emphasis-color: #ffffff;
+    --bs-body-color-rgb: 245, 245, 244;
+    --bs-emphasis-color: var(--monitor-testo);
 
     --bs-secondary-color: var(--monitor-attenuato);
-    --bs-secondary-color-rgb: 231, 229, 228;
-    --bs-secondary-bg: var(--monitor-pannello);
+    --bs-secondary-color-rgb: 214, 211, 209;
+    /* Incassato, non sporgente: e' il fondo di cio' che sta DENTRO una card. */
+    --bs-secondary-bg: var(--monitor-sezione);
     --bs-tertiary-bg: var(--monitor-sezione);
     --bs-border-color: var(--monitor-linea);
     --bs-border-color-translucent: var(--monitor-linea);
@@ -216,15 +248,30 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     --bs-success-text-emphasis: var(--monitor-verde);
     --bs-info-text-emphasis: var(--monitor-blu);
 
-    /* I titoli sono l'unico bianco pieno della pagina: un gradino sopra al
-       testo, non due. La differenza si vede appena — 17,49 contro 16,74 — ed e'
-       giusto cosi', perche' a distinguerli ci pensano gia' il serif e il corpo. */
-    --bs-heading-color: #ffffff;
+    /* I titoli stanno un gradino sopra al testo, non due, perche' a distinguerli
+       ci pensano gia' il serif e il corpo. Non sono piu' bianco pieno: era
+       l'unico `#ffffff` rimasto in una palette che nel suo stesso commento
+       diceva che il bianco puro vibra. */
+    --bs-heading-color: var(--monitor-testo);
 }
 
 /* --- tema chiaro: gli stessi toni, scuriti quanto basta ---------------- */
 
 [data-bs-theme="light"] {
+    --bs-body-bg: var(--monitor-fondo-chiaro);
+    --bs-body-bg-rgb: 250, 248, 245;
+    --bs-body-color: var(--monitor-testo-chiaro);
+    --bs-body-color-rgb: 41, 37, 36;
+    --bs-emphasis-color: #1c1917;
+    --bs-heading-color: #1c1917;
+
+    --bs-secondary-color: var(--monitor-attenuato-chiaro);
+    --bs-secondary-color-rgb: 87, 83, 78;
+    --bs-secondary-bg: #f0ece5;
+    --bs-tertiary-bg: #f5f2ec;
+    --bs-border-color: var(--monitor-linea-chiara);
+    --bs-border-color-translucent: var(--monitor-linea-chiara);
+
     --bs-primary: var(--monitor-ciano-scuro);
     --bs-primary-rgb: 10, 111, 150;
     --bs-success: var(--monitor-verde-scuro);
@@ -348,17 +395,39 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     --bs-card-border-color: var(--monitor-linea);
 }
 
+/* Nel tema chiaro le card sono bianche vere: si staccano perche' sono piu'
+   CHIARE della pagina, esattamente al contrario dell'altro tema. */
+[data-bs-theme="light"] .card {
+    --bs-card-bg: var(--monitor-carta-chiara);
+    --bs-card-border-color: var(--monitor-linea-chiara);
+}
+
+[data-bs-theme="light"] .navbar,
+[data-bs-theme="light"] .bg-body-tertiary {
+    background: var(--monitor-carta-chiara) !important;
+    border-bottom: 1px solid var(--monitor-linea-chiara);
+}
+
+[data-bs-theme="light"] .table {
+    --bs-table-bg: transparent;
+    --bs-table-border-color: var(--monitor-linea-chiara);
+    --bs-table-hover-bg: #f0ece5;
+}
+
 [data-bs-theme="dark"] .table {
     --bs-table-bg: transparent;
     --bs-table-color: var(--monitor-testo);
     --bs-table-border-color: var(--monitor-linea);
-    --bs-table-hover-bg: var(--monitor-pannello);
+    --bs-table-hover-bg: var(--monitor-sorvolo);
     --bs-table-hover-color: var(--monitor-testo);
 }
 
+/* Incassati: un gradino sotto la card, non uguale a lei. Prima erano
+   `--monitor-pannello`, cioe' esattamente il fondo su cui poggiavano, e a
+   delimitarli restava il solo bordo. */
 [data-bs-theme="dark"] .form-control,
 [data-bs-theme="dark"] .form-select {
-    background-color: var(--monitor-pannello);
+    background-color: var(--monitor-sezione);
     border-color: var(--monitor-linea);
     color: var(--monitor-testo);
 }
