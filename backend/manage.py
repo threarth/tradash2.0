@@ -31,11 +31,26 @@ EXIT_ABORTED = 1
 
 
 def comando_check() -> int:
-    """Mostra dove sta il database e quali tabelle contiene."""
+    """Mostra dove sta il database, cosa contiene, e se e' indietro sullo schema."""
     schema.ensure_schema()
     print(f"database: {config.DB_PATH}")
     for tabella in schema.tables():
         print(f"  - {tabella}")
+
+    # `CREATE TABLE IF NOT EXISTS` non aggiunge colonne a una tabella che
+    # esiste gia': senza questo controllo, schema.sql e il database vero
+    # divergono senza che nessuno lo veda.
+    mancanti = schema.divergenze()
+    if mancanti:
+        print("\nATTENZIONE — il database non combacia con schema.sql:")
+        for problema in mancanti:
+            print(f"  - {problema}")
+        print("Si rimedia con un ALTER TABLE scelto da chi sa cosa c'e' dentro, "
+              "oppure con `manage.py rebuild` (che pero' cancella referti e "
+              "registri, e rilegge tutto da capo).")
+        return EXIT_ABORTED
+
+    print("\nschema allineato: colonne e vincoli combaciano")
     return EXIT_OK
 
 
