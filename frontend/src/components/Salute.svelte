@@ -180,19 +180,19 @@
             </div>
         {/if}
 
+        <!-- La cascata e la sua tabella sono la stessa cosa detta due volte: la
+             forma si guarda, i numeri esatti si leggono. Erano due blocchi con
+             lo STESSO titolo, e due titoli uguali di fila si leggono come una
+             ripetizione, non come due gesti diversi. -->
         {#if d.dall_utile_alla_cassa.length}
-            <div class="mb-4">
+            <div class="mt-4">
                 <div class="fw-semibold small mb-2">Dall'utile alla cassa</div>
-                <Cascata ponte={d.dall_utile_alla_cassa} />
-            </div>
-        {/if}
-
-        {#if d.dall_utile_alla_cassa.length}
-            <div class="mt-3">
-                <div class="fw-semibold small mb-1">Dall'utile alla cassa</div>
                 <p class="small text-secondary">
                     <Testo testo="L'utile e la cassa non sono la stessa cosa. «Altro» e' il residuo — investimenti, imposte, il resto: se e' grande, e' proprio quello da guardare." />
                 </p>
+                <Cascata ponte={d.dall_utile_alla_cassa} />
+
+                <div class="fw-semibold small mt-3 mb-1">Trimestre per trimestre</div>
                 <div class="table-responsive">
                     <table class="table table-sm small mb-0">
                         <thead>
