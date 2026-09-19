@@ -291,8 +291,13 @@ def chiusure_mensili(simboli: list[str] | None = None) -> dict[str, dict[str, fl
     return per_simbolo
 
 
-def mercato_mensile() -> dict[str, dict[str, dict]]:
-    """`{simbolo: {mese: {chiusura, volume_medio, capitalizzazione}}}`.
+def mercato_mensile(simboli: list[str] | None = None) -> dict[str, dict[str, dict]]:
+    """`{simbolo: {mese: {chiusura, volume_medio, capitalizzazione}}}`. Senza elenco, tutti.
+
+    L'elenco c'e' per lo scanner dal vivo, che ne vuole solo le azioni in
+    circolazione dei titoli che sta scandagliando: leggere 790 mila righe per
+    usarne qualche centinaio sarebbe la lettura sbagliata. Il rigioco invece le
+    vuole tutte, e chiama senza elenco.
 
     E' `chiusure_mensili()` con accanto cio' che serve a dire se un titolo, IN
     QUEL MESE, era abbastanza grande e abbastanza scambiato da poterlo comprare.
@@ -304,10 +309,19 @@ def mercato_mensile() -> dict[str, dict[str, dict]]:
     misurato il 15/09/2026 — e li' non e' assente, e' non derivabile.
     """
     with db_read() as conn:
-        righe = conn.execute(
-            "SELECT symbol, mese, chiusura, volume_medio, azioni "
-            "FROM universe_prezzi_mensili ORDER BY symbol, mese"
-        ).fetchall()
+        if simboli:
+            segnaposti = ", ".join("?" for _ in simboli)
+            righe = conn.execute(
+                f"SELECT symbol, mese, chiusura, volume_medio, azioni "
+                f"FROM universe_prezzi_mensili WHERE symbol IN ({segnaposti}) "
+                f"ORDER BY symbol, mese",
+                [s.strip().upper() for s in simboli],
+            ).fetchall()
+        else:
+            righe = conn.execute(
+                "SELECT symbol, mese, chiusura, volume_medio, azioni "
+                "FROM universe_prezzi_mensili ORDER BY symbol, mese"
+            ).fetchall()
 
     per_simbolo: dict[str, dict[str, dict]] = {}
     for riga in righe:

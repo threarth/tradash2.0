@@ -19,6 +19,7 @@ nel log delle chiamate con la provenienza.
 import logging
 import queue
 import threading
+from dataclasses import dataclass
 from datetime import date
 
 import config
@@ -124,6 +125,79 @@ def _mese_del_taglio(fino_a: str | None) -> str | None:
     return fino_a[:7] if fino_a else None
 
 
+@dataclass(frozen=True)
+class Contesto:
+    """Cio' che la scansione legge UNA volta, prima di guardare un titolo solo.
+
+    Sono le misure che non stanno nei prezzi giornalieri del titolo: il
+    paragone col settore, i depositi 8-K, il numero di azioni mese per mese.
+    Stavano sciolti dentro al giro, e ogni indicatore nuovo ne aggiungeva uno:
+    e' lo stesso percorso che aveva portato `_misura_mese` del rigioco a sette
+    argomenti.
+
+    **Il numero di azioni mancava del tutto.** Lo riempiva solo il rigioco, e
+    qui nessuno: `azioni_variazione_massima` — il criterio piu' solido di tutto
+    il progetto, 88-96% dei mesi vinti — dal vivo risultava non calcolabile
+    per chiunque, e non passava mai. Chi lo metteva nello scanner otteneva zero
+    risultati senza una parola, e il preset «Evita i guai», che lo contiene,
+    non trovava niente.
+    """
+    settore: dict        # il riferimento di `settori.riferimenti()`
+    depositi_8k: dict    # {simbolo: {mese: quanti 8-K}}
+    mensili: dict        # {simbolo: {mese: {azioni, ...}}}
+    mese: str | None     # il mese a cui si ancorano depositi e azioni
+
+
+def _contesto(simboli: list[str], fino_a: str | None) -> Contesto:
+    """Tutte le letture che non sono i prezzi del singolo titolo, in un punto solo.
+
+    L'ancora e' il mese del taglio, oppure l'ultimo che lo storico mensile
+    copre — non la data di oggi: se la derivazione e' vecchia di un mese,
+    contare fino a oggi metterebbe un vuoto al posto di un mese che nessuno ha
+    ancora letto. Il mese in corso e' parziale: la raffica esce semmai
+    SOTTOSTIMATA, e per un filtro di esclusione e' il verso prudente.
+    """
+    taglio = _mese_del_taglio(fino_a)
+    depositi_8k = raffica.per_mese(simboli)
+    mensili = fondamentali_universo.mercato_mensile(simboli)
+    ultimo = max((m for serie in (*depositi_8k.values(), *mensili.values())
+                  for m in serie), default=None)
+    return Contesto(settore=settori.riferimenti(taglio), depositi_8k=depositi_8k,
+                    mensili=mensili, mese=taglio or ultimo)
+
+
+def _misura_titolo(simbolo: str, chiusure: list, volumi: list,
+                   contesto: Contesto, fino_a: str | None) -> dict:
+    """Tutte le misure di un titolo: quelle dei suoi prezzi e quelle del contesto.
+
+    Ogni criterio di `scansione.CRITERI` legge una casella di questo
+    dizionario. Un test della suite le passa tutte e controlla che nessuna
+    resti vuota: il difetto del numero di azioni non si vedeva da nessuna
+    parte, perche' un criterio su una casella vuota non da' errore — non passa.
+    """
+    misurato = scansione.misure(chiusure, volumi)
+    misurato["fondamentali"] = _fondamentali(simbolo, fino_a)
+
+    # Azioni e depositi hanno la loro storia nelle tabelle mensili: senza un
+    # mese a cui ancorarli non c'e' niente da confrontare, e valgono vuoti.
+    if contesto.mese:
+        misurato["azioni"] = scansione.azioni(
+            contesto.mensili.get(simbolo, {}), contesto.mese)
+        misurato["depositi"] = scansione.depositi(
+            contesto.depositi_8k.get(simbolo, {}), contesto.mese)
+    else:
+        misurato["azioni"], misurato["depositi"] = None, {"raffica": None}
+
+    # La forza relativa ha i suoi due capi nella serie giornaliera di TUTTI:
+    # il perche' sta in `data/settori.py`, e in breve e' che il titolo e la
+    # mediana del settore devono avere le stesse date.
+    settore = contesto.settore
+    misurato["settore"] = scansione.forza_settore(
+        settore["variazioni"].get(simbolo),
+        settore["riferimenti"].get(settore["settori"].get(simbolo)))
+    return misurato
+
+
 def _scandaglia(lavoro, simboli: list[str], criteri: dict, fino_a: str | None) -> dict:
     """Il giro vero e proprio: un titolo alla volta, fermabile a ogni passo.
 
@@ -134,33 +208,14 @@ def _scandaglia(lavoro, simboli: list[str], criteri: dict, fino_a: str | None) -
     tu, che e' un'altra frase.
     """
     trovati, senza_dati = [], []
-    mese = _mese_del_taglio(fino_a)
-    settore = settori.riferimenti(mese)
-    # I depositi di tutti, in una lettura sola. L'ancora e' l'ultimo mese che la
-    # tabella copre, non la data di oggi: se la derivazione e' vecchia di un
-    # mese, contare fino a oggi metterebbe uno zero al posto di un mese che
-    # nessuno ha ancora letto. Il mese in corso e' parziale, quindi la raffica
-    # esce semmai SOTTOSTIMATA — e per un filtro di esclusione e' il verso
-    # prudente: esclude meno, non di piu'.
-    depositi = raffica.per_mese(simboli)
-    mese_depositi = mese or max((m for s in depositi.values() for m in s), default=None)
+    contesto = _contesto(simboli, fino_a)
 
     for simbolo in simboli:
         chiusure, volumi = _chiusure(simbolo, fino_a, lavoro.run_id)
         if not chiusure:
             senza_dati.append(simbolo)
         else:
-            misurato = scansione.misure(chiusure, volumi)
-            misurato["fondamentali"] = _fondamentali(simbolo, fino_a)
-            # La forza relativa ha i suoi due capi nella serie MENSILE, non
-            # nelle sedute: il perche' sta in `data/settori.py`, e in breve e'
-            # che il titolo e la mediana del settore devono avere le stesse date.
-            misurato["depositi"] = (
-                scansione.depositi(depositi.get(simbolo, {}), mese_depositi)
-                if mese_depositi else {"raffica": None})
-            misurato["settore"] = scansione.forza_settore(
-                settore["variazioni"].get(simbolo),
-                settore["riferimenti"].get(settore["settori"].get(simbolo)))
+            misurato = _misura_titolo(simbolo, chiusure, volumi, contesto, fino_a)
             soddisfa, perche = scansione.valuta(misurato, criteri)
             if soddisfa:
                 trovati.append({"symbol": simbolo, "perche": perche,
@@ -174,9 +229,9 @@ def _scandaglia(lavoro, simboli: list[str], criteri: dict, fino_a: str | None) -
         "trovati": trovati,
         "senza_dati": senza_dati,
         "paragone_settore": {
-            "base": settore["base"],
-            "ancora": settore["ancora"],
-            "settori": len(settore["riferimenti"]),
+            "base": contesto.settore["base"],
+            "ancora": contesto.settore["ancora"],
+            "settori": len(contesto.settore["riferimenti"]),
         },
     }
 
